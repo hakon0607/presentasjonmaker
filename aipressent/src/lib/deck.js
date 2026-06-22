@@ -309,16 +309,25 @@ export const PRESET_THEMES = [
 const lowc = (s) => String(s || '').toLowerCase()
 function buildColorMap(o, n) {
   const m = {}
-  const add = (a, b) => { if (a && b) m[lowc(a)] = b }
-  add(o.bg, n.bg); add(o.title, n.title); add(o.text, n.text); add(o.accent, n.accent)
+  const add = (a, b) => { if (a && b && lowc(a) !== lowc(b)) m[lowc(a)] = b }
+  // IKKE map noe til ny bakgrunn (ellers kan tekst bli usynlig mot bakgrunnen)
+  add(o.title, n.title); add(o.text, n.text); add(o.accent, n.accent)
   ;[0.4, 0.45, 0.5].forEach((t) => add(mix(o.accent, '#ffffff', t), mix(n.accent, '#ffffff', t)))
   ;[0.2, 0.22, 0.25].forEach((t) => add(mix(o.accent, '#000000', t), mix(n.accent, '#000000', t)))
   return m
 }
-function recolorEl(el, map, fontMap) {
+// Sikrer at en farge er godt nok forskjellig fra bakgrunnen til å være lesbar
+function lum(hex) { const v = String(hex || '').replace('#', ''); if (v.length !== 6) return 0.5; const r = parseInt(v.slice(0, 2), 16) / 255, g = parseInt(v.slice(2, 4), 16) / 255, b = parseInt(v.slice(4, 6), 16) / 255; return 0.2126 * r + 0.7152 * g + 0.0722 * b }
+function readableOn(color, bg, fallback) { return Math.abs(lum(color) - lum(bg)) < 0.22 ? fallback : color }
+function recolorEl(el, map, fontMap, bg) {
   const c = (v) => (v && map[lowc(v)]) || v
   const out = { ...el }
-  if (el.color) out.color = c(el.color)
+  if (el.color) {
+    let nc = c(el.color)
+    // Sørg for at TEKST aldri blir usynlig mot den nye bakgrunnen
+    if (el.type === 'text' && bg) nc = readableOn(nc, bg, lum(bg) > 0.5 ? '#1a1a1a' : '#ffffff')
+    out.color = nc
+  }
   if (el.fill && el.fill !== 'transparent') out.fill = c(el.fill)
   if (el.stroke) out.stroke = c(el.stroke)
   if (el.highlight) out.highlight = c(el.highlight)
@@ -337,9 +346,10 @@ export function applyTheme(deck, newTheme, scope, idx) {
     const fontMap = {}
     if (from.fontHead) fontMap[lowc(from.fontHead)] = nt.fontHead
     if (from.fontBody) fontMap[lowc(from.fontBody)] = nt.fontBody
-    // ALDRI kast elementer: behold all tekst, bilder, figurer og alt brukeren har lagt til – bytt bare farger/fonter
-    const content = s.elements.filter((e) => !e.decor).map((el) => recolorEl(el, map, fontMap))
-    // bygg KUN pynten (bakteppet) på nytt med ny stil + nye farger
+    // Behold alt innhold (tekst, bilder, brukerens egne ting) OG figur-ikoner (dekor-bilder) – bytt bare farger/fonter
+    const keep = s.elements.filter((e) => !e.decor || e.type === 'image')
+    const content = keep.map((el) => recolorEl(el, map, fontMap, nt.bg))
+    // Bygg KUN den geometriske pynten (bakteppet) på nytt med ny stil + nye farger
     const big = s.layout ? (s.layout === 'cover' || s.layout === 'section')
       : (Math.max(0, ...s.elements.filter((e) => e.type === 'text').map((e) => e.fontSize || 0)) >= 42)
     const decor = autoBackdrop(nt, big, useStyleFor(s), i)
