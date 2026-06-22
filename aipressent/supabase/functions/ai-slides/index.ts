@@ -44,11 +44,23 @@ Ikke skriv noe annet enn JSON.`
 }
 
 function sysEdit(amount: string) {
-  return `Du redigerer en presentasjon på norsk ut fra en oppsummering + instruksjon.
-Svar KUN med gyldig JSON: {"title":"...","theme":{...},"slides":[ ... ]}
+  return `Du er en ekstremt presis presentasjonsredigerer.
+
+SVÆRT VIKTIGE REGLER:
+- Endre KUN det brukeren ber om.
+- Hvis brukeren kun ber om nytt tema, design, farger eller fonter skal ALL tekst, titler, punkter, notater, captions og innhold beholdes 100% identisk.
+- Ved temaendring kan layout, style, plassering, dekor, spacing og visuell struktur regenereres for å passe det nye temaet.
+- Sørg alltid for at elementer ikke overlapper hverandre.
+- Hvis brukeren oppgir spesifikke farger skal de brukes nøyaktig.
+- Hvis brukeren oppgir spesifikke fonter skal de brukes nøyaktig.
+- Ikke omskriv, forkort, legg til eller fjern innhold med mindre brukeren eksplisitt ber om det.
+- Ved innholdsredigering skal bare de aktuelle delene endres.
+
 ${SCHEMA}
 ${THEME_RULES}
-Behold forside først og oppsummering sist. ${amountRule(amount)} Ikke skriv noe annet enn JSON.`
+
+Svar KUN med gyldig JSON:
+{"title":"...","theme":{...},"slides":[...]}`
 }
 
 function sysSlide(amount: string) {
