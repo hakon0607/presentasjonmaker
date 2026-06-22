@@ -288,6 +288,33 @@ function buildSlide(s, th, slideIdx = 0) {
   return { id: genId(), background: th.bg, elements: els, notes: typeof s.notes === 'string' ? s.notes : '', anim: { transition: trans }, layout: L, style: s.style || 'corners' }
 }
 
+// Måler hvor høy en tekstboks må være for å romme teksten ved gitt bredde/font/størrelse
+export function measureTextHeight(el) {
+  if (typeof document === 'undefined' || !el || el.type !== 'text') return el?.h
+  const d = document.createElement('div')
+  d.style.cssText = 'position:absolute;visibility:hidden;left:-9999px;top:-9999px;box-sizing:border-box;white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word;padding:0'
+  d.style.width = (el.w || 200) + 'px'
+  d.style.fontFamily = `'${el.fontFamily}', sans-serif`
+  d.style.fontSize = (el.fontSize || 24) + 'px'
+  d.style.fontWeight = el.bold ? '700' : '400'
+  d.style.fontStyle = el.italic ? 'italic' : 'normal'
+  d.style.lineHeight = String(el.lineHeight || 1.3)
+  d.style.letterSpacing = (el.letterSpacing || 0) + 'px'
+  d.style.textAlign = el.align || 'left'
+  d.textContent = (el.text && String(el.text).length) ? String(el.text) : 'Xg'
+  document.body.appendChild(d)
+  const h = Math.ceil(d.getBoundingClientRect().height)
+  document.body.removeChild(d)
+  return Math.max(el.fontSize || 24, h + 2)
+}
+// Returnerer en tekstboks med høyde tilpasset innholdet (uten å flytte utenfor lerretet)
+export function fitTextBox(el) {
+  if (!el || el.type !== 'text') return el
+  const h = measureTextHeight(el)
+  const y = Math.max(0, Math.min(540 - h, el.y))
+  return { ...el, h, y }
+}
+
 export function slidesFromAi(aiSlides, theme = 'minimal') {
   const th = asTheme(theme)
   return (aiSlides || []).map((s, i) => buildSlide(s, th, i))

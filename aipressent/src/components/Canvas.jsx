@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { CW, CH } from '../lib/deck'
+import { CW, CH, fitTextBox } from '../lib/deck'
 import ShapeInner from './ShapeInner'
 
 const esc = (t) => (t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -180,7 +180,7 @@ export default function Canvas({ slide, onChange, selectedId, setSelectedId, sel
               <div className="el-text" contentEditable={editing} suppressContentEditableWarning
                 spellCheck={editing} lang="nb"
                 ref={(n) => { if (n && editing) placeCaret(n) }}
-                onBlur={(ev) => { updateEl(el.id, { text: ev.currentTarget.innerText }); setEditingId(null); focusedId.current = null; editPoint.current = null }}
+                onBlur={(ev) => { const text = ev.currentTarget.innerText; const fitted = fitTextBox({ ...el, text }); updateEl(el.id, { text, h: fitted.h, y: fitted.y }); setEditingId(null); focusedId.current = null; editPoint.current = null }}
                 style={{ fontFamily: `'${el.fontFamily}', sans-serif`, fontSize: el.fontSize * scale, color: el.color,
                   fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? 'italic' : 'normal',
                   textDecoration: el.underline ? 'underline' : 'none', textAlign: el.align, lineHeight: el.lineHeight,

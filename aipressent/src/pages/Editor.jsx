@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { THEMES, blankSlide, textEl, imageEl, shapeEl, tableEl, genId, slidesFromAi, normalizeTheme, CW, CH, applyTheme } from '../lib/deck'
+import { THEMES, blankSlide, textEl, imageEl, shapeEl, tableEl, genId, slidesFromAi, normalizeTheme, CW, CH, applyTheme, fitTextBox } from '../lib/deck'
 import { SILHOUETTES, SIL_CATS, SCENES } from '../lib/silhouettes'
 import { exportPptx, exportPdf, pptxBlob } from '../lib/export'
 import { importToGoogleSlides, googleConfigured, loadGis } from '../lib/gslides'
@@ -48,7 +48,8 @@ export default function Editor() {
     if (sp.get('tour') === '1') { setTourOpen(true); sp.delete('tour'); setSp(sp, { replace: true }) }
   }, [])
   const [aiSlideOpen, setAiSlideOpen] = useState(false)
-  const [editSlideOpen, setEditSlideOpen] = useState(false)
+  const [visualOpen, setVisualOpen] = useState(false)
+  const [fontOpen, setFontOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [aiImgEl, setAiImgEl] = useState(null)
   const [webImgEl, setWebImgEl] = useState(null)
@@ -197,26 +198,69 @@ export default function Editor() {
   const sel = slide.elements.find((e) => e.id === selId) || null
 
   function setSlide(ns) { apply({ ...deck, slides: deck.slides.map((s, i) => (i === idx ? ns : s)) }) }
-  // Bruk AI-endringer per element (fra "Endre lysbildet")
-  function applyEditChanges(changes) {
-    const byId = {}
-    ;(changes || []).forEach((c) => { if (c && c.id) byId[c.id] = c })
+  // Visuell AI: tema (på valgt scope) + flytt/endre/slett/legg til elementer (på dette lysbildet)
+  function applyVisual(data, scope, themeScope) {
     const clamp = (el) => {
       const o = { ...el }
-      o.w = Math.max(20, Math.min(960, o.w)); o.h = Math.max(16, Math.min(540, o.h))
-      o.x = Math.max(0, Math.min(960 - o.w, o.x)); o.y = Math.max(0, Math.min(540 - o.h, o.y))
+      o.w = Math.max(20, Math.min(CW, o.w || 100)); o.h = Math.max(16, Math.min(CH, o.h || 40))
+      o.x = Math.max(0, Math.min(CW - o.w, o.x || 0)); o.y = Math.max(0, Math.min(CH - o.h, o.y || 0))
       return o
     }
-    setSlide({ ...slide, elements: slide.elements.map((el) => {
-      const c = byId[el.id]
-      if (!c) return el
-      const { id, type, ...patch } = c
-      return clamp({ ...el, ...patch })
-    }) })
+    const removeSet = new Set((data.remove || []).filter(Boolean))
+    const byId = {}
+    ;(data.changes || []).forEach((c) => { if (c && c.id) byId[c.id] = c })
+    // Bygg nye elementer fra add[]
+    const added = (data.add || []).map((a) => {
+      if (!a || !a.type) return null
+      if (a.type === 'text') { const e = textEl({ ...a }); return clamp(fitTextBox(e)) }
+      if (a.type === 'shape') return clamp(shapeEl({ ...a }))
+      if (a.type === 'image') return clamp(imageEl({ ...a }))
+      return null
+    }).filter(Boolean)
+    // Endre dette lysbildet: fjern, patch, legg til
+    let newSlide = { ...slide, elements: [
+      ...slide.elements.filter((el) => !removeSet.has(el.id)).map((el) => {
+        const c = byId[el.id]
+        if (!c) return el
+        const { id, type, ...patch } = c
+        let merged = { ...el, ...patch }
+        if (el.type === 'text' && patch.h == null && (patch.fontSize != null || patch.text != null || patch.bold != null)) merged = fitTextBox(merged)
+        return clamp(merged)
+      }),
+      ...added,
+    ] }
+    let nextDeck = { ...deck, slides: deck.slides.map((s, i) => (i === idx ? newSlide : s)) }
+    // Tema (farger/stil) på valgt scope
+    if (data.theme) nextDeck = applyTheme(nextDeck, normalizeTheme(data.theme), themeScope, idx)
+    apply(nextDeck)
+  }
+  // Font AI: bytt fonter (tema-fonter på valgt scope, og/eller per element på dette lysbildet)
+  function applyFont(data, scope) {
+    let nextDeck = deck
+    if (data.theme) {
+      // Bare fontene fra temaet – behold resten av nåværende tema
+      const t = { ...deck.theme }
+      if (data.theme.fontHead) t.fontHead = data.theme.fontHead
+      if (data.theme.fontBody) t.fontBody = data.theme.fontBody
+      nextDeck = applyTheme(nextDeck, normalizeTheme(t), scope, idx)
+    }
+    const byId = {}
+    ;(data.changes || []).forEach((c) => { if (c && c.id && c.fontFamily) byId[c.id] = c.fontFamily })
+    if (Object.keys(byId).length) {
+      nextDeck = { ...nextDeck, slides: nextDeck.slides.map((s, i) => (i === idx ? { ...s, elements: s.elements.map((el) => (byId[el.id] ? fitTextBox({ ...el, fontFamily: byId[el.id] }) : el)) } : s)) }
+    }
+    apply(nextDeck)
   }
   function updateSel(patch) {
     if (!sel) return
-    setSlide({ ...slide, elements: slide.elements.map((e) => (e.id === sel.id ? { ...e, ...patch } : e)) })
+    // Auto-tilpass tekstboksens høyde når skrift/størrelse/innhold endres (men ikke når brukeren selv drar i størrelsen)
+    const fitKeys = ['fontSize', 'fontFamily', 'bold', 'italic', 'lineHeight', 'letterSpacing', 'text', 'align']
+    const shouldFit = sel.type === 'text' && patch.w == null && patch.h == null && Object.keys(patch).some((k) => fitKeys.includes(k))
+    setSlide({ ...slide, elements: slide.elements.map((e) => {
+      if (e.id !== sel.id) return e
+      const merged = { ...e, ...patch }
+      return shouldFit ? fitTextBox(merged) : merged
+    }) })
   }
   function addText() {
     const th = deck.theme || THEMES.minimal
@@ -590,7 +634,8 @@ export default function Editor() {
             <button onClick={() => moveSlide(1)} title="Flytt ned" disabled={idx === deck.slides.length - 1}><ChevronDown size={16} /></button>
             <button onClick={dupSlide} title="Dupliser"><Copy size={16} /></button>
             <button onClick={delSlide} title="Slett lysbilde" disabled={deck.slides.length === 1}><Trash2 size={16} /></button>
-            {aiEnabled && <button onClick={() => setEditSlideOpen(true)} title="Endre med AI – farger, font, tema, flytt/bytt om på ting" className="wand"><Wand2 size={16} /></button>}
+            {aiEnabled && <button onClick={() => setVisualOpen(true)} title="Visuell AI – farger, tema, bakgrunn, flytting og nye elementer" className="wand"><Palette size={16} /></button>}
+            {aiEnabled && <button onClick={() => setFontOpen(true)} title="Font AI – endrer bare skrifttyper" className="wand"><span style={{ fontWeight: 800, fontSize: 15, lineHeight: 1 }}>Aa</span></button>}
           </div>
 
           <div className="notes" data-tour="notes">
@@ -646,7 +691,8 @@ export default function Editor() {
       )}
       {shareMsg && <div className="toast">{shareMsg}</div>}
       {shareOpen && <ShareModal id={id} title={deck.title} onClose={() => setShareOpen(false)} />}
-      {editSlideOpen && <EditSlideModal slide={slide} deck={deck} idx={idx} onApply={applyEditChanges} onApplyTheme={apply} onClose={() => setEditSlideOpen(false)} />}
+      {visualOpen && <VisualModal slide={slide} deck={deck} onApply={applyVisual} onClose={() => setVisualOpen(false)} />}
+      {fontOpen && <FontModal slide={slide} deck={deck} onApply={applyFont} onClose={() => setFontOpen(false)} />}
       {tourOpen && <Tour onClose={() => setTourOpen(false)} steps={[
         { sel: '[data-tour="toolbar"]', title: 'Verktøylinja', text: 'Her legger du til tekst, bilder, figurer, stickers og tabeller. Klikk et bildefelt for å «Søke på nett», laste opp eget bilde, eller lage med AI. Helt til høyre er «enkel visning» som gjemmer de sjeldne knappene.' },
         { sel: '[data-tour="anim"]', title: 'Animasjon', text: 'Åpne animasjonspanelet (du kan dra det rundt). Klikk et objekt → «Legg til valgt». Velg «Med forrige» (samtidig) eller «Etter forrige» (i rekkefølge), dra radene for å endre rekkefølge, og «Spill av» for å se det.' },
@@ -901,13 +947,22 @@ function WebImageModal({ el, onClose, onSearch, onPick }) {
   )
 }
 
-function EditSlideModal({ slide, deck, idx, onApply, onApplyTheme, onClose }) {
+function ScopeToggle({ scope, setScope, busy }) {
+  return (
+    <div className="scope-toggle" style={{ display: 'flex', gap: 6, margin: '4px 0' }}>
+      <button className={'theme-ex' + (scope === 'all' ? ' on' : '')} onClick={() => setScope('all')} disabled={busy} style={scope === 'all' ? { borderColor: 'var(--accent,#6366f1)', fontWeight: 700 } : undefined}>Alle lysbilder</button>
+      <button className={'theme-ex' + (scope === 'slide' ? ' on' : '')} onClick={() => setScope('slide')} disabled={busy} style={scope === 'slide' ? { borderColor: 'var(--accent,#6366f1)', fontWeight: 700 } : undefined}>Bare denne</button>
+    </div>
+  )
+}
+
+function VisualModal({ slide, deck, onApply, onClose }) {
   const [desc, setDesc] = useState('')
+  const [scope, setScope] = useState('all')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [done, setDone] = useState(false)
-  const examples = ['bytt plass på bildet og teksten', 'blå overskrifter og hvit tekst', 'grønn bakgrunn, Arial-font', 'gjør bildet større', 'midtstill teksten', 'flytt tittelen ned']
-  // Kompakt liste til AI – kun det den trenger for å plassere/endre
+  const examples = ['blå overskrifter, hvit tekst, grønn bakgrunn', 'mørkt og elegant tema', 'bytt plass på bildet og teksten', 'gjør det mer lekent og fargerikt', 'tilpass alt til et havtema']
   const slim = (slide.elements || []).filter((e) => !e.decor).map((e) => {
     const o = { id: e.id, type: e.type, x: Math.round(e.x), y: Math.round(e.y), w: Math.round(e.w), h: Math.round(e.h) }
     if (e.type === 'text') { o.text = (e.text || '').slice(0, 60); o.fontSize = e.fontSize; o.align = e.align; o.bold = e.bold }
@@ -919,25 +974,23 @@ function EditSlideModal({ slide, deck, idx, onApply, onApplyTheme, onClose }) {
     if (!desc.trim()) { setErr('Skriv hva du vil endre.'); return }
     setBusy(true); setErr(''); setDone(false)
     try {
-      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'editslide', elements: slim, theme: deck.theme, instruction: desc.trim() } })
+      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'editvisual', elements: slim, theme: deck.theme, instruction: desc.trim() } })
       if (error) throw new Error(error.message || 'serverfeil')
       if (data?.error) throw new Error(data.error)
-      const changes = Array.isArray(data.changes) ? data.changes : []
-      const theme = data.theme && typeof data.theme === 'object' ? data.theme : null
-      if (!changes.length && !theme) { setErr('AI fant ikke noe å endre. Prøv å si det på en annen måte.'); return }
-      // Bruk tema-endring (på hele eller bare denne siden) + element-endringer
-      if (theme) onApplyTheme(applyTheme(deck, normalizeTheme(theme), data.scope === 'all' ? 'all' : 'slide', idx))
-      if (changes.length) onApply(changes)
+      const hasChange = (data.changes && data.changes.length) || (data.add && data.add.length) || (data.remove && data.remove.length) || data.theme
+      if (!hasChange) { setErr('AI fant ikke noe å endre. Prøv å si det på en annen måte.'); return }
+      onApply(data, scope, scope)
       setDone(true)
     } catch (e) { setErr('Klarte ikke å endre: ' + (e.message || e)) } finally { setBusy(false) }
   }
   return (
     <div className="modal-bg" onClick={busy ? undefined : onClose}>
       <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="sil-head"><h3><Wand2 size={20} /> Endre med AI</h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
-        <p className="muted" style={{ margin: 0 }}>AI ser dette lysbildet og gjør <b>akkurat det du ber om</b> – farger, font, tema, eller flytt/bytt om på ting. Den rører ikke resten. <span className="small">(Koster 1 token)</span></p>
+        <div className="sil-head"><h3><Palette size={20} /> Visuell AI</h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
+        <p className="muted" style={{ margin: 0 }}>Endrer alt det visuelle – farger, tema, bakgrunn og stil. Den kan også flytte, fjerne og lage nye elementer så det passer. <b>Teksten din holdes lik.</b> <span className="small">(Koster 1 token)</span></p>
+        <ScopeToggle scope={scope} setScope={setScope} busy={busy} />
         <textarea className="theme-desc" rows={2} value={desc} onChange={(e) => setDesc(e.target.value)} disabled={busy}
-          placeholder="F.eks. «bytt plass på bildet og teksten» eller «blå overskrifter, grønn bakgrunn, Arial»"
+          placeholder="F.eks. «blå overskrifter, grønn bakgrunn» eller «tilpass alt til et havtema»"
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); gen() } }} />
         <div className="theme-examples">
           {examples.map((x) => <button key={x} className="theme-ex" onClick={() => setDesc(x)} disabled={busy}>{x}</button>)}
@@ -953,6 +1006,48 @@ function EditSlideModal({ slide, deck, idx, onApply, onApplyTheme, onClose }) {
   )
 }
 
+function FontModal({ slide, deck, onApply, onClose }) {
+  const [desc, setDesc] = useState('')
+  const [scope, setScope] = useState('all')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [done, setDone] = useState(false)
+  const examples = ['Arial', 'Times New Roman', 'en leken, rund font', 'noe elegant og stilig', 'kraftig plakat-font på titler']
+  const slim = (slide.elements || []).filter((e) => !e.decor && e.type === 'text').map((e) => ({ id: e.id, fontFamily: e.fontFamily, text: (e.text || '').slice(0, 30), heading: (e.fontSize || 0) >= 28 || e.bold }))
+  async function gen() {
+    if (!desc.trim()) { setErr('Skriv hvilken font du vil ha.'); return }
+    setBusy(true); setErr(''); setDone(false)
+    try {
+      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'editfont', elements: slim, theme: deck.theme, instruction: desc.trim() } })
+      if (error) throw new Error(error.message || 'serverfeil')
+      if (data?.error) throw new Error(data.error)
+      if (!data.theme && !(data.changes && data.changes.length)) { setErr('AI fant ingen font å bruke. Prøv et fontnavn.'); return }
+      onApply(data, scope)
+      setDone(true)
+    } catch (e) { setErr('Klarte ikke å endre font: ' + (e.message || e)) } finally { setBusy(false) }
+  }
+  return (
+    <div className="modal-bg" onClick={busy ? undefined : onClose}>
+      <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="sil-head"><h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ fontWeight: 800 }}>Aa</span> Font AI</h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
+        <p className="muted" style={{ margin: 0 }}>Endrer <b>bare skrifttypen</b> – ingenting annet. Skriv et fontnavn eller en stemning. <span className="small">(Koster 1 token)</span></p>
+        <ScopeToggle scope={scope} setScope={setScope} busy={busy} />
+        <textarea className="theme-desc" rows={2} value={desc} onChange={(e) => setDesc(e.target.value)} disabled={busy}
+          placeholder="F.eks. «Arial» eller «en leken, rund font»"
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); gen() } }} />
+        <div className="theme-examples">
+          {examples.map((x) => <button key={x} className="theme-ex" onClick={() => setDesc(x)} disabled={busy}>{x}</button>)}
+        </div>
+        {err && <p className="err">{err}</p>}
+        {done && !err && <p className="muted small">✓ Font endret!</p>}
+        <div className="modal-foot">
+          <button className="btn ghost" onClick={onClose} disabled={busy}>Ferdig</button>
+          <button className="btn primary" onClick={gen} disabled={busy || !desc.trim()}>{busy ? 'Endrer …' : '✨ Endre'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 function ThemeModal({ deck, idx, onApply, onClose }) {
   const [scope, setScope] = useState('all')
   const [desc, setDesc] = useState('')
