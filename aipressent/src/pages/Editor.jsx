@@ -590,8 +590,7 @@ export default function Editor() {
             <button onClick={() => moveSlide(1)} title="Flytt ned" disabled={idx === deck.slides.length - 1}><ChevronDown size={16} /></button>
             <button onClick={dupSlide} title="Dupliser"><Copy size={16} /></button>
             <button onClick={delSlide} title="Slett lysbilde" disabled={deck.slides.length === 1}><Trash2 size={16} /></button>
-            <button onClick={() => setThemeOpen(true)} title="Endre tema – farger og stil" className="wand"><Palette size={16} /></button>
-            {aiEnabled && <button onClick={() => setEditSlideOpen(true)} title="Endre lysbildet med AI – flytt/bytt om på ting" className="wand"><Wand2 size={16} /></button>}
+            {aiEnabled && <button onClick={() => setEditSlideOpen(true)} title="Endre med AI – farger, font, tema, flytt/bytt om på ting" className="wand"><Wand2 size={16} /></button>}
           </div>
 
           <div className="notes" data-tour="notes">
@@ -647,8 +646,7 @@ export default function Editor() {
       )}
       {shareMsg && <div className="toast">{shareMsg}</div>}
       {shareOpen && <ShareModal id={id} title={deck.title} onClose={() => setShareOpen(false)} />}
-      {themeOpen && <ThemeModal deck={deck} idx={idx} onApply={apply} onClose={() => setThemeOpen(false)} />}
-      {editSlideOpen && <EditSlideModal slide={slide} onApply={applyEditChanges} onClose={() => setEditSlideOpen(false)} />}
+      {editSlideOpen && <EditSlideModal slide={slide} deck={deck} idx={idx} onApply={applyEditChanges} onApplyTheme={apply} onClose={() => setEditSlideOpen(false)} />}
       {tourOpen && <Tour onClose={() => setTourOpen(false)} steps={[
         { sel: '[data-tour="toolbar"]', title: 'Verktøylinja', text: 'Her legger du til tekst, bilder, figurer, stickers og tabeller. Klikk et bildefelt for å «Søke på nett», laste opp eget bilde, eller lage med AI. Helt til høyre er «enkel visning» som gjemmer de sjeldne knappene.' },
         { sel: '[data-tour="anim"]', title: 'Animasjon', text: 'Åpne animasjonspanelet (du kan dra det rundt). Klikk et objekt → «Legg til valgt». Velg «Med forrige» (samtidig) eller «Etter forrige» (i rekkefølge), dra radene for å endre rekkefølge, og «Spill av» for å se det.' },
@@ -903,12 +901,12 @@ function WebImageModal({ el, onClose, onSearch, onPick }) {
   )
 }
 
-function EditSlideModal({ slide, onApply, onClose }) {
+function EditSlideModal({ slide, deck, idx, onApply, onApplyTheme, onClose }) {
   const [desc, setDesc] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [done, setDone] = useState(false)
-  const examples = ['bytt plass på bildet og teksten', 'flytt tittelen litt ned', 'gjør bildet større', 'midtstill teksten', 'flytt alt litt mot venstre']
+  const examples = ['bytt plass på bildet og teksten', 'blå overskrifter og hvit tekst', 'grønn bakgrunn, Arial-font', 'gjør bildet større', 'midtstill teksten', 'flytt tittelen ned']
   // Kompakt liste til AI – kun det den trenger for å plassere/endre
   const slim = (slide.elements || []).filter((e) => !e.decor).map((e) => {
     const o = { id: e.id, type: e.type, x: Math.round(e.x), y: Math.round(e.y), w: Math.round(e.w), h: Math.round(e.h) }
@@ -918,26 +916,28 @@ function EditSlideModal({ slide, onApply, onClose }) {
     return o
   })
   async function gen() {
-    if (!desc.trim()) { setErr('Skriv hva du vil endre på lysbildet.'); return }
-    if (!slim.length) { setErr('Det er ingenting å endre på dette lysbildet ennå.'); return }
+    if (!desc.trim()) { setErr('Skriv hva du vil endre.'); return }
     setBusy(true); setErr(''); setDone(false)
     try {
-      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'editslide', elements: slim, instruction: desc.trim() } })
+      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'editslide', elements: slim, theme: deck.theme, instruction: desc.trim() } })
       if (error) throw new Error(error.message || 'serverfeil')
       if (data?.error) throw new Error(data.error)
       const changes = Array.isArray(data.changes) ? data.changes : []
-      if (!changes.length) { setErr('AI fant ikke noe å endre for det ønsket. Prøv å si det på en annen måte.'); return }
-      onApply(changes)
+      const theme = data.theme && typeof data.theme === 'object' ? data.theme : null
+      if (!changes.length && !theme) { setErr('AI fant ikke noe å endre. Prøv å si det på en annen måte.'); return }
+      // Bruk tema-endring (på hele eller bare denne siden) + element-endringer
+      if (theme) onApplyTheme(applyTheme(deck, normalizeTheme(theme), data.scope === 'all' ? 'all' : 'slide', idx))
+      if (changes.length) onApply(changes)
       setDone(true)
-    } catch (e) { setErr('Klarte ikke å endre lysbildet: ' + (e.message || e)) } finally { setBusy(false) }
+    } catch (e) { setErr('Klarte ikke å endre: ' + (e.message || e)) } finally { setBusy(false) }
   }
   return (
     <div className="modal-bg" onClick={busy ? undefined : onClose}>
       <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="sil-head"><h3><Wand2 size={20} /> Endre lysbildet med AI</h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
-        <p className="muted" style={{ margin: 0 }}>AI ser elementene på dette lysbildet og gjør <b>akkurat det du ber om</b> – flytter, bytter om eller endrer størrelse. Den rører ikke resten. <span className="small">(Koster 1 token)</span></p>
+        <div className="sil-head"><h3><Wand2 size={20} /> Endre med AI</h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
+        <p className="muted" style={{ margin: 0 }}>AI ser dette lysbildet og gjør <b>akkurat det du ber om</b> – farger, font, tema, eller flytt/bytt om på ting. Den rører ikke resten. <span className="small">(Koster 1 token)</span></p>
         <textarea className="theme-desc" rows={2} value={desc} onChange={(e) => setDesc(e.target.value)} disabled={busy}
-          placeholder="F.eks. «bytt plass på bildet og teksten» eller «flytt tittelen ned»"
+          placeholder="F.eks. «bytt plass på bildet og teksten» eller «blå overskrifter, grønn bakgrunn, Arial»"
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); gen() } }} />
         <div className="theme-examples">
           {examples.map((x) => <button key={x} className="theme-ex" onClick={() => setDesc(x)} disabled={busy}>{x}</button>)}
