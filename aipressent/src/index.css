@@ -10,7 +10,7 @@ button{font-family:inherit}
 .spinner{width:34px;height:34px;border-radius:50%;border:3px solid var(--line-2);border-top-color:var(--accent);animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .screen-center{height:100vh;display:flex;align-items:center;justify-content:center}
-.logo-row{display:flex;align-items:center;gap:8px;font-weight:800;letter-spacing:-.02em;font-size:1.1rem}
+.logo-row{display:flex;align-items:center;gap:8px;font-weight:800;letter-spacing:-.02em;font-size:1.1rem;text-decoration:none;color:inherit;cursor:pointer}
 .logo-mark{color:var(--accent)}
 .muted{color:var(--muted)}
 .err{color:#fca5a5;font-size:.9rem;margin:2px 0}
@@ -595,3 +595,14 @@ button{font-family:inherit}
 .theme-pickers{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
 .theme-pickers label{display:flex;flex-direction:column;gap:4px;font-size:.78rem;color:var(--muted);font-weight:600}
 .theme-pickers input[type=color]{width:44px;height:34px;border:1px solid var(--line);border-radius:8px;background:none;cursor:pointer;padding:2px}
+
+/* ===== Endre tema med AI ===== */
+.theme-modal{max-width:520px;width:94vw;display:flex;flex-direction:column;gap:12px}
+.theme-desc{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:12px 14px;font-size:1rem;font-family:inherit;resize:vertical}
+.theme-desc:focus{outline:none;border-color:var(--accent)}
+.theme-examples{display:flex;flex-wrap:wrap;gap:6px}
+.theme-ex{border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted);border-radius:20px;padding:5px 11px;font-size:.8rem;font-weight:600;cursor:pointer}
+.theme-ex:hover{border-color:var(--accent);color:var(--ink)}
+.theme-result{display:flex;flex-direction:column;gap:6px;background:var(--panel-2);border-radius:12px;padding:12px 14px}
+.theme-swatches{display:flex;gap:6px}
+.theme-swatches i{width:30px;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,.18)}

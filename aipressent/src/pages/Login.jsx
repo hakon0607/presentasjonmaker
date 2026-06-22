@@ -24,7 +24,7 @@ export default function Login() {
   return (
     <div className="auth-wrap">
       <form className="auth-card" onSubmit={submit}>
-        <div className="logo-row"><span className="logo-mark">◆</span> AiPresent</div>
+        <Link className="logo-row" to="/"><span className="logo-mark">◆</span> AiPresent</Link>
         <h1>Logg inn</h1>
         <input type="email" placeholder="E-post" value={email} onChange={(e) => setEmail(e.target.value)} required />
         <div className="pw-row">

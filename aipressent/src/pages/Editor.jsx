@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { THEMES, blankSlide, textEl, imageEl, shapeEl, tableEl, genId, slidesFromAi, normalizeTheme, CW, CH, applyTheme, PRESET_THEMES } from '../lib/deck'
+import { THEMES, blankSlide, textEl, imageEl, shapeEl, tableEl, genId, slidesFromAi, normalizeTheme, CW, CH, applyTheme } from '../lib/deck'
 import { SILHOUETTES, SIL_CATS, SCENES } from '../lib/silhouettes'
 import { exportPptx, exportPdf, pptxBlob } from '../lib/export'
 import { importToGoogleSlides, googleConfigured, loadGis } from '../lib/gslides'
@@ -885,44 +885,52 @@ function WebImageModal({ el, onClose, onSearch, onPick }) {
 
 function ThemeModal({ deck, idx, onApply, onClose }) {
   const [scope, setScope] = useState('all')
-  const t0 = deck.theme || {}
-  const [bg, setBg] = useState(t0.bg || '#ffffff')
-  const [title, setTitle] = useState(t0.title || '#0f172a')
-  const [text, setText] = useState(t0.text || '#334155')
-  const [accent, setAccent] = useState(t0.accent || '#2563eb')
-  function applyPreset(p) { onApply(applyTheme(deck, p, scope, idx)) }
-  function applyCustom() {
-    onApply(applyTheme(deck, { name: 'Egendefinert', bg, title, text, accent, fontHead: t0.fontHead || 'Poppins', fontBody: t0.fontBody || 'Inter' }, scope, idx))
+  const [desc, setDesc] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [last, setLast] = useState(null)
+  const examples = ['mørkt og elegant med gull', 'lyst og lekent rosa', 'som havet, blått og friskt', 'rolig pastell', 'kraftig og sporty', 'vintage og varmt']
+  async function gen() {
+    if (!desc.trim()) { setErr('Beskriv hvilke farger eller stil du vil ha.'); return }
+    setBusy(true); setErr('')
+    try {
+      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'theme', visualStyle: desc.trim() } })
+      if (error) throw new Error(error.message || 'serverfeil')
+      if (data?.error) throw new Error(data.error)
+      const th = normalizeTheme(data.theme)
+      onApply(applyTheme(deck, th, scope, idx))
+      setLast(th)
+    } catch (e) { setErr('Klarte ikke å lage tema: ' + (e.message || e)) } finally { setBusy(false) }
   }
   return (
-    <div className="modal-bg" onClick={onClose}>
+    <div className="modal-bg" onClick={busy ? undefined : onClose}>
       <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="sil-head"><h3><Palette size={20} /> Endre tema</h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
-        <p className="muted" style={{ margin: 0 }}>Behold all tekst og alle bilder – bytt bare farger og stil.</p>
+        <div className="sil-head"><h3><Palette size={20} /> Endre tema med AI</h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
+        <p className="muted" style={{ margin: 0 }}>Beskriv farger eller stil, så lager AI et nytt tema. All tekst og alle bilder beholdes nøyaktig som de er. <span className="small">(Koster 1 token)</span></p>
         <div className="seg" style={{ marginTop: 2 }}>
           <button className={'seg-btn' + (scope === 'all' ? ' on' : '')} onClick={() => setScope('all')}>Hele presentasjonen</button>
           <button className={'seg-btn' + (scope === 'slide' ? ' on' : '')} onClick={() => setScope('slide')}>Bare dette lysbildet</button>
         </div>
-        <div className="theme-grid">
-          {PRESET_THEMES.map((p, i) => (
-            <button key={i} className="theme-swatch" onClick={() => applyPreset(p)} title={p.name} style={{ background: p.bg }}>
-              <span className="theme-sw-title" style={{ background: p.title }} />
-              <span className="theme-sw-accent" style={{ background: p.accent }} />
-              <span className="theme-sw-name" style={{ color: p.title }}>{p.name}</span>
-            </button>
-          ))}
+        <textarea className="theme-desc" rows={2} value={desc} onChange={(e) => setDesc(e.target.value)} disabled={busy}
+          placeholder="F.eks. «mørkt og elegant med gull» eller «som en solnedgang»"
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); gen() } }} />
+        <div className="theme-examples">
+          {examples.map((x) => <button key={x} className="theme-ex" onClick={() => setDesc(x)} disabled={busy}>{x}</button>)}
         </div>
-        <div className="theme-custom">
-          <b>Egne farger</b>
-          <div className="theme-pickers">
-            <label>Bakgrunn<input type="color" value={bg} onChange={(e) => setBg(e.target.value)} /></label>
-            <label>Tittel<input type="color" value={title} onChange={(e) => setTitle(e.target.value)} /></label>
-            <label>Tekst<input type="color" value={text} onChange={(e) => setText(e.target.value)} /></label>
-            <label>Aksent<input type="color" value={accent} onChange={(e) => setAccent(e.target.value)} /></label>
-            <button className="btn primary" onClick={applyCustom}>Bruk</button>
+        {err && <p className="err">{err}</p>}
+        {last && !err && (
+          <div className="theme-result">
+            <span className="muted small">Tema brukt: <b style={{ color: 'var(--ink)' }}>{last.name || 'Nytt tema'}</b> ✓</span>
+            <span className="theme-swatches">
+              {[last.bg, last.title, last.text, last.accent].map((c, i) => <i key={i} style={{ background: c }} />)}
+            </span>
+            <span className="muted small">Likte du det ikke? Prøv en ny beskrivelse.</span>
           </div>
+        )}
+        <div className="modal-foot">
+          <button className="btn ghost" onClick={onClose} disabled={busy}>Ferdig</button>
+          <button className="btn primary" onClick={gen} disabled={busy || !desc.trim()}>{busy ? 'Lager tema …' : '✨ Lag tema'}</button>
         </div>
-        <div className="modal-foot"><button className="btn ghost" onClick={onClose}>Ferdig</button></div>
       </div>
     </div>
   )

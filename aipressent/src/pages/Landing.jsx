@@ -11,7 +11,7 @@ export default function Landing() {
   return (
     <div className="land">
       <header className="land-nav">
-        <div className="logo-row"><span className="logo-mark">◆</span> AiPresent</div>
+        <Link className="logo-row" to="/"><span className="logo-mark">◆</span> AiPresent</Link>
         <nav className="land-links">
           <Link to="/guide">Guide</Link>
           <InstallButton className="btn ghost sm" />
@@ -63,7 +63,7 @@ export default function Landing() {
       </section>
 
       <footer className="land-foot">
-        <span className="logo-row"><span className="logo-mark">◆</span> AiPresent</span>
+        <Link className="logo-row" to="/"><span className="logo-mark">◆</span> AiPresent</Link>
         <span className="muted small">Laget av Håkon · <Link to="/guide">Guide</Link></span>
       </footer>
     </div>

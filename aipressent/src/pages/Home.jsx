@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { newDeck, THEMES } from '../lib/deck'
@@ -66,7 +66,7 @@ export default function Home() {
   return (
     <div className="home">
       <header className="home-top">
-        <div className="logo-row"><span className="logo-mark">◆</span> AiPresent</div>
+        <Link className="logo-row" to="/"><span className="logo-mark">◆</span> AiPresent</Link>
         <div className="home-top-right">
           <TokenBadge />
           <InstallButton className="chip" />
