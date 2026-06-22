@@ -32,7 +32,7 @@ export default function Signup() {
     <div className="auth-wrap">
       {sent ? (
         <div className="auth-card">
-          <div className="logo-row"><span className="logo-mark">◆</span> AiPressent</div>
+          <div className="logo-row"><span className="logo-mark">◆</span> AiPresent</div>
           <h1>Sjekk e-posten din 📧</h1>
           <p>Vi har sendt en bekreftelses-e-post til <b>{email}</b>. Klikk lenken i e-posten for å fullføre.</p>
           <p className="warn-note">⚠️ Viktig: e-posten havner ofte i <b>søppelpost / spam-mappen</b> – sjekk der hvis du ikke ser den i innboksen!</p>
@@ -40,7 +40,7 @@ export default function Signup() {
         </div>
       ) : (
       <form className="auth-card" onSubmit={submit}>
-        <div className="logo-row"><span className="logo-mark">◆</span> AiPressent</div>
+        <div className="logo-row"><span className="logo-mark">◆</span> AiPresent</div>
         <h1>Lag konto</h1>
         <input placeholder="Navn" value={name} onChange={(e) => setName(e.target.value)} required />
         <input type="email" placeholder="E-post" value={email} onChange={(e) => setEmail(e.target.value)} required />

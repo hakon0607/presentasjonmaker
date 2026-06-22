@@ -26,7 +26,7 @@ export default function Guide() {
   return (
     <div className="guide">
       <header className="land-nav">
-        <Link className="logo-row" to="/"><span className="logo-mark">◆</span> AiPressent</Link>
+        <Link className="logo-row" to="/"><span className="logo-mark">◆</span> AiPresent</Link>
         <nav className="land-links">
           {user ? <Link className="btn primary sm" to="/mine">Mine presentasjoner</Link>
             : <Link className="btn primary sm" to="/signup">Lag konto</Link>}
@@ -35,7 +35,7 @@ export default function Guide() {
 
       <div className="guide-body">
         <Link className="guide-back" to="/"><ChevronLeft size={16} /> Tilbake til forsiden</Link>
-        <h1>Slik bruker du AiPressent</h1>
+        <h1>Slik bruker du AiPresent</h1>
         <p className="muted">En enkel steg-for-steg-guide fra tom side til ferdig presentasjon.</p>
 
         <div className="guide-tour-cta">

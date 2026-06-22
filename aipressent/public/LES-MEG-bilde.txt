@@ -1,4 +1,4 @@
-Vil du ha bildet ditt på forsiden (under «Hvorfor jeg lagde AiPressent»)?
+Vil du ha bildet ditt på forsiden (under «Hvorfor jeg lagde AiPresent»)?
 
 Legg bildet ditt i denne mappen (public/) og kall det nøyaktig:
 

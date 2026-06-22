@@ -1,6 +1,6 @@
 {
-  "name": "AiPressent",
-  "short_name": "AiPressent",
+  "name": "AiPresent",
+  "short_name": "AiPresent",
   "description": "Lag presentasjoner med AI – på under ett minutt.",
   "start_url": "/",
   "scope": "/",

@@ -11,7 +11,7 @@ export default function Landing() {
   return (
     <div className="land">
       <header className="land-nav">
-        <div className="logo-row"><span className="logo-mark">◆</span> AiPressent</div>
+        <div className="logo-row"><span className="logo-mark">◆</span> AiPresent</div>
         <nav className="land-links">
           <Link to="/guide">Guide</Link>
           <InstallButton className="btn ghost sm" />
@@ -55,15 +55,15 @@ export default function Landing() {
             : <div className="land-photo-fallback">🙂</div>}
         </div>
         <div className="land-about-text">
-          <h2>Hvorfor jeg lagde AiPressent</h2>
-          <p>Hei! Jeg heter Håkon, og jeg er 14 år. Jeg lagde AiPressent fordi jeg syntes det tok altfor lang tid å lage presentasjoner til skolen – og at de ofte ble litt kjedelige.</p>
+          <h2>Hvorfor jeg lagde AiPresent</h2>
+          <p>Hei! Jeg heter Håkon, og jeg er 14 år. Jeg lagde AiPresent fordi jeg syntes det tok altfor lang tid å lage presentasjoner til skolen – og at de ofte ble litt kjedelige.</p>
           <p>Jeg ville ha noe som lager et førsteutkast på sekunder, finner bilder selv, og fortsatt lar deg styre alt. Så satte jeg meg ned og bygde det, steg for steg. Dette er resultatet – og jeg håper det gjør skolehverdagen din litt lettere. 🚀</p>
           <Link className="btn primary" to={user ? '/mine' : '/signup'}>{user ? 'Åpne appen' : 'Prøv det gratis'}</Link>
         </div>
       </section>
 
       <footer className="land-foot">
-        <span className="logo-row"><span className="logo-mark">◆</span> AiPressent</span>
+        <span className="logo-row"><span className="logo-mark">◆</span> AiPresent</span>
         <span className="muted small">Laget av Håkon · <Link to="/guide">Guide</Link></span>
       </footer>
     </div>

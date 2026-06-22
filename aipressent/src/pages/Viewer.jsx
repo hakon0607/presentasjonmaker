@@ -37,7 +37,7 @@ export default function Viewer() {
         <span className="viewer-count">{i + 1} / {deck.slides.length}</span>
         <button onClick={() => setI((v) => Math.min(deck.slides.length - 1, v + 1))} disabled={i === deck.slides.length - 1}>›</button>
         <span className="viewer-title">{deck.title}</span>
-        <span className="viewer-brand">◆ AiPressent</span>
+        <span className="viewer-brand">◆ AiPresent</span>
       </div>
     </div>
   )

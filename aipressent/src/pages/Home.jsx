@@ -66,7 +66,7 @@ export default function Home() {
   return (
     <div className="home">
       <header className="home-top">
-        <div className="logo-row"><span className="logo-mark">◆</span> AiPressent</div>
+        <div className="logo-row"><span className="logo-mark">◆</span> AiPresent</div>
         <div className="home-top-right">
           <TokenBadge />
           <InstallButton className="chip" />
@@ -82,7 +82,7 @@ export default function Home() {
             <button className="welcome-x" onClick={hideWelcome} title="Skjul">✕</button>
             <div className="welcome-ic">👋</div>
             <div className="welcome-text">
-              <b>Velkommen til AiPressent!</b>
+              <b>Velkommen til AiPresent!</b>
               <span>Ny her? Se den korte guiden eller få en omvisning som peker på hver knapp – inkludert det nye animasjonspanelet.</span>
             </div>
             <div className="welcome-btns">
