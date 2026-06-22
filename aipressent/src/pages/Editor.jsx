@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { THEMES, blankSlide, textEl, imageEl, shapeEl, tableEl, genId, slidesFromAi, normalizeTheme, CW, CH } from '../lib/deck'
+import { THEMES, blankSlide, textEl, imageEl, shapeEl, tableEl, genId, slidesFromAi, normalizeTheme, CW, CH, applyTheme, PRESET_THEMES } from '../lib/deck'
 import { SILHOUETTES, SIL_CATS, SCENES } from '../lib/silhouettes'
 import { exportPptx, exportPdf, pptxBlob } from '../lib/export'
 import { importToGoogleSlides, googleConfigured, loadGis } from '../lib/gslides'
@@ -23,7 +23,7 @@ import Toolbar from '../components/Toolbar'
 import AnimPanel from '../components/AnimPanel'
 import { useProgress, ProgressBar } from '../components/Progress'
 import Tour from '../components/Tour'
-import { ChevronLeft, Plus, Copy, Trash2, Play, Download, Sparkles, ChevronUp, ChevronDown, Undo2, Redo2, Save, FileText, Wand2, CheckCircle2, Share2, Image as ImageIcon, Clapperboard, Grid3x3, X, Search } from 'lucide-react'
+import { ChevronLeft, Plus, Copy, Trash2, Play, Download, Sparkles, ChevronUp, ChevronDown, Undo2, Redo2, Save, FileText, Wand2, CheckCircle2, Share2, Image as ImageIcon, Clapperboard, Grid3x3, X, Search, Palette } from 'lucide-react'
 
 export default function Editor() {
   const { id } = useParams()
@@ -35,6 +35,7 @@ export default function Editor() {
   const [editId, setEditId] = useState(null)
   const [present, setPresent] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [themeOpen, setThemeOpen] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
   const [saved, setSaved] = useState('saved')   // saved | dirty | saving
   const [notesBusy, setNotesBusy] = useState(false)
@@ -571,7 +572,7 @@ export default function Editor() {
             <button onClick={() => moveSlide(1)} title="Flytt ned" disabled={idx === deck.slides.length - 1}><ChevronDown size={16} /></button>
             <button onClick={dupSlide} title="Dupliser"><Copy size={16} /></button>
             <button onClick={delSlide} title="Slett lysbilde" disabled={deck.slides.length === 1}><Trash2 size={16} /></button>
-            {aiEnabled && <button onClick={() => setAiSlideOpen(true)} title="Lag/omskriv dette lysbildet med AI" className="wand"><Wand2 size={16} /></button>}
+            <button onClick={() => setThemeOpen(true)} title="Endre tema – farger og stil" className="wand"><Palette size={16} /></button>
           </div>
 
           <div className="notes" data-tour="notes">
@@ -627,6 +628,7 @@ export default function Editor() {
       )}
       {shareMsg && <div className="toast">{shareMsg}</div>}
       {shareOpen && <ShareModal id={id} title={deck.title} onClose={() => setShareOpen(false)} />}
+      {themeOpen && <ThemeModal deck={deck} idx={idx} onApply={apply} onClose={() => setThemeOpen(false)} />}
       {tourOpen && <Tour onClose={() => setTourOpen(false)} steps={[
         { sel: '[data-tour="toolbar"]', title: 'Verktøylinja', text: 'Her legger du til tekst, bilder, figurer, stickers og tabeller. Klikk et bildefelt for å «Søke på nett», laste opp eget bilde, eller lage med AI. Helt til høyre er «enkel visning» som gjemmer de sjeldne knappene.' },
         { sel: '[data-tour="anim"]', title: 'Animasjon', text: 'Åpne animasjonspanelet (du kan dra det rundt). Klikk et objekt → «Legg til valgt». Velg «Med forrige» (samtidig) eller «Etter forrige» (i rekkefølge), dra radene for å endre rekkefølge, og «Spill av» for å se det.' },
@@ -876,6 +878,51 @@ function WebImageModal({ el, onClose, onSearch, onPick }) {
         </div>
         {!did && !busy && <p className="muted" style={{ textAlign: 'center', padding: '20px 0' }}>Skriv et søk og trykk «Søk» 🔎</p>}
         <div className="modal-foot"><button className="btn ghost" onClick={onClose} disabled={picking}>Lukk</button></div>
+      </div>
+    </div>
+  )
+}
+
+function ThemeModal({ deck, idx, onApply, onClose }) {
+  const [scope, setScope] = useState('all')
+  const t0 = deck.theme || {}
+  const [bg, setBg] = useState(t0.bg || '#ffffff')
+  const [title, setTitle] = useState(t0.title || '#0f172a')
+  const [text, setText] = useState(t0.text || '#334155')
+  const [accent, setAccent] = useState(t0.accent || '#2563eb')
+  function applyPreset(p) { onApply(applyTheme(deck, p, scope, idx)) }
+  function applyCustom() {
+    onApply(applyTheme(deck, { name: 'Egendefinert', bg, title, text, accent, fontHead: t0.fontHead || 'Poppins', fontBody: t0.fontBody || 'Inter' }, scope, idx))
+  }
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="sil-head"><h3><Palette size={20} /> Endre tema</h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
+        <p className="muted" style={{ margin: 0 }}>Behold all tekst og alle bilder – bytt bare farger og stil.</p>
+        <div className="seg" style={{ marginTop: 2 }}>
+          <button className={'seg-btn' + (scope === 'all' ? ' on' : '')} onClick={() => setScope('all')}>Hele presentasjonen</button>
+          <button className={'seg-btn' + (scope === 'slide' ? ' on' : '')} onClick={() => setScope('slide')}>Bare dette lysbildet</button>
+        </div>
+        <div className="theme-grid">
+          {PRESET_THEMES.map((p, i) => (
+            <button key={i} className="theme-swatch" onClick={() => applyPreset(p)} title={p.name} style={{ background: p.bg }}>
+              <span className="theme-sw-title" style={{ background: p.title }} />
+              <span className="theme-sw-accent" style={{ background: p.accent }} />
+              <span className="theme-sw-name" style={{ color: p.title }}>{p.name}</span>
+            </button>
+          ))}
+        </div>
+        <div className="theme-custom">
+          <b>Egne farger</b>
+          <div className="theme-pickers">
+            <label>Bakgrunn<input type="color" value={bg} onChange={(e) => setBg(e.target.value)} /></label>
+            <label>Tittel<input type="color" value={title} onChange={(e) => setTitle(e.target.value)} /></label>
+            <label>Tekst<input type="color" value={text} onChange={(e) => setText(e.target.value)} /></label>
+            <label>Aksent<input type="color" value={accent} onChange={(e) => setAccent(e.target.value)} /></label>
+            <button className="btn primary" onClick={applyCustom}>Bruk</button>
+          </div>
+        </div>
+        <div className="modal-foot"><button className="btn ghost" onClick={onClose}>Ferdig</button></div>
       </div>
     </div>
   )

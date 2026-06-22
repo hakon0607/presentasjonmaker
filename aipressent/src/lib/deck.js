@@ -289,3 +289,52 @@ export function newDeck(title = 'Uten tittel', theme = 'minimal') {
   const th = asTheme(theme)
   return { theme: th, slides: [blankSlide(th)], title }
 }
+
+// ===== Endre tema underveis (behold tekst/bilder, bytt farger) =====
+export const PRESET_THEMES = [
+  ...Object.values(THEMES),
+  { name: 'Hav',        bg: '#ecfeff', title: '#164e63', text: '#155e75', accent: '#0891b2', fontHead: 'Montserrat', fontBody: 'Inter' },
+  { name: 'Rose',       bg: '#fff1f2', title: '#881337', text: '#9f1239', accent: '#e11d48', fontHead: 'Playfair Display', fontBody: 'Lora' },
+  { name: 'Neon',       bg: '#0a0a0a', title: '#ffffff', text: '#d4d4d8', accent: '#a3e635', fontHead: 'Bebas Neue', fontBody: 'Inter' },
+  { name: 'Godteri',    bg: '#fdf4ff', title: '#701a75', text: '#86198f', accent: '#d946ef', fontHead: 'Fredoka', fontBody: 'Quicksand' },
+  { name: 'Kaffe',      bg: '#1c1917', title: '#fafaf9', text: '#d6d3d1', accent: '#d97706', fontHead: 'DM Serif Display', fontBody: 'Lora' },
+  { name: 'Himmel',     bg: '#f0f9ff', title: '#0c4a6e', text: '#075985', accent: '#0ea5e9', fontHead: 'Poppins', fontBody: 'Inter' },
+  { name: 'Mynte',      bg: '#f0fdfa', title: '#134e4a', text: '#115e59', accent: '#14b8a6', fontHead: 'Quicksand', fontBody: 'Nunito' },
+  { name: 'Kull',       bg: '#18181b', title: '#fafafa', text: '#d4d4d8', accent: '#f59e0b', fontHead: 'Anton', fontBody: 'Inter' },
+  { name: 'Lavendel',   bg: '#f5f3ff', title: '#4c1d95', text: '#5b21b6', accent: '#8b5cf6', fontHead: 'Poppins', fontBody: 'Inter' },
+]
+
+const lowc = (s) => String(s || '').toLowerCase()
+function buildColorMap(o, n) {
+  const m = {}
+  const add = (a, b) => { if (a && b) m[lowc(a)] = b }
+  add(o.bg, n.bg); add(o.title, n.title); add(o.text, n.text); add(o.accent, n.accent)
+  ;[0.4, 0.45, 0.5].forEach((t) => add(mix(o.accent, '#ffffff', t), mix(n.accent, '#ffffff', t)))
+  ;[0.2, 0.22, 0.25].forEach((t) => add(mix(o.accent, '#000000', t), mix(n.accent, '#000000', t)))
+  return m
+}
+function recolorEl(el, map, fontMap) {
+  const c = (v) => (v && map[lowc(v)]) || v
+  const out = { ...el }
+  if (el.color) out.color = c(el.color)
+  if (el.fill && el.fill !== 'transparent') out.fill = c(el.fill)
+  if (el.stroke) out.stroke = c(el.stroke)
+  if (el.highlight) out.highlight = c(el.highlight)
+  if (el.accent) out.accent = c(el.accent)
+  if (el.fontFamily && fontMap[lowc(el.fontFamily)]) out.fontFamily = fontMap[lowc(el.fontFamily)]
+  return out
+}
+// scope: 'all' = hele presentasjonen, 'slide' = bare lysbildet på idx
+export function applyTheme(deck, newTheme, scope, idx) {
+  const nt = asTheme(newTheme)
+  const recolor = (s) => {
+    const from = asTheme(s.theme || deck.theme)
+    const map = buildColorMap(from, nt)
+    const fontMap = {}
+    if (from.fontHead) fontMap[lowc(from.fontHead)] = nt.fontHead
+    if (from.fontBody) fontMap[lowc(from.fontBody)] = nt.fontBody
+    return { ...s, theme: { ...nt }, background: nt.bg, elements: s.elements.map((el) => recolorEl(el, map, fontMap)) }
+  }
+  if (scope === 'slide') return { ...deck, slides: deck.slides.map((s, i) => (i === idx ? recolor(s) : s)) }
+  return { ...deck, theme: { ...nt }, slides: deck.slides.map(recolor) }
+}
