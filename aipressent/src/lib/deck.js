@@ -157,9 +157,16 @@ function autoBackdrop(th, big, styleId, idx = 0) {
 }
 
 // Figur-ikon (hentet fra nett-album) som dekorativt hjørne-element øverst til høyre (unngår teksten).
-export function figureDecor(src, big) {
-  const sz = big ? 150 : 112
-  return { ...imageEl({ src, x: CW - sz - 26, y: 24, w: sz, h: sz, fit: 'contain', opacity: 0.9, caption: '' }), decor: true }
+export function figureDecor(src, layout) {
+  const sz = 96
+  // Trygt, ledig hjørne for hver layout (unngår tittel, tekst og bilder)
+  let x = CW - sz - 24, y = CH - sz - 22 // standard: nederst til høyre
+  if (layout === 'cover' || layout === 'section') { x = CW - sz - 30; y = CH - sz - 26 }
+  else if (layout === 'imageText') { x = 70; y = CH - sz - 26 } // bilde til høyre → figur nede til venstre under tekst
+  else if (layout === 'imageFull') { x = CW - sz - 24; y = 36 } // bilde fyller midten → figur oppe til høyre
+  else if (layout === 'twoColumn') { x = CW / 2 - sz / 2; y = CH - sz - 18 } // mellom kolonnene nederst
+  else if (layout === 'statement') { x = CW - sz - 26; y = CH - sz - 24 }
+  return { ...imageEl({ src, x, y, w: sz, h: sz, fit: 'contain', opacity: 0.85, caption: '' }), decor: true }
 }
 
 const asTheme = (t) => (typeof t === 'string' ? (THEMES[t] || THEMES.minimal) : (t || THEMES.minimal))
@@ -198,10 +205,10 @@ function fitFont(text, base, boxW, boxH, lineH = 1.14, min = 16, charW = 0.52) {
   while (size > min) {
     const perLine = Math.max(1, Math.floor(boxW / (size * charW)))
     const lines = t.split('\n').reduce((acc, ln) => acc + Math.max(1, Math.ceil((ln.length || 1) / perLine)), 0)
-    if (lines * size * lineH <= boxH) break
-    size -= 2
+    if (lines * size * lineH <= boxH - 4) break
+    size -= 1
   }
-  return size
+  return Math.max(min, size)
 }
 
 // Fjerner tilfeldige nettadresser/domener (f.eks. «fido.no») fra AI-tekst
@@ -236,7 +243,7 @@ function buildSlide(s, th, slideIdx = 0) {
     push(icon(112, 150, 54))
     push(textEl({ x: 120, y: 232, w: 740, h: 120, text: s.title || '', fontFamily: th.fontHead, fontSize: fitFont(s.title, 46, 740, 120, 1.12, 24), bold: true, color: th.title, lineHeight: 1.12 }))
   } else if (L === 'statement') {
-    push(card(110, 184, 740, 196, 0.12))
+    push(card(110, 184, 740, 168, 0.12))
     push(accentBar(430, 150, 100))
     push(textEl({ x: 110, y: 184, w: 740, h: 210, text: s.statement || s.title || '', fontFamily: th.fontHead, fontSize: fitFont(s.statement || s.title, 42, 740, 210, 1.25, 22), bold: true, color: th.title, align: 'center', lineHeight: 1.25 }))
     if (s.subtitle) push(textEl({ x: 160, y: 410, w: 640, h: 60, text: s.subtitle, fontFamily: th.fontBody, fontSize: fitFont(s.subtitle, 22, 640, 50, 1.2, 15), color: th.text, align: 'center', italic: true }))
@@ -261,9 +268,8 @@ function buildSlide(s, th, slideIdx = 0) {
     }
     c(cols[0], 80); c(cols[1], 500)
   } else {
-    push(textEl({ x: 80, y: 52, w: 720, h: 78, text: s.title || '', fontFamily: th.fontHead, fontSize: fitFont(s.title, 38, 720, 78, 1.12, 18), bold: true, color: th.title, lineHeight: 1.12 }))
+    push(textEl({ x: 80, y: 52, w: 690, h: 78, text: s.title || '', fontFamily: th.fontHead, fontSize: fitFont(s.title, 38, 690, 78, 1.12, 18), bold: true, color: th.title, lineHeight: 1.12 }))
     push(accentBar(82, 138))
-    push(icon(820, 54))
     if (wantCard) push(card(80, 174, 800, 300))
     push(textEl({ x: 80, y: 174, w: 800, h: 320, text: bullets(s.bullets), fontFamily: th.fontBody, fontSize: fitFont(bullets(s.bullets), 25, 800, 312, 1.5, 14, 0.5), color: th.text, lineHeight: 1.5 }))
   }
@@ -337,9 +343,28 @@ function recolorEl(el, map, fontMap, bg) {
 }
 // scope: 'all' = hele presentasjonen, 'slide' = bare lysbildet på idx
 // scope: 'all' = hele presentasjonen, 'slide' = bare lysbildet på idx
-export function applyTheme(deck, newTheme, scope, idx) {
+export function applyTheme(deck, newTheme, scope, idx, tweaks) {
   const nt = asTheme(newTheme)
   const useStyleFor = (s) => (nt.style && DECOR_STYLES[nt.style]) ? nt.style : (s.style || 'corners')
+  const tw = tweaks && typeof tweaks === 'object' ? tweaks : null
+  // Avgjør om et tekst-element er en overskrift (stor/fet) eller brødtekst
+  const isHeading = (el) => el.bold || (el.fontSize || 0) >= 28
+  const applyTweaks = (el) => {
+    if (!tw || el.type !== 'text') return el
+    const target = tw.applyTo || 'all'
+    const head = isHeading(el)
+    const hit = target === 'all' || (target === 'headings' && head) || (target === 'body' && !head)
+    if (!hit) return el
+    const out = { ...el }
+    const sc = head ? tw.scaleHeadings : tw.scaleBody
+    if (typeof sc === 'number' && sc > 0.3 && sc < 4) out.fontSize = Math.round((el.fontSize || 20) * sc)
+    if (typeof tw.boldHeadings === 'boolean' && head) out.bold = tw.boldHeadings
+    if (typeof tw.italicBody === 'boolean' && !head) out.italic = tw.italicBody
+    if (typeof tw.bold === 'boolean') out.bold = tw.bold
+    if (typeof tw.italic === 'boolean') out.italic = tw.italic
+    if (tw.align === 'center' || tw.align === 'left' || tw.align === 'right') out.align = tw.align
+    return out
+  }
   const apply = (s, i) => {
     const from = asTheme(s.theme || deck.theme)
     const map = buildColorMap(from, nt)
@@ -348,7 +373,7 @@ export function applyTheme(deck, newTheme, scope, idx) {
     if (from.fontBody) fontMap[lowc(from.fontBody)] = nt.fontBody
     // Behold alt innhold (tekst, bilder, brukerens egne ting) OG figur-ikoner (dekor-bilder) – bytt bare farger/fonter
     const keep = s.elements.filter((e) => !e.decor || e.type === 'image')
-    const content = keep.map((el) => recolorEl(el, map, fontMap, nt.bg))
+    const content = keep.map((el) => applyTweaks(recolorEl(el, map, fontMap, nt.bg)))
     // Bygg KUN den geometriske pynten (bakteppet) på nytt med ny stil + nye farger
     const big = s.layout ? (s.layout === 'cover' || s.layout === 'section')
       : (Math.max(0, ...s.elements.filter((e) => e.type === 'text').map((e) => e.fontSize || 0)) >= 42)

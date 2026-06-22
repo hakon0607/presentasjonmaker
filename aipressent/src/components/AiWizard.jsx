@@ -136,13 +136,12 @@ export default function AiWizard({ onClose, userId, nav }) {
           await Promise.all(kws.map(async (k) => { map[k] = await iconifyFind(k) }))
           slides.forEach((sl, i) => {
             const kw = String(o.slides[i]?.figure || '').trim()
-            const lay = o.slides[i]?.layout
+            const lay = o.slides[i]?.layout || 'bullets'
             const id = kw && map[kw]
-            if (id && lay !== 'imageFull' && lay !== 'imageText' && lay !== 'twoColumn') {
-              const big = (lay === 'cover' || lay === 'section')
+            if (id) {
               const n = sl.elements.findIndex((e) => !e.decor)
               const at = n === -1 ? sl.elements.length : n
-              sl.elements.splice(at, 0, figureDecor(iconifyUrl(id, th.accent), big))
+              sl.elements.splice(at, 0, figureDecor(iconifyUrl(id, th.accent), lay))
             }
           })
         }

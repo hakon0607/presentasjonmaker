@@ -184,7 +184,7 @@ export default function Canvas({ slide, onChange, selectedId, setSelectedId, sel
                 style={{ fontFamily: `'${el.fontFamily}', sans-serif`, fontSize: el.fontSize * scale, color: el.color,
                   fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? 'italic' : 'normal',
                   textDecoration: el.underline ? 'underline' : 'none', textAlign: el.align, lineHeight: el.lineHeight,
-                  letterSpacing: (el.letterSpacing || 0) + 'px', background: el.highlight || 'transparent' }}
+                  letterSpacing: (el.letterSpacing || 0) + 'px', background: el.highlight || 'transparent', overflowWrap: 'break-word', wordBreak: 'break-word' }}
                 dangerouslySetInnerHTML={{ __html: html }} />{grips(el)}
             </div>
           )

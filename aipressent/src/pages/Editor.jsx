@@ -898,7 +898,7 @@ function ThemeModal({ deck, idx, onApply, onClose }) {
       if (error) throw new Error(error.message || 'serverfeil')
       if (data?.error) throw new Error(data.error)
       const th = normalizeTheme(data.theme)
-      onApply(applyTheme(deck, th, scope, idx))
+      onApply(applyTheme(deck, th, scope, idx, data.tweaks))
       setLast(th)
     } catch (e) { setErr('Klarte ikke å lage tema: ' + (e.message || e)) } finally { setBusy(false) }
   }
