@@ -230,8 +230,25 @@ export default function Editor() {
       ...added,
     ] }
     let nextDeck = { ...deck, slides: deck.slides.map((s, i) => (i === idx ? newSlide : s)) }
+    // Sikring: valgte du "Alle" men AI ga bare en farge-endring på en overskrift/brødtekst,
+    // løft fargen til temaet så den treffer ALLE lysbildene (ikke bare dette)
+    let themeData = data.theme
+    if (scope === 'all') {
+      const colorChanges = (data.changes || []).filter((c) => c && c.color)
+      if (colorChanges.length && !themeData) {
+        const t = { ...deck.theme }
+        let lifted = false
+        colorChanges.forEach((c) => {
+          const el = slide.elements.find((e) => e.id === c.id)
+          if (!el || el.type !== 'text') return
+          const isHead = el.bold || (el.fontSize || 0) >= 28
+          if (isHead) { t.title = c.color; lifted = true } else { t.text = c.color; lifted = true }
+        })
+        if (lifted) themeData = t
+      }
+    }
     // Tema (farger/stil) på valgt scope
-    if (data.theme) nextDeck = applyTheme(nextDeck, normalizeTheme(data.theme), themeScope, idx)
+    if (themeData) nextDeck = applyTheme(nextDeck, normalizeTheme(themeData), themeScope, idx)
     apply(nextDeck)
   }
   // Font AI: bytt fonter (tema-fonter på valgt scope, og/eller per element på dette lysbildet)
@@ -651,7 +668,7 @@ export default function Editor() {
       </div>
 
       {present && <Present deck={deck} start={idx} onClose={() => setPresent(false)} />}
-      {aiSlideOpen && <AiSlideModal current={slide.elements.filter((e) => e.type === 'text').map((e) => e.text).join(' | ')} onClose={() => setAiSlideOpen(false)} onApply={(s) => { applyAiSlide(s); setAiSlideOpen(false) }} />}
+      {aiSlideOpen && <AiSlideModal slide={slide} onClose={() => setAiSlideOpen(false)} onApply={(s) => { applyAiSlide(s); setAiSlideOpen(false) }} />}
       {reviewOpen && <ReviewModal deck={deck} onClose={() => setReviewOpen(false)} />}
       {tplOpen && (
         <div className="modal-bg" onClick={() => setTplOpen(false)}>
@@ -775,17 +792,27 @@ function AiEdit({ deck, onClose, onApply }) {
   )
 }
 
-function AiSlideModal({ current, onClose, onApply }) {
+function AiSlideModal({ slide, onClose, onApply }) {
   const { refreshTokens } = useAuth()
   const [instruction, setInstruction] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const prog = useProgress()
+  // Tekst-sammendrag (som før) + en kompakt beskrivelse av hva som står hvor (så AI kan se lysbildet)
+  const current = (slide.elements || []).filter((e) => e.type === 'text').map((e) => e.text).join(' | ')
+  const layout = (slide.elements || []).filter((e) => !e.decor).map((e) => {
+    const pos = `x${Math.round(e.x)} y${Math.round(e.y)} ${Math.round(e.w)}×${Math.round(e.h)}`
+    if (e.type === 'text') return `tekst («${(e.text || '').slice(0, 40)}») @ ${pos}`
+    if (e.type === 'image') return `bilde @ ${pos}`
+    if (e.type === 'shape') return `figur (${e.kind}) @ ${pos}`
+    if (e.type === 'table') return `tabell @ ${pos}`
+    return `${e.type} @ ${pos}`
+  }).join('\n')
   async function go() {
     if (!instruction.trim()) return
     setBusy(true); setErr(''); prog.start()
     try {
-      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'slide', current, instruction } })
+      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'slide', current, layout, instruction } })
       refreshTokens()
       if (error) throw error
       if (data?.error) throw new Error(data.error)
@@ -797,9 +824,9 @@ function AiSlideModal({ current, onClose, onApply }) {
     <div className="modal-bg" onClick={busy ? undefined : onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2><Wand2 size={20} /> AI – dette lysbildet</h2>
-        <p className="muted">Beskriv hva lysbildet skal inneholde, så lager AI det (erstatter innholdet på dette lysbildet).</p>
+        <p className="muted">Beskriv hva du vil. AI ser hva som står på lysbildet og hvor, så du kan be den flytte på ting, legge til noe nytt, eller lage lysbildet på nytt.</p>
         <textarea rows={3} value={instruction} onChange={(e) => setInstruction(e.target.value)} disabled={busy}
-          placeholder="F.eks. «et lysbilde om hva vi lærte, med 3 korte punkter»" />
+          placeholder="F.eks. «flytt bildet til venstre og legg til et punkt» eller «lag et lysbilde om hva vi lærte»" />
         {err && <p className="err">{err}</p>}
         {busy && <ProgressBar p={prog.p} label="Lager lysbildet …" />}
         <div className="modal-foot">
