@@ -306,7 +306,8 @@ button{font-family:inherit}
 .land-feat p{margin:0;color:var(--muted);font-size:14px;line-height:1.45}
 
 .land-about{max-width:1000px;margin:30px auto;padding:30px 26px;display:grid;grid-template-columns:240px 1fr;gap:32px;align-items:center}
-.land-about-photo img,.land-photo-fallback{width:240px;height:240px;border-radius:20px;object-fit:cover;border:1px solid var(--line);box-shadow:0 16px 40px rgba(0,0,0,.35)}
+.land-about-photo img,.land-photo-fallback{width:230px;height:230px;border-radius:50%;object-fit:cover;object-position:50% 26%;border:4px solid rgba(255,255,255,.14);box-shadow:0 0 0 4px rgba(99,102,241,.5), 0 18px 50px rgba(0,0,0,.5)}
+.land-about-photo{display:flex;justify-content:center}
 .land-photo-fallback{display:flex;align-items:center;justify-content:center;font-size:90px;background:var(--panel-2)}
 .land-about-text h2{font-size:28px;margin:0 0 14px}
 .land-about-text p{color:var(--muted);line-height:1.6;margin:0 0 12px;font-size:16px}
