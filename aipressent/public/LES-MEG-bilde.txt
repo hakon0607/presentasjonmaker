@@ -1,0 +1,8 @@
+Vil du ha bildet ditt på forsiden (under «Hvorfor jeg lagde AiPressent»)?
+
+Legg bildet ditt i denne mappen (public/) og kall det nøyaktig:
+
+    meg.jpg
+
+Da dukker det opp automatisk på forsiden. Bruk gjerne det samme bildet som på reisedagboken.
+(Hvis fila mangler, vises en vennlig 🙂 i stedet – helt ok.)
