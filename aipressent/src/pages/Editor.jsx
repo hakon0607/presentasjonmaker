@@ -48,6 +48,7 @@ export default function Editor() {
     if (sp.get('tour') === '1') { setTourOpen(true); sp.delete('tour'); setSp(sp, { replace: true }) }
   }, [])
   const [aiSlideOpen, setAiSlideOpen] = useState(false)
+  const [editSlideOpen, setEditSlideOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [aiImgEl, setAiImgEl] = useState(null)
   const [webImgEl, setWebImgEl] = useState(null)
@@ -196,6 +197,23 @@ export default function Editor() {
   const sel = slide.elements.find((e) => e.id === selId) || null
 
   function setSlide(ns) { apply({ ...deck, slides: deck.slides.map((s, i) => (i === idx ? ns : s)) }) }
+  // Bruk AI-endringer per element (fra "Endre lysbildet")
+  function applyEditChanges(changes) {
+    const byId = {}
+    ;(changes || []).forEach((c) => { if (c && c.id) byId[c.id] = c })
+    const clamp = (el) => {
+      const o = { ...el }
+      o.w = Math.max(20, Math.min(960, o.w)); o.h = Math.max(16, Math.min(540, o.h))
+      o.x = Math.max(0, Math.min(960 - o.w, o.x)); o.y = Math.max(0, Math.min(540 - o.h, o.y))
+      return o
+    }
+    setSlide({ ...slide, elements: slide.elements.map((el) => {
+      const c = byId[el.id]
+      if (!c) return el
+      const { id, type, ...patch } = c
+      return clamp({ ...el, ...patch })
+    }) })
+  }
   function updateSel(patch) {
     if (!sel) return
     setSlide({ ...slide, elements: slide.elements.map((e) => (e.id === sel.id ? { ...e, ...patch } : e)) })
@@ -573,6 +591,7 @@ export default function Editor() {
             <button onClick={dupSlide} title="Dupliser"><Copy size={16} /></button>
             <button onClick={delSlide} title="Slett lysbilde" disabled={deck.slides.length === 1}><Trash2 size={16} /></button>
             <button onClick={() => setThemeOpen(true)} title="Endre tema – farger og stil" className="wand"><Palette size={16} /></button>
+            {aiEnabled && <button onClick={() => setEditSlideOpen(true)} title="Endre lysbildet med AI – flytt/bytt om på ting" className="wand"><Wand2 size={16} /></button>}
           </div>
 
           <div className="notes" data-tour="notes">
@@ -629,6 +648,7 @@ export default function Editor() {
       {shareMsg && <div className="toast">{shareMsg}</div>}
       {shareOpen && <ShareModal id={id} title={deck.title} onClose={() => setShareOpen(false)} />}
       {themeOpen && <ThemeModal deck={deck} idx={idx} onApply={apply} onClose={() => setThemeOpen(false)} />}
+      {editSlideOpen && <EditSlideModal slide={slide} onApply={applyEditChanges} onClose={() => setEditSlideOpen(false)} />}
       {tourOpen && <Tour onClose={() => setTourOpen(false)} steps={[
         { sel: '[data-tour="toolbar"]', title: 'Verktøylinja', text: 'Her legger du til tekst, bilder, figurer, stickers og tabeller. Klikk et bildefelt for å «Søke på nett», laste opp eget bilde, eller lage med AI. Helt til høyre er «enkel visning» som gjemmer de sjeldne knappene.' },
         { sel: '[data-tour="anim"]', title: 'Animasjon', text: 'Åpne animasjonspanelet (du kan dra det rundt). Klikk et objekt → «Legg til valgt». Velg «Med forrige» (samtidig) eller «Etter forrige» (i rekkefølge), dra radene for å endre rekkefølge, og «Spill av» for å se det.' },
@@ -878,6 +898,56 @@ function WebImageModal({ el, onClose, onSearch, onPick }) {
         </div>
         {!did && !busy && <p className="muted" style={{ textAlign: 'center', padding: '20px 0' }}>Skriv et søk og trykk «Søk» 🔎</p>}
         <div className="modal-foot"><button className="btn ghost" onClick={onClose} disabled={picking}>Lukk</button></div>
+      </div>
+    </div>
+  )
+}
+
+function EditSlideModal({ slide, onApply, onClose }) {
+  const [desc, setDesc] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [done, setDone] = useState(false)
+  const examples = ['bytt plass på bildet og teksten', 'flytt tittelen litt ned', 'gjør bildet større', 'midtstill teksten', 'flytt alt litt mot venstre']
+  // Kompakt liste til AI – kun det den trenger for å plassere/endre
+  const slim = (slide.elements || []).filter((e) => !e.decor).map((e) => {
+    const o = { id: e.id, type: e.type, x: Math.round(e.x), y: Math.round(e.y), w: Math.round(e.w), h: Math.round(e.h) }
+    if (e.type === 'text') { o.text = (e.text || '').slice(0, 60); o.fontSize = e.fontSize; o.align = e.align; o.bold = e.bold }
+    if (e.type === 'image') { o.role = 'bilde'; o.fit = e.fit }
+    if (e.type === 'shape') { o.kind = e.kind }
+    return o
+  })
+  async function gen() {
+    if (!desc.trim()) { setErr('Skriv hva du vil endre på lysbildet.'); return }
+    if (!slim.length) { setErr('Det er ingenting å endre på dette lysbildet ennå.'); return }
+    setBusy(true); setErr(''); setDone(false)
+    try {
+      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'editslide', elements: slim, instruction: desc.trim() } })
+      if (error) throw new Error(error.message || 'serverfeil')
+      if (data?.error) throw new Error(data.error)
+      const changes = Array.isArray(data.changes) ? data.changes : []
+      if (!changes.length) { setErr('AI fant ikke noe å endre for det ønsket. Prøv å si det på en annen måte.'); return }
+      onApply(changes)
+      setDone(true)
+    } catch (e) { setErr('Klarte ikke å endre lysbildet: ' + (e.message || e)) } finally { setBusy(false) }
+  }
+  return (
+    <div className="modal-bg" onClick={busy ? undefined : onClose}>
+      <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="sil-head"><h3><Wand2 size={20} /> Endre lysbildet med AI</h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
+        <p className="muted" style={{ margin: 0 }}>AI ser elementene på dette lysbildet og gjør <b>akkurat det du ber om</b> – flytter, bytter om eller endrer størrelse. Den rører ikke resten. <span className="small">(Koster 1 token)</span></p>
+        <textarea className="theme-desc" rows={2} value={desc} onChange={(e) => setDesc(e.target.value)} disabled={busy}
+          placeholder="F.eks. «bytt plass på bildet og teksten» eller «flytt tittelen ned»"
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); gen() } }} />
+        <div className="theme-examples">
+          {examples.map((x) => <button key={x} className="theme-ex" onClick={() => setDesc(x)} disabled={busy}>{x}</button>)}
+        </div>
+        {err && <p className="err">{err}</p>}
+        {done && !err && <p className="muted small">✓ Endret! Prøv gjerne en ny instruksjon.</p>}
+        <div className="modal-foot">
+          <button className="btn ghost" onClick={onClose} disabled={busy}>Ferdig</button>
+          <button className="btn primary" onClick={gen} disabled={busy || !desc.trim()}>{busy ? 'Endrer …' : '✨ Endre'}</button>
+        </div>
       </div>
     </div>
   )
