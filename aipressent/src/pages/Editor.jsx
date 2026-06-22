@@ -222,9 +222,10 @@ export default function Editor() {
       ...slide.elements.filter((el) => !removeSet.has(el.id)).map((el) => {
         const c = byId[el.id]
         if (!c) return el
-        const { id, type, ...patch } = c
+        const { id, type, text, ...patch } = c
+        // Visuell AI skal ALDRI endre selve tekst-innholdet – kast bort evt. text-felt
         let merged = { ...el, ...patch }
-        if (el.type === 'text' && patch.h == null && (patch.fontSize != null || patch.text != null || patch.bold != null)) merged = fitTextBox(merged)
+        if (el.type === 'text' && patch.h == null && (patch.fontSize != null || patch.bold != null)) merged = fitTextBox(merged)
         return clamp(merged)
       }),
       ...added,
@@ -651,8 +652,8 @@ export default function Editor() {
             <button onClick={() => moveSlide(1)} title="Flytt ned" disabled={idx === deck.slides.length - 1}><ChevronDown size={16} /></button>
             <button onClick={dupSlide} title="Dupliser"><Copy size={16} /></button>
             <button onClick={delSlide} title="Slett lysbilde" disabled={deck.slides.length === 1}><Trash2 size={16} /></button>
-            {aiEnabled && <button onClick={() => setVisualOpen(true)} title="Visuell AI – farger, tema, bakgrunn, flytting og nye elementer" className="wand"><Palette size={16} /></button>}
-            {aiEnabled && <button onClick={() => setFontOpen(true)} title="Font AI – endrer bare skrifttyper" className="wand"><span style={{ fontWeight: 800, fontSize: 15, lineHeight: 1 }}>Aa</span></button>}
+            {aiEnabled && <button data-tour="visual" onClick={() => setVisualOpen(true)} title="Visuell AI – farger, tema, bakgrunn, flytting og nye elementer" className="wand"><Palette size={16} /></button>}
+            {aiEnabled && <button data-tour="font" onClick={() => setFontOpen(true)} title="Font AI – endrer bare skrifttyper" className="wand"><span style={{ fontWeight: 800, fontSize: 15, lineHeight: 1 }}>Aa</span></button>}
           </div>
 
           <div className="notes" data-tour="notes">
@@ -715,8 +716,10 @@ export default function Editor() {
         { sel: '[data-tour="anim"]', title: 'Animasjon', text: 'Åpne animasjonspanelet (du kan dra det rundt). Klikk et objekt → «Legg til valgt». Velg «Med forrige» (samtidig) eller «Etter forrige» (i rekkefølge), dra radene for å endre rekkefølge, og «Spill av» for å se det.' },
         { sel: '[data-tour="rail"]', title: 'Lysbildene dine', text: 'Alle lysbildene ligger her. Klikk for å bytte, dra for å endre rekkefølge, og «+ Lysbilde» for å legge til. Dra i kanten for å gjøre stripa bredere.' },
         { sel: '[data-tour="canvas"]', title: 'Selve lysbildet', text: 'Dra ting for å flytte dem. Dobbeltklikk på tekst for å skrive – klikk midt i teksten, så går skrivemerket dit. Markér et objekt og dra det runde håndtaket over det for å rotere.' },
+        { sel: '[data-tour="visual"]', title: 'Visuell AI 🎨', text: 'Endrer alt det visuelle – farger, tema, bakgrunn og stil. Den kan også flytte på ting og lage nye elementer så det passer. Teksten din holdes lik. Velg «Alle lysbilder» eller «Bare denne» øverst i boksen.' },
+        { sel: '[data-tour="font"]', title: 'Font AI 🔤', text: 'Endrer bare skrifttypen. Skriv et fontnavn (som «Arial») eller en stemning («noe lekent»). Også her velger du «Alle» eller «Bare denne».' },
         ...(aiEnabled ? [
-          { sel: '[data-tour="ai"]', title: 'AI-lysbilde', text: 'La AI lage eller skrive om akkurat DETTE ene lysbildet ut fra en kort beskrivelse. Resten røres ikke.' },
+          { sel: '[data-tour="ai"]', title: 'AI-lysbilde', text: 'La AI lage eller skrive om akkurat DETTE ene lysbildet. Den ser hva som står på lysbildet og hvor, så du kan be den flytte på ting eller legge til noe nytt – eller lage lysbildet på nytt fra en beskrivelse.' },
           { sel: '[data-tour="check"]', title: 'Sjekk', text: 'AI ser over presentasjonen og gir deg vennlige tips om hva som kan bli bedre.' },
           { sel: '[data-tour="animate"]', title: 'Animer med AI', text: 'AI velger fine overganger og bevegelse på alle lysbildene på én gang. Trykk «Presenter» etterpå for å se det.' },
         ] : []),

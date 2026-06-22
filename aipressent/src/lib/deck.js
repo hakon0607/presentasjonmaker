@@ -398,9 +398,25 @@ export function applyTheme(deck, newTheme, scope, idx, tweaks) {
     const fontMap = {}
     if (from.fontHead) fontMap[lowc(from.fontHead)] = nt.fontHead
     if (from.fontBody) fontMap[lowc(from.fontBody)] = nt.fontBody
+    // Rolle-basert tekstfarge: bestem om elementet er overskrift, brødtekst eller aksent,
+    // og gi RIKTIG ny farge – så overskrift/tekst aldri byttes om (selv om de hadde lik farge før)
+    const recolorText = (el) => {
+      const col = lowc(el.color || '')
+      let nc = el.color
+      if (col && col === lowc(from.accent)) nc = nt.accent
+      else if (col && col === lowc(from.title) && col !== lowc(from.text)) nc = nt.title
+      else if (col && col === lowc(from.text) && col !== lowc(from.title)) nc = nt.text
+      else nc = isHeading(el) ? nt.title : nt.text   // lik gammel farge / ukjent → bruk størrelse/fet
+      // Hold teksten lesbar mot ny bakgrunn
+      return readableOn(nc, nt.bg, lum(nt.bg) > 0.5 ? '#1a1a1a' : '#ffffff')
+    }
     // Behold alt innhold (tekst, bilder, brukerens egne ting) OG figur-ikoner (dekor-bilder) – bytt bare farger/fonter
     const keep = s.elements.filter((e) => !e.decor || e.type === 'image')
-    const content = keep.map((el) => applyTweaks(recolorEl(el, map, fontMap, nt.bg)))
+    const content = keep.map((el) => {
+      let out = recolorEl(el, map, fontMap, nt.bg)
+      if (el.type === 'text' && el.color) out = { ...out, color: recolorText(el) }
+      return applyTweaks(out)
+    })
     // Bygg KUN den geometriske pynten (bakteppet) på nytt med ny stil + nye farger
     const big = s.layout ? (s.layout === 'cover' || s.layout === 'section')
       : (Math.max(0, ...s.elements.filter((e) => e.type === 'text').map((e) => e.fontSize || 0)) >= 42)

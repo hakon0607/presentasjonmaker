@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { ChevronLeft, Sparkles, Image as ImageIcon, Wand2, Play, Download, Share2, CheckCircle2, FileText, Film, RotateCw, MousePointerClick, Minimize2, LayoutGrid, User, KeyRound } from 'lucide-react'
+import { ChevronLeft, Sparkles, Image as ImageIcon, Wand2, Play, Download, Share2, CheckCircle2, FileText, Film, RotateCw, MousePointerClick, Minimize2, LayoutGrid, User, KeyRound, Palette } from 'lucide-react'
 
 const STEPS = [
   { I: KeyRound, t: '1. Lag en konto', d: 'Trykk «Lag konto», skriv navn, e-post og passord. Du må skrive passordet to ganger, og kan trykke øyet 👁️ for å se det. Etter registrering får du en bekreftelses-e-post – husk å sjekke søppelpost/spam-mappen, for den havner ofte der!' },
@@ -12,13 +12,14 @@ const STEPS = [
   { I: Minimize2, t: '7. Enkel visning', d: 'Knappen helt til høyre i verktøylinja skrur på «enkel visning» og gjemmer de sjeldne knappene, så det blir ryddig. Trykk igjen for å få alle verktøyene tilbake. Du kan også dra i kanten av lysbilde-stripa til venstre for å gjøre den bredere.' },
   { I: LayoutGrid, t: '8. Pynt og tekst-kort kommer av seg selv', d: 'AI legger automatisk på figurer, geometrisk pynt og pene tekst-kort som passer temaet og fargene – du trenger ikke gjøre noe selv. To ulike tema får helt forskjellig utseende.' },
   { I: Sparkles, t: '9. Finpuss selv', d: 'Bruk verktøylinja til å legge til tekst, figurer (sirkel, pil, stjerne, hjerte …), tabeller og stickers. Dra ting rundt – hjelpelinjer hjelper deg å midtstille. Du kan kopiere lysbilder, endre rekkefølge ved å dra dem, og angre med Ctrl+Z. Alt lagres automatisk.' },
-  { I: Wand2, t: '10. Endre ett lysbilde med AI', d: 'Knappen «AI-lysbilde» lar AI lage eller skrive om akkurat DET ene lysbildet du står på – f.eks. «gjør dette til tre korte punkter». Resten røres ikke.' },
-  { I: FileText, t: '11. Manus til deg selv', d: 'AI skriver automatisk et manus (hva du skal si) til hvert lysbilde. Du ser det i feltet under lysbildet, det vises i presentasjons-modus, og følger med i PowerPoint-eksporten.' },
-  { I: CheckCircle2, t: '12. Sjekk kvaliteten', d: 'Trykk «Sjekk», så ser AI over presentasjonen og gir vennlige tips: svarer den på temaet, er det god variasjon, henger den sammen?' },
-  { I: Play, t: '13. Presentér', d: 'Trykk «Presenter» for fullskjerm med myke overganger og animasjonene som spiller av. Trykk «N» for å se manuset ditt mens du presenterer.' },
-  { I: Download, t: '14. Eksporter', d: 'Last ned som PowerPoint eller PDF, eller åpne rett i Google Slides. Pynten og fargene følger med.' },
-  { I: Share2, t: '15. Del – se eller redigere', d: 'Trykk «Del» og velg: «Bare se på» gir en lenke der andre kan se presentasjonen, mens «Kan redigere» gir en lenke der mottakeren får SIN EGEN kopi å redigere (din original røres ikke). Du kan også sende lenken rett på e-post.' },
-  { I: User, t: '16. Profil & tokens', d: 'På «Profil» ser du navnet ditt, hvor mange presentasjoner du har laget, planen din og hvor mange tokens du har igjen til AI.' },
+  { I: Wand2, t: '10. Endre ett lysbilde med AI', d: 'Knappen «AI-lysbilde» lar AI lage eller skrive om akkurat DET ene lysbildet du står på. Den ser hva som står på lysbildet og hvor, så du kan be den flytte på ting eller legge til noe – f.eks. «gjør dette til tre korte punkter» eller «flytt bildet til venstre».' },
+  { I: Palette, t: '11. Visuell AI og Font AI', d: 'Ved lysbildet finner du to tryllestaver: 🎨 Visuell AI endrer farger, tema, bakgrunn og kan flytte/lage elementer (teksten din holdes lik). 🔤 Font AI endrer bare skrifttypen. Begge har en bryter for «Alle lysbilder» eller «Bare denne». Be om akkurat det du vil, f.eks. «roligere farge på overskriftene» eller «Arial-font».' },
+  { I: FileText, t: '12. Manus til deg selv', d: 'AI skriver automatisk et manus (hva du skal si) til hvert lysbilde. Du ser det i feltet under lysbildet, det vises i presentasjons-modus, og følger med i PowerPoint-eksporten.' },
+  { I: CheckCircle2, t: '13. Sjekk kvaliteten', d: 'Trykk «Sjekk», så ser AI over presentasjonen og gir vennlige tips: svarer den på temaet, er det god variasjon, henger den sammen?' },
+  { I: Play, t: '14. Presentér', d: 'Trykk «Presenter» for fullskjerm med myke overganger og animasjonene som spiller av. Trykk «N» for å se manuset ditt mens du presenterer.' },
+  { I: Download, t: '15. Eksporter', d: 'Last ned som PowerPoint eller PDF, eller åpne rett i Google Slides. Pynten og fargene følger med.' },
+  { I: Share2, t: '16. Del – se eller redigere', d: 'Trykk «Del» og velg: «Bare se på» gir en lenke der andre kan se presentasjonen, mens «Kan redigere» gir en lenke der mottakeren får SIN EGEN kopi å redigere (din original røres ikke). Du kan også sende lenken rett på e-post.' },
+  { I: User, t: '17. Profil & tokens', d: 'På «Profil» ser du navnet ditt, hvor mange presentasjoner du har laget, planen din og hvor mange tokens du har igjen til AI.' },
 ]
 
 export default function Guide() {
