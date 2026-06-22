@@ -554,7 +554,7 @@ button{font-family:inherit}
 .chip:hover, .btn.ghost:hover { background: rgba(48,62,108,.7); border-color: rgba(255,255,255,.22); }
 .btn.primary { box-shadow: 0 8px 22px rgba(99,102,241,.45), inset 0 1px 0 rgba(255,255,255,.28); }
 .btn { border-radius: 12px; }
-.toolbar { background: rgba(18,24,42,.6); border-bottom: 1px solid rgba(255,255,255,.08); }
+.toolbar { background: rgba(18,24,42,.6); border-bottom: 1px solid rgba(255,255,255,.08); position: relative; z-index: 50; }
 .tb { background: rgba(31,41,71,.5); border: 1px solid rgba(255,255,255,.08); }
 .tb:hover { background: rgba(48,62,108,.62); }
 .anim-panel { background: rgba(18,24,42,.82); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 24px 60px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12); }
