@@ -176,6 +176,7 @@ export function normalizeTheme(t) {
     bg: hex(t.bg, def.bg), title: hex(t.title, def.title), text: hex(t.text, def.text), accent: hex(t.accent, def.accent),
     fontHead: font(t.fontHead, 'Poppins'), fontBody: font(t.fontBody, 'Inter'),
     decor: ['confetti', 'blobs', 'botanical', 'none'].includes(t.decor) ? t.decor : 'none',
+    style: (typeof t.style === 'string' && DECOR_STYLES[t.style]) ? t.style : undefined,
   }
 }
 
@@ -277,7 +278,7 @@ function buildSlide(s, th, slideIdx = 0) {
   })
   // Variert overgang mellom lysbildene for ekstra bevegelse
   const trans = big ? 'zoom' : ['slideLeft', 'slideUp', 'fade', 'slideLeft'][slideIdx % 4]
-  return { id: genId(), background: th.bg, elements: els, notes: typeof s.notes === 'string' ? s.notes : '', anim: { transition: trans } }
+  return { id: genId(), background: th.bg, elements: els, notes: typeof s.notes === 'string' ? s.notes : '', anim: { transition: trans }, layout: L, style: s.style || 'corners' }
 }
 
 export function slidesFromAi(aiSlides, theme = 'minimal') {
@@ -327,14 +328,22 @@ function recolorEl(el, map, fontMap) {
 // scope: 'all' = hele presentasjonen, 'slide' = bare lysbildet på idx
 export function applyTheme(deck, newTheme, scope, idx) {
   const nt = asTheme(newTheme)
-  const recolor = (s) => {
+  const newStyle = (nt.style && DECOR_STYLES[nt.style]) ? nt.style : null
+  const recolor = (s, i) => {
     const from = asTheme(s.theme || deck.theme)
     const map = buildColorMap(from, nt)
     const fontMap = {}
     if (from.fontHead) fontMap[lowc(from.fontHead)] = nt.fontHead
     if (from.fontBody) fontMap[lowc(from.fontBody)] = nt.fontBody
-    return { ...s, theme: { ...nt }, background: nt.bg, elements: s.elements.map((el) => recolorEl(el, map, fontMap)) }
+    // behold tekst/bilder/figurer (ikke-dekor), bytt farger + fonter
+    const content = s.elements.filter((e) => !e.decor).map((el) => recolorEl(el, map, fontMap))
+    // bygg pynten (bakteppet) helt på nytt med ny stil + nye farger
+    const useStyle = newStyle || s.style || 'corners'
+    const big = s.layout ? (s.layout === 'cover' || s.layout === 'section')
+      : (Math.max(0, ...s.elements.filter((e) => e.type === 'text').map((e) => e.fontSize || 0)) >= 42)
+    const decor = autoBackdrop(nt, big, useStyle, i)
+    return { ...s, theme: { ...nt }, style: useStyle, background: nt.bg, elements: [...decor, ...content] }
   }
-  if (scope === 'slide') return { ...deck, slides: deck.slides.map((s, i) => (i === idx ? recolor(s) : s)) }
+  if (scope === 'slide') return { ...deck, slides: deck.slides.map((s, i) => (i === idx ? recolor(s, i) : s)) }
   return { ...deck, theme: { ...nt }, slides: deck.slides.map(recolor) }
 }
