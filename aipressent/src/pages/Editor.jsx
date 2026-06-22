@@ -165,6 +165,13 @@ export default function Editor() {
         return
       }
       if (e.key.startsWith('Arrow')) {
+        // Ingen objekt valgt → bla mellom lysbildene
+        if (!sel && !hasMulti && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+          e.preventDefault()
+          setIdx((v) => Math.max(0, Math.min(deck.slides.length - 1, e.key === 'ArrowLeft' ? v - 1 : v + 1)))
+          setSelId(null); setEditId(null)
+          return
+        }
         const step = e.shiftKey ? 10 : 1
         let dx = 0, dy = 0
         if (e.key === 'ArrowLeft') dx = -step; else if (e.key === 'ArrowRight') dx = step
