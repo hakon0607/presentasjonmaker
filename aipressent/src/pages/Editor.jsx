@@ -889,12 +889,12 @@ function ThemeModal({ deck, idx, onApply, onClose }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [last, setLast] = useState(null)
-  const examples = ['mørkt og elegant med gull', 'lyst og lekent rosa', 'som havet, blått og friskt', 'rolig pastell', 'kraftig og sporty', 'vintage og varmt']
+  const examples = ['blå overskrifter, hvit tekst, grønn bakgrunn', 'bytt til Arial-font', 'mørkere bakgrunn', 'mer lekent og fargerikt', 'rolig pastell', 'som havet, blått og friskt']
   async function gen() {
     if (!desc.trim()) { setErr('Beskriv hvilke farger eller stil du vil ha.'); return }
     setBusy(true); setErr('')
     try {
-      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'theme', visualStyle: desc.trim() } })
+      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'theme', visualStyle: desc.trim(), current: deck.theme } })
       if (error) throw new Error(error.message || 'serverfeil')
       if (data?.error) throw new Error(data.error)
       const th = normalizeTheme(data.theme)
@@ -906,13 +906,13 @@ function ThemeModal({ deck, idx, onApply, onClose }) {
     <div className="modal-bg" onClick={busy ? undefined : onClose}>
       <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
         <div className="sil-head"><h3><Palette size={20} /> Endre tema med AI</h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
-        <p className="muted" style={{ margin: 0 }}>Beskriv farger eller stil, så lager AI et nytt tema. All tekst og alle bilder beholdes nøyaktig som de er. <span className="small">(Koster 1 token)</span></p>
+        <p className="muted" style={{ margin: 0 }}>Be om akkurat det du vil – farger, fonter eller stil. AI endrer <b>bare det du nevner</b> og beholder resten. All tekst blir nøyaktig lik, og layouten legges pent om. <span className="small">(Koster 1 token)</span></p>
         <div className="seg" style={{ marginTop: 2 }}>
           <button className={'seg-btn' + (scope === 'all' ? ' on' : '')} onClick={() => setScope('all')}>Hele presentasjonen</button>
           <button className={'seg-btn' + (scope === 'slide' ? ' on' : '')} onClick={() => setScope('slide')}>Bare dette lysbildet</button>
         </div>
         <textarea className="theme-desc" rows={2} value={desc} onChange={(e) => setDesc(e.target.value)} disabled={busy}
-          placeholder="F.eks. «mørkt og elegant med gull» eller «som en solnedgang»"
+          placeholder="F.eks. «blå overskrifter, hvit tekst, grønn bakgrunn, Arial-font» eller «mørkere»"
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); gen() } }} />
         <div className="theme-examples">
           {examples.map((x) => <button key={x} className="theme-ex" onClick={() => setDesc(x)} disabled={busy}>{x}</button>)}

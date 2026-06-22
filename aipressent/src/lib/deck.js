@@ -169,7 +169,8 @@ export function normalizeTheme(t) {
   if (!t) return THEMES.minimal
   if (typeof t === 'string') return THEMES[t] || THEMES.minimal
   const hex = (c, d) => { const v = String(c || '').replace('#', ''); return /^[0-9a-fA-F]{6}$/.test(v) ? '#' + v : d }
-  const font = (f, d) => (FONTS.includes(f) ? f : d)
+  // Godta enhver rimelig font-streng (også system-fonter som Arial/Times), ikke bare de innebygde
+  const font = (f, d) => { const s = String(f || '').trim(); return (s && s.length <= 40 && /^[\w\s'-]+$/.test(s)) ? s : d }
   const def = THEMES.minimal
   return {
     name: t.name || 'Egendefinert',
@@ -326,24 +327,54 @@ function recolorEl(el, map, fontMap) {
   return out
 }
 // scope: 'all' = hele presentasjonen, 'slide' = bare lysbildet på idx
+// Rekonstruerer AI-slide-strukturen fra et ferdig bygget lysbilde (for å bygge layouten på nytt)
+function slideToAi(s) {
+  const texts = s.elements.filter((e) => !e.decor && e.type === 'text')
+  const imgs = s.elements.filter((e) => !e.decor && e.type === 'image' && e.src)
+  const L = s.layout || 'bullets'
+  const t = (i) => (texts[i]?.text || '').trim()
+  const unbul = (str) => String(str || '').split('\n').map((l) => l.replace(/^[•\-\*\u2022]\s*/, '').trim()).filter(Boolean)
+  const cap = (i) => imgs[i]?.caption && imgs[i].caption !== 'Sett inn bilde' && imgs[i].caption !== 'Sett inn et stort bilde her' ? imgs[i].caption : ''
+  const ai = { layout: L }
+  if (L === 'cover') { ai.title = t(0); ai.subtitle = t(1) }
+  else if (L === 'section') { ai.title = t(0) }
+  else if (L === 'statement') { ai.statement = t(0); ai.subtitle = t(1) }
+  else if (L === 'imageFull') { ai.title = t(0); ai.image = { caption: cap(0) } }
+  else if (L === 'imageText') { ai.title = t(0); ai.bullets = unbul(t(1)); ai.image = { caption: cap(0) } }
+  else if (L === 'twoColumn') { ai.title = t(0); ai.columns = [{ heading: t(1), bullets: unbul(t(2)) }, { heading: t(3), bullets: unbul(t(4)) }] }
+  else { ai.title = t(0); ai.bullets = unbul(t(1)) }
+  return { ai, imgSrcs: imgs.map((im) => ({ src: im.src, fit: im.fit, pos: im.pos })) }
+}
+
+// scope: 'all' = hele presentasjonen, 'slide' = bare lysbildet på idx
 export function applyTheme(deck, newTheme, scope, idx) {
   const nt = asTheme(newTheme)
-  const newStyle = (nt.style && DECOR_STYLES[nt.style]) ? nt.style : null
-  const recolor = (s, i) => {
-    const from = asTheme(s.theme || deck.theme)
-    const map = buildColorMap(from, nt)
-    const fontMap = {}
-    if (from.fontHead) fontMap[lowc(from.fontHead)] = nt.fontHead
-    if (from.fontBody) fontMap[lowc(from.fontBody)] = nt.fontBody
-    // behold tekst/bilder/figurer (ikke-dekor), bytt farger + fonter
-    const content = s.elements.filter((e) => !e.decor).map((el) => recolorEl(el, map, fontMap))
-    // bygg pynten (bakteppet) helt på nytt med ny stil + nye farger
-    const useStyle = newStyle || s.style || 'corners'
-    const big = s.layout ? (s.layout === 'cover' || s.layout === 'section')
-      : (Math.max(0, ...s.elements.filter((e) => e.type === 'text').map((e) => e.fontSize || 0)) >= 42)
-    const decor = autoBackdrop(nt, big, useStyle, i)
-    return { ...s, theme: { ...nt }, style: useStyle, background: nt.bg, elements: [...decor, ...content] }
+  const useStyleFor = (s) => (nt.style && DECOR_STYLES[nt.style]) ? nt.style : (s.style || 'corners')
+  const rebuild = (s, i) => {
+    try {
+      const { ai, imgSrcs } = slideToAi(s)
+      ai.style = useStyleFor(s)
+      // Bygg lysbildet helt på nytt med ny layout/posisjonering + nytt tema
+      const built = buildSlide(ai, nt, i)
+      // Bevar bildene (kilde + tilpasning) nøyaktig
+      let k = 0
+      built.elements = built.elements.map((el) => {
+        if (el.type === 'image' && !el.decor) { const keep = imgSrcs[k++]; return keep ? { ...el, src: keep.src, fit: keep.fit || el.fit, pos: keep.pos || el.pos, caption: keep.src ? '' : el.caption } : el }
+        return el
+      })
+      return { ...built, id: s.id, notes: s.notes, theme: { ...nt } }
+    } catch (_e) {
+      // Trygg fallback: bare recolor hvis rekonstruksjon feiler
+      const from = asTheme(s.theme || deck.theme)
+      const map = buildColorMap(from, nt)
+      const fontMap = {}
+      if (from.fontHead) fontMap[lowc(from.fontHead)] = nt.fontHead
+      if (from.fontBody) fontMap[lowc(from.fontBody)] = nt.fontBody
+      const content = s.elements.filter((e) => !e.decor).map((el) => recolorEl(el, map, fontMap))
+      const decor = autoBackdrop(nt, s.layout === 'cover' || s.layout === 'section', useStyleFor(s), i)
+      return { ...s, theme: { ...nt }, style: useStyleFor(s), background: nt.bg, elements: [...decor, ...content] }
+    }
   }
-  if (scope === 'slide') return { ...deck, slides: deck.slides.map((s, i) => (i === idx ? recolor(s, i) : s)) }
-  return { ...deck, theme: { ...nt }, slides: deck.slides.map(recolor) }
+  if (scope === 'slide') return { ...deck, slides: deck.slides.map((s, i) => (i === idx ? rebuild(s, i) : s)) }
+  return { ...deck, theme: { ...nt }, slides: deck.slides.map(rebuild) }
 }

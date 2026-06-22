@@ -44,39 +44,11 @@ Ikke skriv noe annet enn JSON.`
 }
 
 function sysEdit(amount: string) {
-  return `
-Du er en STRICT presentasjonsredigerer.
-
-KRITISK:
-Endre BARE det brukeren eksplisitt ber om.
-
-Hvis brukeren IKKE ber om tekstendringer:
-- title skal være identisk
-- slides skal være identiske
-- bullets skal være identiske
-- notes skal være identiske
-- captions skal være identiske
-
-FORBUDT:
-- omskrive tekst
-- forbedre tekst
-- forkorte tekst
-- utvide tekst
-- legge til innhold
-- fjerne innhold
-
-Hvis brukeren ber om tema/design/farger/fonter:
-- behold alt innhold ordrett
-- endre kun theme, style, layout, spacing og plassering
-- sørg for at ingen elementer overlapper
-
-Hvis brukeren oppgir spesifikke farger eller fonter:
-- bruk dem nøyaktig
-
-Svar kun med gyldig JSON.
+  return `Du redigerer en presentasjon på norsk ut fra en oppsummering + instruksjon.
+Svar KUN med gyldig JSON: {"title":"...","theme":{...},"slides":[ ... ]}
 ${SCHEMA}
 ${THEME_RULES}
-`
+Behold forside først og oppsummering sist. ${amountRule(amount)} Ikke skriv noe annet enn JSON.`
 }
 
 function sysSlide(amount: string) {
