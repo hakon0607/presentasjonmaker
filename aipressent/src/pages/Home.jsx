@@ -5,10 +5,6 @@ import { useAuth } from '../context/AuthContext'
 import { newDeck, THEMES } from '../lib/deck'
 import { exportPptx } from '../lib/export'
 import AiWizard from '../components/AiWizard'
-import TemplatePicker from '../components/TemplatePicker'
-import TemplateThumb from '../components/TemplateThumb'
-import { deckFromTemplate, photoQueryOf, deckWithPhotoBg, searchTemplates, TEMPLATE_CATEGORIES } from '../lib/templates'
-import { fetchPixabay } from '../lib/photo'
 import Tour from '../components/Tour'
 import InstallButton from '../components/InstallButton'
 import TokenBadge from '../components/TokenBadge'
@@ -21,11 +17,6 @@ export default function Home() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [aiOpen, setAiOpen] = useState(false)
-  const [tplOpen, setTplOpen] = useState(false)
-  const [tplQuery, setTplQuery] = useState('')
-  const [tplCat, setTplCat] = useState('Alle')
-  const tplResults = useMemo(() => searchTemplates(tplQuery, tplCat), [tplQuery, tplCat])
-  const [tplBusy, setTplBusy] = useState(false)
   const [tourOpen, setTourOpen] = useState(false)
   const [showWelcome, setShowWelcome] = useState(() => { try { return localStorage.getItem('ap_welcome_hidden') !== '1' } catch (_e) { return true } })
   function hideWelcome() { try { localStorage.setItem('ap_welcome_hidden', '1') } catch (_e) { /* ignore */ } setShowWelcome(false) }
@@ -63,19 +54,6 @@ export default function Home() {
     const { data, error } = await supabase.from('presentations')
       .insert({ owner_id: user.id, title: deck.title, theme: deck.theme?.name || 'Minimal', data: deck }).select('id').single()
     if (!error && data) nav('/p/' + data.id)
-  }
-
-  async function createFromTemplate(t) {
-    if (tplBusy) return
-    setTplBusy(true)
-    let deck = deckFromTemplate('Uten tittel', t)
-    const q = photoQueryOf(t)
-    if (q) { const src = await fetchPixabay(q); if (src) deck = deckWithPhotoBg(deck, src, t.scrim || 'dark') }
-    const { data, error } = await supabase.from('presentations')
-      .insert({ owner_id: user.id, title: deck.title, theme: t.name, data: deck }).select('id').single()
-    setTplBusy(false)
-    if (error) { alert('Kunne ikke lage presentasjonen: ' + error.message); return }
-    if (data) nav('/p/' + data.id)
   }
 
   async function remove(id, e) {

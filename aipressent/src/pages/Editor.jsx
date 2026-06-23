@@ -3,9 +3,6 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { THEMES, blankSlide, textEl, imageEl, shapeEl, tableEl, genId, slidesFromAi, normalizeTheme, CW, CH, applyTheme, fitTextBox, FONTS, parseColorInstruction, tidySlide } from '../lib/deck'
-import { applyTemplateToDeck, photoQueryOf, deckWithPhotoBg } from '../lib/templates'
-import { fetchPixabay } from '../lib/photo'
-import TemplatePicker from '../components/TemplatePicker'
 import { SILHOUETTES, SIL_CATS, SCENES } from '../lib/silhouettes'
 import { exportPptx, exportPdf, pptxBlob } from '../lib/export'
 import { importToGoogleSlides, googleConfigured, loadGis } from '../lib/gslides'
@@ -63,8 +60,6 @@ export default function Editor() {
   const [notesLen, setNotesLen] = useState('medium')
   const [notesOpen, setNotesOpen] = useState(false)
   const [aiPanel, setAiPanel] = useState(true)
-  const [tplPickerOpen, setTplPickerOpen] = useState(false)
-  const [tplBusy, setTplBusy] = useState(false)
   const [rewriteEl, setRewriteEl] = useState(null)   // tekst-element som skrives om
   const [multiSel, setMultiSel] = useState([])
   const [minimal, setMinimal] = useState(() => { try { return localStorage.getItem('ap_minimal') === '1' } catch (_e) { return false } })
@@ -239,28 +234,6 @@ export default function Editor() {
     if (fontHead) t.fontHead = fontHead
     if (fontBody) t.fontBody = fontBody
     apply(applyTheme(d, normalizeTheme(t), scope, idx))
-  }
-  // Bytt mal underveis: behold ALL tekst/bilder, bytt bare det visuelle.
-  async function switchTemplate(t) {
-    if (tplBusy) return
-    setTplBusy(true)
-    try {
-      const d = deckRef.current || deck
-      let nd = applyTemplateToDeck(d, t, 'all', idx)
-      apply(nd)
-      setSelId(null); setMultiSel([]); setEditId(null)
-      setTplPickerOpen(false)
-      const q = photoQueryOf(t)
-      if (q) {
-        setShareMsg(`Byttet til «${t.name}» – henter foto …`)
-        const src = await fetchPixabay(q)
-        if (src) { nd = deckWithPhotoBg(deckRef.current || nd, src, t.scrim || 'dark', 'all', idx); apply(nd) }
-        setShareMsg(src ? `Byttet til «${t.name}» med foto ✓` : `Byttet til «${t.name}» (fant ikke foto – beholdt scenen)`)
-      } else {
-        setShareMsg(`Byttet til malen «${t.name}» – teksten din er beholdt ✓`)
-      }
-      setTimeout(() => setShareMsg(''), 3500)
-    } finally { setTplBusy(false) }
   }
   // Skriv om ÉN tekstboks med AI. Endrer kun den boksens tekst, beholder resten.
   async function rewriteText(el, instruction) {
@@ -662,7 +635,7 @@ export default function Editor() {
             )
           })}
           <button className="rail-add" onClick={addSlide}><Plus size={16} /> Lysbilde</button>
-          <button className="rail-add ghost" onClick={() => setTplOpen(true)}><FileText size={15} /> Fra mal</button>
+          <button className="rail-add ghost" onClick={() => setTplOpen(true)}><FileText size={15} /> Nytt oppsett</button>
           <div className="rail-resizer" onPointerDown={startRailResize} title="Dra for å endre bredde" />
         </aside>
 
@@ -759,7 +732,7 @@ export default function Editor() {
       {tplOpen && (
         <div className="modal-bg" onClick={() => setTplOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2><FileText size={20} /> Velg en mal</h2>
+            <h2><FileText size={20} /> Velg et oppsett</h2>
             <p className="muted">Legg til et nytt lysbilde med ferdig oppsett. Du fyller inn ditt eget innhold etterpå.</p>
             <div className="tpl-grid">
               {TEMPLATES.map((t) => <button key={t.name} className="tpl-btn" onClick={() => addTemplate(t.s)}>{t.name}</button>)}
@@ -794,17 +767,7 @@ export default function Editor() {
       )}
       {shareMsg && <div className="toast">{shareMsg}</div>}
       {shareOpen && <ShareModal id={id} title={deck.title} onClose={() => setShareOpen(false)} />}
-      {tplPickerOpen && (
-        <TemplatePicker
-          heading="Bytt mal"
-          subtitle="Velg en ny stil. All teksten og alle bildene dine beholdes nøyaktig – bare farger, fonter og oppsett bytter."
-          actionLabel="Bytt til denne"
-          busy={tplBusy}
-          onPick={switchTemplate}
-          onClose={() => !tplBusy && setTplPickerOpen(false)}
-        />
-      )}
-      {designOpen && <DesignModal deck={deck} onApply={applyDesign} onClose={() => setDesignOpen(false)} onOpenTemplates={() => { setDesignOpen(false); setTplPickerOpen(true) }} />}
+      {designOpen && <DesignModal deck={deck} onApply={applyDesign} onClose={() => setDesignOpen(false)} />}
       {fontOpen && <FontMenu deck={deck} onApply={setFonts} onClose={() => setFontOpen(false)} />}
       {tourOpen && <Tour onClose={() => setTourOpen(false)} steps={[
         { sel: '[data-tour="toolbar"]', title: 'Verktøylinja', text: 'Her legger du til tekst, bilder, figurer, stickers og tabeller. Klikk et bildefelt for å «Søke på nett», laste opp eget bilde, eller lage med AI. Helt til høyre er «enkel visning» som gjemmer de sjeldne knappene.' },
@@ -1131,11 +1094,6 @@ function DesignModal({ deck, onApply, onClose, onOpenTemplates }) {
           <button className="btn ghost fai-apply" onClick={applyManual} disabled={busy}>Bruk disse fargene</button>
         </div>
 
-        {onOpenTemplates && (
-          <button className="btn ghost" style={{ width: '100%', justifyContent: 'center' }} onClick={onOpenTemplates} disabled={busy}>
-            🧩 Eller velg en ferdig mal – så finjusterer du fargen her
-          </button>
-        )}
         {err && <p className="err">{err}</p>}
         {done && !err && <p className="muted small">✓ {scope === 'all' ? `Endret på alle ${deck.slides.length} lysbildene!` : 'Endret på dette lysbildet!'} Prøv gjerne mer.</p>}
         <div className="modal-foot">

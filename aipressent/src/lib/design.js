@@ -14,6 +14,7 @@ export const STYLES = {
   graatone:  { bg: '#f4f4f3', ink: '#1a1a1a', soft: '#585858', acc: '#1a1a1a', card: '#e7e7e5', head: 'DM Serif Display', body: 'Inter', dark: false },
   natt:      { bg: '#15110e', bgCss: 'radial-gradient(120% 120% at 80% 0%, #2a2017 0%, #15110e 60%)', ink: '#f6efe6', soft: '#c2b3a3', acc: '#e0a96d', card: '#241c15', head: 'Space Grotesk', body: 'Inter', dark: true },
   tech:      { bg: '#070b16', bgCss: 'radial-gradient(120% 120% at 75% 0%, #15233f 0%, #070b16 60%)', ink: '#eaf2ff', soft: '#9fb3d1', acc: '#34e0ea', card: '#101d34', head: 'Space Grotesk', body: 'Inter', dark: true },
+  botanisk:  { bg: '#f5efe6', ink: '#3f372e', soft: '#6b5d4f', acc: '#7e9a5f', card: '#e7ead8', head: 'Cormorant Garamond', body: 'EB Garamond', dark: false },
 }
 const STYLE_IDS = Object.keys(STYLES)
 
@@ -23,13 +24,15 @@ export function pickStyle(title = '', hint = '') {
   const t = (title + ' ' + hint).toLowerCase()
   const any = (s, ...w) => w.some((x) => s.includes(x))
   // 1) eksplisitt ønske i «hvordan skal det se ut»
+  if (any(h, 'botanisk', 'blomst', 'plante', 'hage', 'botanikk')) return 'botanisk'
+  if (any(h, 'teknologi', 'tech', 'neon', 'futurist', 'digital', 'cyber', 'sci-fi')) return 'tech'
   if (any(h, 'gråtone', 'graatone', 'svart', 'minimal', 'enkel', 'clean', 'rene', 'stilren')) return 'graatone'
   if (any(h, 'pastell', 'rosa', 'søt', 'soet', 'koselig', 'myk', 'lekent', 'barn')) return 'pastell'
   if (any(h, 'mørk', 'mork', 'dark', 'dempet', 'dramatisk', 'natt', 'varm')) return 'natt'
   if (any(h, 'elegant', 'editorial', 'serif', 'eksklusiv', 'aesthetic', 'æsteti', 'asteti', 'luksus', 'stilig')) return 'editorial'
-  if (any(h, 'tech', 'neon', 'futurist', 'digital', 'cyber', 'sci-fi')) return 'tech'
   if (any(h, 'natur', 'grønn', 'gronn', 'miljø', 'miljo', 'organisk', 'frisk')) return 'natur'
   // 2) ut fra emne
+  if (any(t, 'botanisk', 'blomst', 'plante', 'hage', 'flora')) return 'botanisk'
   if (any(t, 'natur', 'klima', 'milj', 'dyr', 'skog', 'hav', 'planet', 'baerekraft')) return 'natur'
   if (any(t, 'mat', 'kaffe', 'restaurant', 'reise', 'mote', 'kunst', 'esteti', 'kjaerlighet', 'historie', 'bok')) return 'editorial'
   if (any(t, 'barn', 'skole', 'lek', 'bursdag', 'venn')) return 'pastell'
