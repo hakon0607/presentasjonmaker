@@ -26,7 +26,7 @@
 //  orbit, ribbon.
 // ============================================================================
 
-import { buildSlide, applyTheme, tidySlide, normalizeTheme, shapeEl } from './deck'
+import { buildSlide, applyTheme, tidySlide, normalizeTheme, shapeEl, relayoutSlide } from './deck'
 import { SILHOUETTES } from './silhouettes'
 
 // Oppslag id → silhuett (path + ratio), brukt til å plassere mal-figurer.
@@ -599,9 +599,10 @@ export function applyTemplateToDeck(deck, t, scope = 'all', idx = 0) {
   })
   const cleaned = { ...deck, slides: deck.slides.map((s, i) => (inScope(i) ? stripFigures(s) : s)) }
   let nd = applyTheme(cleaned, th, scope, idx, tweaks)
+  // Full re-layout: still tittel/tekst/bilder pent etter den nye malen, så legg figurene inn.
   nd = {
     ...nd,
-    slides: nd.slides.map((s, i) => (inScope(i) ? withFigures(tidySlide(s), figureEls(t, th)) : s)),
+    slides: nd.slides.map((s, i) => (inScope(i) ? withFigures(relayoutSlide(s, th, t.align || 'left'), figureEls(t, th)) : s)),
   }
   return nd
 }

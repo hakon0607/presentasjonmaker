@@ -363,6 +363,78 @@ export function fitTextBox(el) {
   return { ...el, h, y }
 }
 
+// FULL re-layout av ett lysbilde: plasserer tittel/tekst/bilder/tabeller pent etter
+// en mal sin stil (align). Endrer ALDRI tekst-innhold – bare posisjon/bredde, og
+// tilpasser høyden tett rundt teksten. Beholder bakteppe-pynt (decor) og evt. figurer.
+export function relayoutSlide(s, th, align = 'left') {
+  const els = s.elements || []
+  const decor = els.filter((e) => e.decor)
+  const flow = els.filter((e) => !e.decor)
+  const texts = flow.filter((e) => e.type === 'text')
+  const images = flow.filter((e) => e.type === 'image')
+  const tables = flow.filter((e) => e.type === 'table')
+  const others = flow.filter((e) => e.type !== 'text' && e.type !== 'image' && e.type !== 'table')
+  if (!texts.length && !images.length && !tables.length) return s
+
+  const center = align === 'center'
+  const M = 80
+  // Tittel = største tekst (deretter øverste). Resten = brødtekst i lese-rekkefølge.
+  const title = texts.length
+    ? [...texts].sort((a, b) => (b.fontSize || 0) - (a.fontSize || 0) || (a.y - b.y))[0]
+    : null
+  const body = texts.filter((t) => t !== title).sort((a, b) => a.y - b.y)
+  const hasImg = images.length > 0
+  const hasSide = hasImg || tables.length > 0
+
+  const placed = []
+  let cursorY = 90
+
+  // --- Tittel øverst ---
+  if (title) {
+    const w = center ? (CW - 180) : (CW - 2 * M)
+    let t = { ...title, x: center ? 90 : M, y: 60, w, align: center ? 'center' : (title.align || 'left') }
+    if ((t.fontSize || 0) > 60) t.fontSize = 60
+    t = fitTextBox(t)
+    placed.push(t)
+    cursorY = t.y + t.h + 26
+  }
+
+  // --- Kropp + evt. sidekolonne for bilde/tabell ---
+  const bodyW = hasSide ? 440 : (center ? (CW - 180) : (CW - 2 * M))
+  const bodyX = (center && !hasSide) ? 90 : M
+  let by = Math.max(cursorY, hasSide ? 150 : cursorY)
+  for (const b of body) {
+    let e = { ...b, x: bodyX, y: by, w: bodyW, align: (center && !hasSide) ? 'center' : (b.align || 'left') }
+    e = fitTextBox(e)
+    if (e.y + e.h > 524 && (e.fontSize || 20) > 15) {
+      e = fitTextBox({ ...e, y: by, fontSize: Math.max(15, Math.round((e.fontSize || 20) * 0.85)) })
+    }
+    placed.push(e)
+    by = Math.min(522, e.y + e.h + 16)
+  }
+
+  // --- Tabeller under teksten ---
+  for (const tb of tables) {
+    const h = Math.max(80, Math.min(tb.h || 200, 524 - by))
+    placed.push({ ...tb, x: bodyX, y: Math.min(by, 500), w: hasSide ? 440 : (CW - 2 * M), h })
+    by = Math.min(522, by + h + 14)
+  }
+
+  // --- Bilder i høyre kolonne (stables om flere) ---
+  if (hasImg) {
+    const colX = 560, colW = 320, gap = 14, top = 150, bottom = 510
+    const n = images.length
+    const ih = Math.max(120, Math.round((bottom - top - gap * (n - 1)) / n))
+    let iy = top
+    for (const im of images) {
+      placed.push({ ...im, x: colX, y: iy, w: colW, h: Math.min(ih, bottom - iy) })
+      iy += ih + gap
+    }
+  }
+
+  return { ...s, elements: [...decor, ...others, ...placed] }
+}
+
 export function slidesFromAi(aiSlides, theme = 'minimal') {
   const th = asTheme(theme)
   return (aiSlides || []).map((s, i) => buildSlide(s, th, i))

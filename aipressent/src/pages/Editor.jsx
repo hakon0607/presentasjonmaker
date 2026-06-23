@@ -1069,56 +1069,59 @@ function ScopeToggle({ scope, setScope, busy }) {
 
 function DesignModal({ deck, onApply, onClose, onOpenTemplates }) {
   const [scope, setScope] = useState('all')
-  const [themeWish, setThemeWish] = useState('')
-  const [colors, setColors] = useState('')
-  const [textColor, setTextColor] = useState('')
+  const [wish, setWish] = useState('')
+  const t0 = deck.theme || {}
+  const [pal, setPal] = useState({ bg: t0.bg || '#ffffff', title: t0.title || '#111111', text: t0.text || '#444444', accent: t0.accent || '#2563eb' })
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [done, setDone] = useState(false)
+  function syncPal(th) { if (th) setPal((p) => ({ bg: th.bg || p.bg, title: th.title || p.title, text: th.text || p.text, accent: th.accent || p.accent })) }
+  function applyManual() { onApply({ ...(deck.theme || {}), ...pal }, scope); setDone(true); setErr('') }
   async function gen() {
-    const anyWish = themeWish.trim() || colors.trim() || textColor.trim()
-    if (!anyWish) { setErr('Skriv minst ett ønske – tema, farger eller tekstfarge.'); return }
-    // Snarvei: hvis BARE farge-feltet er fylt og det er en enkel fargekommando, gjør det direkte (gratis)
-    if (colors.trim() && !themeWish.trim() && !textColor.trim()) {
-      const parsed = parseColorInstruction(colors.trim())
-      if (parsed) { onApply(parsed, scope); setDone(true); setErr(''); return }
-    }
+    const w = wish.trim()
+    if (!w) { setErr('Skriv hva du vil ha – f.eks. «mørkt og elegant» eller «blå og rolig».'); return }
+    // Gratis snarvei for enkle fargekommandoer (f.eks. «blå overskrift, beige bakgrunn»)
+    const parsed = parseColorInstruction(w)
+    if (parsed) { onApply(parsed, scope); syncPal(parsed); setDone(true); setErr(''); return }
     setBusy(true); setErr(''); setDone(false)
     try {
-      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'design', theme: deck.theme, themeWish: themeWish.trim(), colors: colors.trim(), textColor: textColor.trim() } })
+      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'design', theme: deck.theme, themeWish: w, colors: w } })
       if (error) throw new Error(error.message || 'serverfeil')
       if (data?.error) throw new Error(data.error)
-      if (data && data.slides && !data.theme) { setErr('Design AI er ikke aktivert på serveren ennå. (Last opp nyeste edge-funksjon i Supabase og trykk Deploy.)'); return }
+      if (data && data.slides && !data.theme) { setErr('Farge-AI er ikke aktivert på serveren ennå. (Last opp nyeste edge-funksjon i Supabase og trykk Deploy.)'); return }
       if (!data.theme) { setErr('AI fant ikke noe å endre. Prøv å skrive det på en annen måte.'); return }
-      onApply(data.theme, scope)
-      setDone(true)
-    } catch (e) { setErr('Klarte ikke å lage design: ' + (e.message || e)) } finally { setBusy(false) }
+      onApply(data.theme, scope); syncPal(data.theme); setDone(true)
+    } catch (e) { setErr('Klarte ikke å lage palett: ' + (e.message || e)) } finally { setBusy(false) }
   }
   return (
     <div className="modal-bg" onClick={busy ? undefined : onClose}>
       <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="sil-head"><h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Palette size={20} /> Design AI</h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
-        <p className="muted" style={{ margin: 0 }}>Fyll inn det du vil endre. Lar du et felt stå tomt, beholdes det. <span className="small">(Koster 1 token, eller gratis for enkle fargevalg)</span></p>
+        <div className="sil-head"><h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Palette size={20} /> Farge-AI</h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
+        <p className="muted" style={{ margin: 0 }}>Skriv hva du vil ha, så lager AI en palett – eller velg fargene selv under. <span className="small">(AI koster 1 token, eller gratis for enkle fargevalg)</span></p>
         <ScopeToggle scope={scope} setScope={setScope} busy={busy} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 6 }}>
-          <div>
-            <label className="small" style={{ fontWeight: 700, display: 'block', marginBottom: 3 }}>Tema <span className="muted" style={{ fontWeight: 400 }}>– stemning/stil</span></label>
-            <input className="theme-desc" style={{ width: '100%' }} value={themeWish} onChange={(e) => setThemeWish(e.target.value)} disabled={busy} placeholder="F.eks. «mørkt og elegant» eller «lekent og fargerikt»"
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); gen() } }} />
-          </div>
-          <div>
-            <label className="small" style={{ fontWeight: 700, display: 'block', marginBottom: 3 }}>Farger <span className="muted" style={{ fontWeight: 400 }}>– hva som skal endres</span></label>
-            <input className="theme-desc" style={{ width: '100%' }} value={colors} onChange={(e) => setColors(e.target.value)} disabled={busy} placeholder="F.eks. «blå overskrift, beige bakgrunn»"
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); gen() } }} />
-          </div>
-          <div>
-            <label className="small" style={{ fontWeight: 700, display: 'block', marginBottom: 3 }}>Tekstfarge <span className="muted" style={{ fontWeight: 400 }}>– valgfritt, ellers velges den automatisk</span></label>
-            <input className="theme-desc" style={{ width: '100%' }} value={textColor} onChange={(e) => setTextColor(e.target.value)} disabled={busy} placeholder="La stå tom for best lesbarhet"
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); gen() } }} />
-          </div>
+
+        <div className="fai-ai">
+          <input className="theme-desc" value={wish} onChange={(e) => setWish(e.target.value)} disabled={busy}
+            placeholder="F.eks. «mørkt og elegant», «blå og rolig», «varm høst»"
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); gen() } }} />
+          <button className="btn primary fai-go" onClick={gen} disabled={busy}>{busy ? 'Lager …' : '✨ Lag palett'}</button>
         </div>
+
+        <div className="fai-pal">
+          <div className="fai-pal-head"><b>… eller velg fargene selv</b></div>
+          <div className="fai-swatches">
+            {[['bg', 'Bakgrunn'], ['title', 'Overskrift'], ['text', 'Brødtekst'], ['accent', 'Aksent']].map(([k, label]) => (
+              <label key={k} className="fai-sw">
+                <input type="color" value={pal[k]} disabled={busy} onChange={(e) => setPal((p) => ({ ...p, [k]: e.target.value }))} />
+                <span>{label}</span>
+              </label>
+            ))}
+          </div>
+          <button className="btn ghost fai-apply" onClick={applyManual} disabled={busy}>Bruk disse fargene</button>
+        </div>
+
         {onOpenTemplates && (
-          <button className="btn ghost" style={{ width: '100%', justifyContent: 'center', marginTop: 2 }} onClick={onOpenTemplates} disabled={busy}>
+          <button className="btn ghost" style={{ width: '100%', justifyContent: 'center' }} onClick={onOpenTemplates} disabled={busy}>
             🧩 Eller velg en ferdig mal – så finjusterer du fargen her
           </button>
         )}
@@ -1126,7 +1129,6 @@ function DesignModal({ deck, onApply, onClose, onOpenTemplates }) {
         {done && !err && <p className="muted small">✓ {scope === 'all' ? `Endret på alle ${deck.slides.length} lysbildene!` : 'Endret på dette lysbildet!'} Prøv gjerne mer.</p>}
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose} disabled={busy}>Ferdig</button>
-          <button className="btn primary" onClick={gen} disabled={busy}>{busy ? 'Lager …' : (scope === 'all' ? `✨ Bruk på alle ${deck.slides.length} sider` : '✨ Bruk på denne siden')}</button>
         </div>
       </div>
     </div>
