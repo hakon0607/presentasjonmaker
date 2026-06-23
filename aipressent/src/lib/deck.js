@@ -276,8 +276,11 @@ export function buildSlide(s, th, slideIdx = 0) {
   const els = [...autoBackdrop(th, big, s.style, slideIdx)]
   const baseDecorN = els.length
   const accentBar = (x, y, w = 70) => shapeEl({ x, y, w, h: 5, fill: th.accent, radius: 3 })
-  const card = (x, y, w, h, op = 0.10) => ({ ...shapeEl({ kind: 'rect', x: x - 24, y: y - 18, w: w + 48, h: h + 34, fill: th.accent, radius: 24, opacity: op }), decor: true })
-  const wantCard = slideIdx % 2 === 0
+  const _dark = lum(th.bg) < 0.5
+  const _panelFill = _dark ? mix(th.bg, '#ffffff', 0.07) : mix(th.bg, '#000000', 0.05)
+  // Solid «tekstboks» bak tekst, med litt luft rundt (passende farge bak teksten).
+  const card = (x, y, w, h) => ({ ...shapeEl({ kind: 'rect', x: x - 20, y: y - 16, w: w + 40, h: h + 32, fill: _panelFill, radius: 18 }), decor: true })
+  const wantCard = true
   const icon = () => null
   const push = (e) => e && els.push(e)
 

@@ -204,13 +204,13 @@ function culClosing() {
 
 // ============================ MALER ============================
 export const TEMPLATES = [
-  { id: 'tech', name: 'Teknologi', category: 'Tech',
+  { id: 'tech', name: 'Teknologi', category: 'Tech', bgCss: TECH_GLOW,
     keywords: ['tech', 'teknologi', 'data', '5g', 'digital', 'fremtid', 'mørk', 'neon', 'ikoner'],
     theme: techTheme, cover: (t, s) => techCover(t, s), make: (t) => [techCover(t), techAgenda(), techFeatures(), techClosing()] },
-  { id: 'botanical', name: 'Botanisk', category: 'Elegant',
+  { id: 'botanical', name: 'Botanisk', category: 'Elegant', bgCss: BOT_BG,
     keywords: ['elegant', 'astetisk', 'aesthetic', 'botanisk', 'blomst', 'natur', 'rolig', 'mote', 'serif'],
     theme: botTheme, cover: (t, s) => botCover(t, s), make: (t) => [botCover(t), botAgenda(), botContent(), botClosing()] },
-  { id: 'culinary', name: 'Kulinarisk', category: 'Mat',
+  { id: 'culinary', name: 'Kulinarisk', category: 'Mat', bgCss: CUL_BG,
     keywords: ['mat', 'kulinarisk', 'restaurant', 'meny', 'foto', 'kokk', 'gourmet', 'elegant'],
     theme: culTheme, photo: 'restaurant chef cooking gourmet', scrim: 'dark',
     cover: (t, s) => culCover(t, s), make: (t) => [culCover(t), culSpread(), culQuote(), culClosing()] },

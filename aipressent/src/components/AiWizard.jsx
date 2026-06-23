@@ -132,7 +132,8 @@ export default function AiWizard({ onClose, userId, nav }) {
       if (o?.error) throw new Error(o.error)
       const th = normalizeTheme(o.theme)
       const realTitle = title || o.title || 'Uten tittel'
-      const slides = slidesFromAi(o.slides || [], th)
+      const baseTheme = tpl ? normalizeTheme(tpl.theme) : th
+      const slides = slidesFromAi(o.slides || [], baseTheme)
       // Hent et passende figur-ikon per lysbilde fra nett-albumet (Iconify) – kun uten ferdig mal (malen gir sitt eget uttrykk)
       if (!tpl) try {
         const kws = [...new Set((o.slides || []).map((s) => String(s.figure || '').trim()).filter(Boolean))]
@@ -165,13 +166,17 @@ export default function AiWizard({ onClose, userId, nav }) {
         }))
       }
       setGenLabel('Lagrer …')
-      let deck = { theme: th, title: realTitle, slides: slides.length ? slides : newDeck(realTitle, th).slides }
-      // Valgt ferdig mal: malens egen forside (med din tittel/undertittel) + malens stil.
+      let deck
       if (tpl) {
+        const bg = tpl.bgCss || baseTheme.bg
+        slides.forEach((s) => { s.background = bg })
         const cov = (o.slides || []).find((s) => s.layout === 'cover') || (o.slides || [])[0]
-        deck = applyTemplateAi(deck, tpl, realTitle, (cov && cov.subtitle) || '')
+        if (slides[0]) slides[0] = tpl.cover(realTitle, (cov && cov.subtitle) || '')
+        deck = { theme: baseTheme, title: realTitle, slides: slides.length ? slides : newDeck(realTitle, baseTheme).slides, fromTemplate: tpl.id }
         const q = photoQueryOf(tpl)
         if (q) { setGenLabel('Henter foto …'); const src = await fetchPixabay(q); if (src) deck = deckWithPhotoBg(deck, src, tpl.scrim || 'dark') }
+      } else {
+        deck = { theme: th, title: realTitle, slides: slides.length ? slides : newDeck(realTitle, th).slides }
       }
       const { data, error } = await supabase.from('presentations')
         .insert({ owner_id: userId, title: deck.title, theme: (tpl ? tpl.name : th?.name) || 'Egendefinert', data: deck }).select('id').single()
@@ -190,7 +195,8 @@ export default function AiWizard({ onClose, userId, nav }) {
   async function generate() {
     setBusy(true); setErr(''); setGenLabel('Bygger lysbilder …'); prog.start()
     try {
-      const slides = slidesFromAi(outline.map(toAi), theme)
+      const useTheme = tpl ? normalizeTheme(tpl.theme) : theme
+      const slides = slidesFromAi(outline.map(toAi), useTheme)
       // fyll inn bilder automatisk (Pollinations via edge-funksjonen)
       const imgs = []
       slides.forEach((s) => s.elements.forEach((e) => {
@@ -226,14 +232,18 @@ export default function AiWizard({ onClose, userId, nav }) {
           }
         }
       } catch (_e) { /* dekor er valgfritt */ }
-      let deck = { theme, title: title || 'Uten tittel', slides: slides.length ? slides : newDeck(title, theme).slides }
-      // Valgt ferdig mal: bruk malens egen forside (med din tittel/undertittel) + malens stil. Ikke det generiske.
+      let deck
       if (tpl) {
         setGenLabel('Bruker mal …')
+        const bg = tpl.bgCss || useTheme.bg
+        slides.forEach((s) => { s.background = bg })
         const cov = outline.find((o) => o.layout === 'cover') || outline[0]
-        deck = applyTemplateAi(deck, tpl, deck.title, (cov && cov.subtitle) || '')
+        if (slides[0]) slides[0] = tpl.cover(title || 'Uten tittel', (cov && cov.subtitle) || '')
+        deck = { theme: useTheme, title: title || 'Uten tittel', slides: slides.length ? slides : newDeck(title, useTheme).slides, fromTemplate: tpl.id }
         const q = photoQueryOf(tpl)
         if (q) { setGenLabel('Henter foto …'); const src = await fetchPixabay(q); if (src) deck = deckWithPhotoBg(deck, src, tpl.scrim || 'dark') }
+      } else {
+        deck = { theme, title: title || 'Uten tittel', slides: slides.length ? slides : newDeck(title, theme).slides }
       }
       const { data, error } = await supabase.from('presentations')
         .insert({ owner_id: userId, title: deck.title, theme: (tpl ? tpl.name : theme?.name) || 'Egendefinert', data: deck }).select('id').single()
