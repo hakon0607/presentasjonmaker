@@ -25,7 +25,7 @@ export default function Canvas({ slide, onChange, selectedId, setSelectedId, sel
     const measure = () => {
       const w = el.clientWidth
       const parent = el.parentElement
-      const availH = parent ? parent.clientHeight - 48 : 99999
+      const availH = parent ? parent.clientHeight - 24 : 99999
       setBase(Math.max(0.12, Math.min(w / CW, availH / CH)))
     }
     const ro = new ResizeObserver(measure); ro.observe(el); if (el.parentElement) ro.observe(el.parentElement); measure()

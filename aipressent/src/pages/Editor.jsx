@@ -58,6 +58,7 @@ export default function Editor() {
   const [tplOpen, setTplOpen] = useState(false)
   const [animOpen, setAnimOpen] = useState(false)
   const [notesLen, setNotesLen] = useState('medium')
+  const [notesOpen, setNotesOpen] = useState(false)
   const [aiPanel, setAiPanel] = useState(true)
   const [multiSel, setMultiSel] = useState([])
   const [minimal, setMinimal] = useState(() => { try { return localStorage.getItem('ap_minimal') === '1' } catch (_e) { return false } })
@@ -630,14 +631,21 @@ export default function Editor() {
             <button onClick={delSlide} title="Slett lysbilde" disabled={deck.slides.length === 1}><Trash2 size={16} /></button>
           </div>
 
-          <div className="notes" data-tour="notes">
-            <div className="notes-head">
-              <span><FileText size={14} /> Manus / notater <span className="muted small">(kun for deg – følger med i PowerPoint)</span></span>
+          <button className="notes-fab" data-tour="notes" onClick={() => setNotesOpen((v) => !v)} title="Manus / notater">
+            <FileText size={16} /> Manus{slide.notes ? ' •' : ''}
+          </button>
+
+          {notesOpen && (
+            <div className="notes-pop" onClick={(e) => e.stopPropagation()}>
+              <div className="notes-head">
+                <span><FileText size={14} /> Manus / notater <span className="muted small">(kun for deg – følger med i PowerPoint)</span></span>
+                <button className="modal-x" onClick={() => setNotesOpen(false)}><X size={16} /></button>
+              </div>
+              {notesBusy && <ProgressBar p={notesProg.p} label="Skriver manus til alle lysbilder …" />}
+              <textarea value={slide.notes || ''} onChange={(e) => setNotes(e.target.value)} rows={4} spellCheck lang="nb"
+                placeholder="Hva du skal si til dette lysbildet … (eller bruk «Manus» i AI-panelet så skriver AI det for deg)" />
             </div>
-            {notesBusy && <ProgressBar p={notesProg.p} label="Skriver manus til alle lysbilder …" />}
-            <textarea value={slide.notes || ''} onChange={(e) => setNotes(e.target.value)} rows={3} spellCheck lang="nb"
-              placeholder="Hva du skal si til dette lysbildet … (eller trykk «AI-manus» så skriver AI det for deg)" />
-          </div>
+          )}
         </main>
 
         {aiEnabled && (
