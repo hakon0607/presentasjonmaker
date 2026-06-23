@@ -23,7 +23,7 @@ import Toolbar from '../components/Toolbar'
 import AnimPanel from '../components/AnimPanel'
 import { useProgress, ProgressBar } from '../components/Progress'
 import Tour from '../components/Tour'
-import { ChevronLeft, Plus, Copy, Trash2, Play, Download, Sparkles, ChevronUp, ChevronDown, Undo2, Redo2, Save, FileText, Wand2, CheckCircle2, Share2, Image as ImageIcon, Clapperboard, Grid3x3, X, Search, Palette } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Copy, Trash2, Play, Download, Sparkles, ChevronUp, ChevronDown, Undo2, Redo2, Save, FileText, Wand2, CheckCircle2, Share2, Image as ImageIcon, Clapperboard, Grid3x3, X, Search, Palette } from 'lucide-react'
 
 export default function Editor() {
   const { id } = useParams()
@@ -58,6 +58,8 @@ export default function Editor() {
   const [zoom, setZoom] = useState(1)
   const [tplOpen, setTplOpen] = useState(false)
   const [animOpen, setAnimOpen] = useState(false)
+  const [notesLen, setNotesLen] = useState('medium')
+  const [aiPanel, setAiPanel] = useState(true)
   const [multiSel, setMultiSel] = useState([])
   const [minimal, setMinimal] = useState(() => { try { return localStorage.getItem('ap_minimal') === '1' } catch (_e) { return false } })
   const [silOpen, setSilOpen] = useState(false)
@@ -378,11 +380,11 @@ export default function Editor() {
   function setBg(color) { setSlide({ ...slide, background: color }) }
   function setNotes(t) { setSlide({ ...slide, notes: t }) }
 
-  async function aiNotes() {
+  async function aiNotes(amount = 'medium') {
     setNotesBusy(true); notesProg.start()
     try {
       const summary = deck.slides.map((s, i) => `${i + 1}. ${s.elements.filter((e) => e.type === 'text').map((e) => e.text).join(' | ')}`).join('\n')
-      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'notes', current: summary } })
+      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'notes', current: summary, amount } })
       refreshTokens()
       if (error) throw error
       if (data?.error) throw new Error(data.error)
@@ -555,8 +557,7 @@ export default function Editor() {
           <button className="chip ic" onClick={redo} disabled={!redoStack.current.length} title="Gjenta (Ctrl+Y)"><Redo2 size={15} /></button>
           <button className={'chip' + (saved === 'saved' ? ' ok' : '')} onClick={flush}><Save size={15} /> {saveLabel}</button>
           <TokenBadge />
-          {aiEnabled && <button className="chip" data-tour="ai" onClick={() => setAiSlideOpen(true)} title="Lag/omskriv dette lysbildet med AI"><Sparkles size={15} /> AI-lysbilde</button>}
-          {aiEnabled && <button className="chip" data-tour="check" onClick={() => setReviewOpen(true)}><CheckCircle2 size={15} /> Sjekk</button>}
+          {aiEnabled && <span className="muted small" style={{ alignSelf: 'center' }}>AI-verktøy i panelet til høyre →</span>}
           {aiEnabled && <button className="chip" data-tour="animate" onClick={animateWithAi} disabled={animBusy}><Clapperboard size={15} /> {animBusy ? 'Animerer …' : 'Animer med AI'}</button>}
           <button className="chip" data-tour="share" onClick={() => setShareOpen(true)}><Share2 size={15} /> Del</button>
           <button className="chip" data-tour="present" onClick={() => { commitEdits(); setTimeout(() => setPresent(true), 0) }}><Play size={15} /> Presenter</button>
@@ -630,20 +631,63 @@ export default function Editor() {
             <button onClick={() => moveSlide(1)} title="Flytt ned" disabled={idx === deck.slides.length - 1}><ChevronDown size={16} /></button>
             <button onClick={dupSlide} title="Dupliser"><Copy size={16} /></button>
             <button onClick={delSlide} title="Slett lysbilde" disabled={deck.slides.length === 1}><Trash2 size={16} /></button>
-            {aiEnabled && <button data-tour="design" onClick={() => setDesignOpen(true)} title="Design AI – farger og tema" className="wand"><Palette size={16} /></button>}
-            {aiEnabled && <button data-tour="font" onClick={() => setFontOpen(true)} title="Skrifttype – velg font for overskrifter og brødtekst" className="wand"><span style={{ fontWeight: 800, fontSize: 15, lineHeight: 1 }}>Aa</span></button>}
           </div>
 
           <div className="notes" data-tour="notes">
             <div className="notes-head">
               <span><FileText size={14} /> Manus / notater <span className="muted small">(kun for deg – følger med i PowerPoint)</span></span>
-              {aiEnabled && <button className="chip small" onClick={aiNotes} disabled={notesBusy}><Sparkles size={13} /> {notesBusy ? "Skriver …" : "AI-manus"}</button>}
             </div>
             {notesBusy && <ProgressBar p={notesProg.p} label="Skriver manus til alle lysbilder …" />}
             <textarea value={slide.notes || ''} onChange={(e) => setNotes(e.target.value)} rows={3} spellCheck lang="nb"
               placeholder="Hva du skal si til dette lysbildet … (eller trykk «AI-manus» så skriver AI det for deg)" />
           </div>
         </main>
+
+        {aiEnabled && (
+          <aside className={'ai-rail' + (aiPanel ? '' : ' closed')}>
+            <button className="ai-rail-toggle" onClick={() => setAiPanel((v) => !v)} title={aiPanel ? 'Skjul AI-panel' : 'Vis AI-panel'}>
+              {aiPanel ? <ChevronRight size={18} /> : <Sparkles size={18} />}
+            </button>
+            {aiPanel && (
+              <div className="ai-rail-inner">
+                <div className="ai-rail-head"><Sparkles size={16} /> AI-verktøy</div>
+
+                <button className="ai-tool" onClick={() => setAiSlideOpen(true)}>
+                  <span className="ai-tool-ic">🪄</span>
+                  <span><b>Lag lysbilde</b><small>Lag eller skriv om denne siden</small></span>
+                </button>
+
+                <button className="ai-tool" onClick={() => setDesignOpen(true)}>
+                  <span className="ai-tool-ic">🎨</span>
+                  <span><b>Design</b><small>Farger og tema</small></span>
+                </button>
+
+                <button className="ai-tool" onClick={() => setFontOpen(true)}>
+                  <span className="ai-tool-ic">🔤</span>
+                  <span><b>Skrifttype</b><small>Velg fonter</small></span>
+                </button>
+
+                <button className="ai-tool" onClick={() => setReviewOpen(true)}>
+                  <span className="ai-tool-ic">✅</span>
+                  <span><b>Sjekk kvalitet</b><small>Få vennlige tips</small></span>
+                </button>
+
+                <div className="ai-tool-block">
+                  <div className="ai-tool-row"><span className="ai-tool-ic">📝</span><b>Manus</b></div>
+                  <small style={{ color: 'var(--muted)' }}>Hvor mye skal AI skrive?</small>
+                  <div className="ai-seg">
+                    {[['short', 'Kort'], ['medium', 'Middels'], ['long', 'Langt']].map(([v, l]) => (
+                      <button key={v} className={notesLen === v ? 'on' : ''} onClick={() => setNotesLen(v)} disabled={notesBusy}>{l}</button>
+                    ))}
+                  </div>
+                  <button className="btn primary" style={{ width: '100%', justifyContent: 'center', marginTop: 8 }} onClick={() => aiNotes(notesLen)} disabled={notesBusy}>
+                    <Sparkles size={15} /> {notesBusy ? 'Skriver …' : 'Skriv manus'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </aside>
+        )}
       </div>
 
       {present && <Present deck={deck} start={idx} onClose={() => setPresent(false)} />}

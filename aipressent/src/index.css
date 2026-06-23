@@ -177,6 +177,25 @@ button{font-family:inherit}
 
 /* ===== manus / notater ===== */
 .notes{width:100%;max-width:920px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin-top:16px;box-shadow:var(--shadow)}
+
+/* AI-panel (høyre side) */
+.ai-rail{flex:0 0 auto;width:248px;border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;position:relative;transition:width .2s ease}
+.ai-rail.closed{width:0;border-left:none}
+.ai-rail-toggle{position:absolute;left:-16px;top:14px;width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;border:3px solid var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:6;box-shadow:0 4px 12px rgba(0,113,227,.3)}
+.ai-rail-inner{padding:16px 14px;display:flex;flex-direction:column;gap:10px;overflow-y:auto}
+.ai-rail-head{display:flex;align-items:center;gap:7px;font-weight:700;font-size:.95rem;margin-bottom:2px}
+.ai-tool{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:12px 13px;cursor:pointer;transition:all .15s ease;color:var(--ink)}
+.ai-tool:hover{border-color:var(--accent);background:#fff;transform:translateY(-1px);box-shadow:var(--shadow)}
+.ai-tool-ic{font-size:1.25rem;line-height:1;flex:0 0 auto}
+.ai-tool span:last-child{display:flex;flex-direction:column;gap:1px}
+.ai-tool b{font-size:.92rem}
+.ai-tool small{font-size:.76rem;color:var(--muted)}
+.ai-tool-block{background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:13px;display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.ai-tool-row{display:flex;align-items:center;gap:9px;font-size:.92rem}
+.ai-seg{display:flex;gap:4px;padding:4px;border-radius:11px;background:var(--bg)}
+.ai-seg button{flex:1;border:none;background:transparent;border-radius:8px;padding:7px 4px;font-size:.82rem;font-weight:600;cursor:pointer;color:var(--muted)}
+.ai-seg button.on{background:var(--accent);color:#fff}
+@media(max-width:760px){.ai-rail{width:200px}.ai-rail.closed{width:0}}
 .notes-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;font-size:.82rem;font-weight:600;color:var(--muted)}
 .notes-head span{display:inline-flex;align-items:center;gap:6px}
 .chip.small{padding:5px 9px;font-size:.78rem}
