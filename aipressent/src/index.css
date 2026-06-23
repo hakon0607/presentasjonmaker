@@ -698,3 +698,16 @@ button{font-family:inherit}
 .fai-sw{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:.78rem;color:var(--muted)}
 .fai-sw input[type=color]{width:100%;height:42px;border:1px solid var(--line);border-radius:9px;background:var(--panel);cursor:pointer;padding:3px}
 .fai-apply{align-self:flex-start}
+
+/* ---- Mal-album: lett mini-preview i rutenettet + kategori-nedtrekk ---- */
+.tpl-browse-top{display:flex;gap:8px;align-items:center}
+.tpl-browse-top .tpl-search{flex:1}
+.tpl-catsel{padding:10px 12px;border-radius:11px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);font-size:14px;cursor:pointer;max-width:180px;flex:0 0 auto}
+.tpl-thumb{position:relative;width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:10px 12px;box-sizing:border-box;overflow:hidden}
+.tpl-thumb-name{font-weight:800;font-size:15px;line-height:1.1;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;z-index:1}
+.tpl-thumb-bar{width:34px;height:4px;border-radius:3px;margin-top:6px;z-index:1}
+.tpl-thumb-lines{display:flex;flex-direction:column;gap:4px;margin-top:9px;width:62%;align-items:center;z-index:1}
+.tpl-thumb-lines span{height:3px;border-radius:3px;opacity:.4}
+.tpl-thumb-lines span:nth-child(1){width:100%}
+.tpl-thumb-lines span:nth-child(2){width:68%}
+.tpl-thumb-corner{position:absolute;right:-9px;bottom:-9px;width:32px;height:32px;border-radius:50%;opacity:.85}

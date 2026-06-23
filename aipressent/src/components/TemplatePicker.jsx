@@ -3,9 +3,25 @@ import { LayoutTemplate, Search, X, Check } from 'lucide-react'
 import SlideStage from './SlideStage'
 import { TEMPLATE_CATEGORIES, searchTemplates, sampleSlideForTemplate } from '../lib/templates'
 
-// Mal-velger som et lite ALBUM: stor forhåndsvisning av valgt mal til venstre,
-// søk + kategori-filter + rutenett av mini-lysbilder til høyre. Du ser malen
-// FØR du bekrefter med «Bruk». Alt leser fra templates.js, så nye maler virker
+// Lett, statisk mini-preview til rutenettet (raskt – ingen tung SlideStage per kort).
+// Viser malens ekte farger, overskriftsfont og navn, så du kjenner igjen stilen.
+function TemplateThumb({ t }) {
+  const th = t.theme
+  return (
+    <div className="tpl-thumb" style={{ background: th.bg }}>
+      <div className="tpl-thumb-name" style={{ color: th.title, fontFamily: `'${th.fontHead}', sans-serif` }}>{t.name}</div>
+      <div className="tpl-thumb-bar" style={{ background: th.accent }} />
+      <div className="tpl-thumb-lines">
+        <span style={{ background: th.text }} />
+        <span style={{ background: th.text }} />
+      </div>
+      <div className="tpl-thumb-corner" style={{ background: th.accent }} />
+    </div>
+  )
+}
+
+// Mal-album: stor ekte forhåndsvisning av valgt mal til venstre, søk + kategori-
+// nedtrekk + rutenett til høyre. Alt leser fra templates.js, så nye maler virker
 // automatisk.
 export default function TemplatePicker({
   onPick, onClose,
@@ -19,7 +35,6 @@ export default function TemplatePicker({
   const results = useMemo(() => searchTemplates(query, cat), [query, cat])
   const [selId, setSelId] = useState(results[0]?.id || null)
 
-  // Hold alltid en gyldig valgt mal (for stor forhåndsvisning) når søk/filter endres.
   useEffect(() => {
     if (!results.length) { setSelId(null); return }
     if (!results.some((t) => t.id === selId)) setSelId(results[0].id)
@@ -37,7 +52,7 @@ export default function TemplatePicker({
         <p className="muted tpl-album-sub">{subtitle}</p>
 
         <div className="tpl-album-body">
-          {/* Venstre: stor forhåndsvisning av valgt mal */}
+          {/* Venstre: stor, ekte forhåndsvisning av valgt mal */}
           <div className="tpl-stage">
             {selected ? (
               <>
@@ -57,19 +72,20 @@ export default function TemplatePicker({
             )}
           </div>
 
-          {/* Høyre: søk, filter og rutenett */}
+          {/* Høyre: søk + kategori-nedtrekk + rutenett */}
           <div className="tpl-browse">
-            <div className="tpl-search">
-              <Search size={16} />
-              <input value={query} onChange={(e) => setQuery(e.target.value)} spellCheck lang="nb"
-                placeholder="Søk – f.eks. «krig», «mørk», «skole» … (finner også liknende)" autoFocus />
-              {query && <button className="tpl-search-x" onClick={() => setQuery('')} title="Tøm">✕</button>}
-            </div>
-
-            <div className="tpl-cats">
-              {TEMPLATE_CATEGORIES.map((c) => (
-                <button key={c} className={'tpl-cat' + (cat === c ? ' on' : '')} onClick={() => setCat(c)}>{c}</button>
-              ))}
+            <div className="tpl-browse-top">
+              <div className="tpl-search">
+                <Search size={16} />
+                <input value={query} onChange={(e) => setQuery(e.target.value)} spellCheck lang="nb"
+                  placeholder="Søk – f.eks. «krig», «mørk», «skole» … (finner også liknende)" autoFocus />
+                {query && <button className="tpl-search-x" onClick={() => setQuery('')} title="Tøm">✕</button>}
+              </div>
+              <select className="tpl-catsel" value={cat} onChange={(e) => setCat(e.target.value)} title="Kategori">
+                {TEMPLATE_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c === 'Alle' ? 'Alle kategorier' : c}</option>
+                ))}
+              </select>
             </div>
 
             <div className="tpl-gallery">
@@ -77,7 +93,7 @@ export default function TemplatePicker({
                 <button key={t.id} className={'tpl-card' + (t.id === selId ? ' on' : '')}
                   onClick={() => setSelId(t.id)} onDoubleClick={() => !busy && onPick(t)}
                   title={`${t.name} – ${t.category}`}>
-                  <div className="tpl-card-prev"><SlideStage slide={sampleSlideForTemplate(t)} /></div>
+                  <div className="tpl-card-prev"><TemplateThumb t={t} /></div>
                   <div className="tpl-card-meta"><b>{t.name}</b><span className="muted small">{t.category}</span></div>
                 </button>
               ))}
