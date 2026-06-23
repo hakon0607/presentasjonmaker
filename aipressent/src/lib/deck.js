@@ -402,13 +402,10 @@ export function applyTheme(deck, newTheme, scope, idx, tweaks) {
     // og gi RIKTIG ny farge – så overskrift/tekst aldri byttes om (selv om de hadde lik farge før)
     const recolorText = (el) => {
       const col = lowc(el.color || '')
-      let nc = el.color
-      if (col && col === lowc(from.accent)) nc = nt.accent
-      else if (col && col === lowc(from.title) && col !== lowc(from.text)) nc = nt.title
-      else if (col && col === lowc(from.text) && col !== lowc(from.title)) nc = nt.text
-      else nc = isHeading(el) ? nt.title : nt.text   // lik gammel farge / ukjent → bruk størrelse/fet
-      // Hold teksten lesbar mot ny bakgrunn
-      return readableOn(nc, nt.bg, lum(nt.bg) > 0.5 ? '#1a1a1a' : '#ffffff')
+      if (col && col === lowc(from.accent)) return nt.accent
+      if (col && col === lowc(from.title) && col !== lowc(from.text)) return nt.title
+      if (col && col === lowc(from.text) && col !== lowc(from.title)) return nt.text
+      return isHeading(el) ? nt.title : nt.text   // lik gammel farge / ukjent → bruk størrelse/fet
     }
     // Behold alt innhold (tekst, bilder, brukerens egne ting) OG figur-ikoner (dekor-bilder) – bytt bare farger/fonter
     const keep = s.elements.filter((e) => !e.decor || e.type === 'image')

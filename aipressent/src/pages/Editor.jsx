@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { THEMES, blankSlide, textEl, imageEl, shapeEl, tableEl, genId, slidesFromAi, normalizeTheme, CW, CH, applyTheme, fitTextBox } from '../lib/deck'
+import { THEMES, blankSlide, textEl, imageEl, shapeEl, tableEl, genId, slidesFromAi, normalizeTheme, CW, CH, applyTheme, fitTextBox, FONTS } from '../lib/deck'
 import { SILHOUETTES, SIL_CATS, SCENES } from '../lib/silhouettes'
 import { exportPptx, exportPdf, pptxBlob } from '../lib/export'
 import { importToGoogleSlides, googleConfigured, loadGis } from '../lib/gslides'
@@ -257,21 +257,12 @@ export default function Editor() {
     apply(nextDeck)
   }
   // Font AI: bytt fonter (tema-fonter på valgt scope, og/eller per element på dette lysbildet)
-  function applyFont(data, scope) {
-    let nextDeck = deck
-    if (data.theme) {
-      // Bare fontene fra temaet – behold resten av nåværende tema
-      const t = { ...deck.theme }
-      if (data.theme.fontHead) t.fontHead = data.theme.fontHead
-      if (data.theme.fontBody) t.fontBody = data.theme.fontBody
-      nextDeck = applyTheme(nextDeck, normalizeTheme(t), scope, idx)
-    }
-    const byId = {}
-    ;(data.changes || []).forEach((c) => { if (c && c.id && c.fontFamily) byId[c.id] = c.fontFamily })
-    if (Object.keys(byId).length) {
-      nextDeck = { ...nextDeck, slides: nextDeck.slides.map((s, i) => (i === idx ? { ...s, elements: s.elements.map((el) => (byId[el.id] ? fitTextBox({ ...el, fontFamily: byId[el.id] }) : el)) } : s)) }
-    }
-    apply(nextDeck)
+  // Sett fonter direkte (uten AI): overskrift og/eller brødtekst, på valgt scope
+  function setFonts({ fontHead, fontBody }, scope) {
+    const t = { ...deck.theme }
+    if (fontHead) t.fontHead = fontHead
+    if (fontBody) t.fontBody = fontBody
+    apply(applyTheme(deck, normalizeTheme(t), scope, idx))
   }
   function updateSel(patch) {
     if (!sel) return
@@ -657,7 +648,7 @@ export default function Editor() {
             <button onClick={dupSlide} title="Dupliser"><Copy size={16} /></button>
             <button onClick={delSlide} title="Slett lysbilde" disabled={deck.slides.length === 1}><Trash2 size={16} /></button>
             {aiEnabled && <button data-tour="visual" onClick={() => setVisualOpen(true)} title="Visuell AI – farger, tema, bakgrunn, flytting og nye elementer" className="wand"><Palette size={16} /></button>}
-            {aiEnabled && <button data-tour="font" onClick={() => setFontOpen(true)} title="Font AI – endrer bare skrifttyper" className="wand"><span style={{ fontWeight: 800, fontSize: 15, lineHeight: 1 }}>Aa</span></button>}
+            {aiEnabled && <button data-tour="font" onClick={() => setFontOpen(true)} title="Skrifttype – velg font for overskrifter og brødtekst" className="wand"><span style={{ fontWeight: 800, fontSize: 15, lineHeight: 1 }}>Aa</span></button>}
           </div>
 
           <div className="notes" data-tour="notes">
@@ -714,7 +705,7 @@ export default function Editor() {
       {shareMsg && <div className="toast">{shareMsg}</div>}
       {shareOpen && <ShareModal id={id} title={deck.title} onClose={() => setShareOpen(false)} />}
       {visualOpen && <VisualModal slide={slide} deck={deck} onApply={applyVisual} onClose={() => setVisualOpen(false)} />}
-      {fontOpen && <FontModal slide={slide} deck={deck} onApply={applyFont} onClose={() => setFontOpen(false)} />}
+      {fontOpen && <FontMenu deck={deck} onApply={setFonts} onClose={() => setFontOpen(false)} />}
       {tourOpen && <Tour onClose={() => setTourOpen(false)} steps={[
         { sel: '[data-tour="toolbar"]', title: 'Verktøylinja', text: 'Her legger du til tekst, bilder, figurer, stickers og tabeller. Klikk et bildefelt for å «Søke på nett», laste opp eget bilde, eller lage med AI. Helt til høyre er «enkel visning» som gjemmer de sjeldne knappene.' },
         { sel: '[data-tour="anim"]', title: 'Animasjon', text: 'Åpne animasjonspanelet (du kan dra det rundt). Klikk et objekt → «Legg til valgt». Velg «Med forrige» (samtidig) eller «Etter forrige» (i rekkefølge), dra radene for å endre rekkefølge, og «Spill av» for å se det.' },
@@ -1044,43 +1035,45 @@ function VisualModal({ slide, deck, onApply, onClose }) {
   )
 }
 
-function FontModal({ slide, deck, onApply, onClose }) {
-  const [desc, setDesc] = useState('')
+function FontMenu({ deck, onApply, onClose }) {
   const [scope, setScope] = useState('all')
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState('')
+  const [head, setHead] = useState(deck.theme?.fontHead || 'Poppins')
+  const [body, setBody] = useState(deck.theme?.fontBody || 'Inter')
+  const [both, setBoth] = useState('')
   const [done, setDone] = useState(false)
-  const examples = ['Arial', 'Times New Roman', 'en leken, rund font', 'noe elegant og stilig', 'kraftig plakat-font på titler']
-  const slim = (slide.elements || []).filter((e) => !e.decor && e.type === 'text').map((e) => ({ id: e.id, fontFamily: e.fontFamily, text: (e.text || '').slice(0, 30), heading: (e.fontSize || 0) >= 28 || e.bold }))
-  async function gen() {
-    if (!desc.trim()) { setErr('Skriv hvilken font du vil ha.'); return }
-    setBusy(true); setErr(''); setDone(false)
-    try {
-      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'editfont', elements: slim, theme: deck.theme, instruction: desc.trim() } })
-      if (error) throw new Error(error.message || 'serverfeil')
-      if (data?.error) throw new Error(data.error)
-      if (!data.theme && !(data.changes && data.changes.length)) { setErr('AI fant ingen font å bruke. Prøv et fontnavn.'); return }
-      onApply(data, scope)
-      setDone(true)
-    } catch (e) { setErr('Klarte ikke å endre font: ' + (e.message || e)) } finally { setBusy(false) }
-  }
+  function applyBoth(f) { setBoth(f); setHead(f); setBody(f); onApply({ fontHead: f, fontBody: f }, scope); setDone(true) }
+  function applyHead(f) { setHead(f); onApply({ fontHead: f }, scope); setDone(true) }
+  function applyBody(f) { setBody(f); onApply({ fontBody: f }, scope); setDone(true) }
+  const Picker = ({ value, onPick }) => (
+    <select className="font-pick" value={value} onChange={(e) => onPick(e.target.value)}
+      style={{ width: '100%', padding: '9px 10px', borderRadius: 10, border: '1px solid var(--line,#e5e7eb)', fontFamily: `'${value}', sans-serif`, fontSize: 15 }}>
+      {FONTS.map((f) => <option key={f} value={f} style={{ fontFamily: `'${f}', sans-serif` }}>{f}</option>)}
+    </select>
+  )
   return (
-    <div className="modal-bg" onClick={busy ? undefined : onClose}>
+    <div className="modal-bg" onClick={onClose}>
       <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="sil-head"><h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ fontWeight: 800 }}>Aa</span> Font AI <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', padding: '2px 7px', borderRadius: 999, background: 'rgba(99,102,241,0.15)', color: 'var(--accent,#6366f1)' }}>Beta</span></h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
-        <p className="muted" style={{ margin: 0 }}>Endrer <b>bare skrifttypen</b> – ingenting annet. Skriv et fontnavn eller en stemning. <span className="small">(Koster 1 token)</span></p>
-        <ScopeToggle scope={scope} setScope={setScope} busy={busy} />
-        <textarea className="theme-desc" rows={2} value={desc} onChange={(e) => setDesc(e.target.value)} disabled={busy}
-          placeholder="F.eks. «Arial» eller «en leken, rund font»"
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); gen() } }} />
-        <div className="theme-examples">
-          {examples.map((x) => <button key={x} className="theme-ex" onClick={() => setDesc(x)} disabled={busy}>{x}</button>)}
+        <div className="sil-head"><h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ fontWeight: 800 }}>Aa</span> Skrifttype</h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
+        <p className="muted" style={{ margin: 0 }}>Velg font. Du kan endre alt samtidig, eller overskrifter og brødtekst hver for seg.</p>
+        <ScopeToggle scope={scope} setScope={setScope} busy={false} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8 }}>
+          <div>
+            <label className="small" style={{ fontWeight: 700, display: 'block', marginBottom: 5 }}>Alt samtidig</label>
+            <Picker value={both || head} onPick={applyBoth} />
+          </div>
+          <div style={{ height: 1, background: 'var(--line,#e5e7eb)' }} />
+          <div>
+            <label className="small" style={{ fontWeight: 700, display: 'block', marginBottom: 5 }}>Overskrifter</label>
+            <Picker value={head} onPick={applyHead} />
+          </div>
+          <div>
+            <label className="small" style={{ fontWeight: 700, display: 'block', marginBottom: 5 }}>Brødtekst (resten)</label>
+            <Picker value={body} onPick={applyBody} />
+          </div>
         </div>
-        {err && <p className="err">{err}</p>}
-        {done && !err && <p className="muted small">✓ Font endret!</p>}
+        {done && <p className="muted small" style={{ marginTop: 10 }}>✓ Font oppdatert!</p>}
         <div className="modal-foot">
-          <button className="btn ghost" onClick={onClose} disabled={busy}>Ferdig</button>
-          <button className="btn primary" onClick={gen} disabled={busy || !desc.trim()}>{busy ? 'Endrer …' : '✨ Endre'}</button>
+          <button className="btn primary" onClick={onClose}>Ferdig</button>
         </div>
       </div>
     </div>
