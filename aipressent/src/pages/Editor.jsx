@@ -1016,7 +1016,7 @@ function VisualModal({ slide, deck, onApply, onClose }) {
   return (
     <div className="modal-bg" onClick={busy ? undefined : onClose}>
       <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="sil-head"><h3><Palette size={20} /> Visuell AI</h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
+        <div className="sil-head"><h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Palette size={20} /> Visuell AI <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', padding: '2px 7px', borderRadius: 999, background: 'rgba(99,102,241,0.15)', color: 'var(--accent,#6366f1)' }}>Beta</span></h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
         <p className="muted" style={{ margin: 0 }}>Endrer alt det visuelle – farger, tema, bakgrunn og stil. Den kan også flytte, fjerne og lage nye elementer så det passer. <b>Teksten din holdes lik.</b> <span className="small">(Koster 1 token)</span></p>
         <ScopeToggle scope={scope} setScope={setScope} busy={busy} />
         <textarea className="theme-desc" rows={2} value={desc} onChange={(e) => setDesc(e.target.value)} disabled={busy}
@@ -1059,7 +1059,7 @@ function FontModal({ slide, deck, onApply, onClose }) {
   return (
     <div className="modal-bg" onClick={busy ? undefined : onClose}>
       <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="sil-head"><h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ fontWeight: 800 }}>Aa</span> Font AI</h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
+        <div className="sil-head"><h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ fontWeight: 800 }}>Aa</span> Font AI <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', padding: '2px 7px', borderRadius: 999, background: 'rgba(99,102,241,0.15)', color: 'var(--accent,#6366f1)' }}>Beta</span></h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
         <p className="muted" style={{ margin: 0 }}>Endrer <b>bare skrifttypen</b> – ingenting annet. Skriv et fontnavn eller en stemning. <span className="small">(Koster 1 token)</span></p>
         <ScopeToggle scope={scope} setScope={setScope} busy={busy} />
         <textarea className="theme-desc" rows={2} value={desc} onChange={(e) => setDesc(e.target.value)} disabled={busy}
