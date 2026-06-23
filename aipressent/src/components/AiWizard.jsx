@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { slidesFromAi, newDeck, normalizeTheme, genId, imageEl, CW, CH, figureDecor } from '../lib/deck'
-import { applyTemplateToDeck, applyTemplateAi, photoQueryOf, deckWithPhotoBg } from '../lib/templates'
+import { applyTemplateToDeck, photoQueryOf, deckWithPhotoBg, TEMPLATES } from '../lib/templates'
 import { fetchPixabay } from '../lib/photo'
 import TemplatePicker from './TemplatePicker'
 import { Sparkles, ChevronLeft, ChevronUp, ChevronDown, Trash2, Plus, RefreshCw, LayoutTemplate } from 'lucide-react'
@@ -122,36 +122,17 @@ export default function AiWizard({ onClose, userId, nav }) {
   async function createPresentation() {
     if (!title.trim()) { setErr('Gi presentasjonen en tittel.'); return }
     if (!manuscript.trim()) { setErr('Skriv litt manus eller noen stikkord.'); return }
-    if (!tpl && !visualStyle.trim()) { setErr('Beskriv kort hvordan det skal se ut, eller velg en ferdig mal.'); return }
     setBusy(true); setErr(''); setGenLabel('Lager innhold …'); prog.start()
     try {
       if (!tokensUnlimited && typeof tokens === 'number' && tokens < 5) throw new Error(`Du trenger 5 tokens for å lage en hel AI-presentasjon, men har ${tokens}. Du kan fortsatt lage en tom presentasjon og redigere selv – og AI-bilder er gratis. Du får påfyll i morgen.`)
-      const { data: o, error: oe } = await supabase.functions.invoke('smart-task', { body: { manuscript, title, visualStyle, count, textAmount } })
+      const { data: o, error: oe } = await supabase.functions.invoke('smart-task', { body: { manuscript, title, visualStyle: '', count, textAmount } })
       refreshTokens()
       if (oe) throw oe
       if (o?.error) throw new Error(o.error)
-      const th = normalizeTheme(o.theme)
       const realTitle = title || o.title || 'Uten tittel'
-      const baseTheme = tpl ? normalizeTheme(tpl.theme) : th
+      const useTpl = tpl || TEMPLATES.find((t) => t.id === 'minimal-lys') || TEMPLATES[0]
+      const baseTheme = normalizeTheme(useTpl.theme)
       const slides = slidesFromAi(o.slides || [], baseTheme)
-      // Hent et passende figur-ikon per lysbilde fra nett-albumet (Iconify) – kun uten ferdig mal (malen gir sitt eget uttrykk)
-      if (!tpl) try {
-        const kws = [...new Set((o.slides || []).map((s) => String(s.figure || '').trim()).filter(Boolean))]
-        if (kws.length) {
-          const map = {}
-          await Promise.all(kws.map(async (k) => { map[k] = await iconifyFind(k) }))
-          slides.forEach((sl, i) => {
-            const kw = String(o.slides[i]?.figure || '').trim()
-            const lay = o.slides[i]?.layout || 'bullets'
-            const id = kw && map[kw]
-            if (id) {
-              const n = sl.elements.findIndex((e) => !e.decor)
-              const at = n === -1 ? sl.elements.length : n
-              sl.elements.splice(at, 0, figureDecor(iconifyUrl(id, th.accent), lay))
-            }
-          })
-        }
-      } catch (_e) { /* hopp over figurer */ }
       const imgs = []
       slides.forEach((s) => s.elements.forEach((e) => { if (e.type === 'image' && !e.src && e.caption && e.caption !== 'Sett inn bilde') imgs.push(e) }))
       if (imgs.length) {
@@ -166,20 +147,15 @@ export default function AiWizard({ onClose, userId, nav }) {
         }))
       }
       setGenLabel('Lagrer …')
-      let deck
-      if (tpl) {
-        const bg = tpl.bgCss || baseTheme.bg
-        slides.forEach((s) => { s.background = bg })
-        const cov = (o.slides || []).find((s) => s.layout === 'cover') || (o.slides || [])[0]
-        if (slides[0]) slides[0] = tpl.cover(realTitle, (cov && cov.subtitle) || '')
-        deck = { theme: baseTheme, title: realTitle, slides: slides.length ? slides : newDeck(realTitle, baseTheme).slides, fromTemplate: tpl.id }
-        const q = photoQueryOf(tpl)
-        if (q) { setGenLabel('Henter foto …'); const src = await fetchPixabay(q); if (src) deck = deckWithPhotoBg(deck, src, tpl.scrim || 'dark') }
-      } else {
-        deck = { theme: th, title: realTitle, slides: slides.length ? slides : newDeck(realTitle, th).slides }
-      }
+      const bg = useTpl.bgCss || baseTheme.bg
+      slides.forEach((s) => { s.background = bg })
+      const cov = (o.slides || []).find((s) => s.layout === 'cover') || (o.slides || [])[0]
+      if (slides[0]) slides[0] = useTpl.cover(realTitle, (cov && cov.subtitle) || '')
+      let deck = { theme: baseTheme, title: realTitle, slides: slides.length ? slides : newDeck(realTitle, baseTheme).slides, fromTemplate: useTpl.id }
+      const q = photoQueryOf(useTpl)
+      if (q) { setGenLabel('Henter foto …'); const src = await fetchPixabay(q); if (src) deck = deckWithPhotoBg(deck, src, useTpl.scrim || 'dark') }
       const { data, error } = await supabase.from('presentations')
-        .insert({ owner_id: userId, title: deck.title, theme: (tpl ? tpl.name : th?.name) || 'Egendefinert', data: deck }).select('id').single()
+        .insert({ owner_id: userId, title: deck.title, theme: useTpl.name, data: deck }).select('id').single()
       if (error) throw error
       prog.done()
       nav('/p/' + data.id)
@@ -195,7 +171,8 @@ export default function AiWizard({ onClose, userId, nav }) {
   async function generate() {
     setBusy(true); setErr(''); setGenLabel('Bygger lysbilder …'); prog.start()
     try {
-      const useTheme = tpl ? normalizeTheme(tpl.theme) : theme
+      const useTpl = tpl || TEMPLATES.find((t) => t.id === 'minimal-lys') || TEMPLATES[0]
+      const useTheme = normalizeTheme(useTpl.theme)
       const slides = slidesFromAi(outline.map(toAi), useTheme)
       // fyll inn bilder automatisk (Pollinations via edge-funksjonen)
       const imgs = []
@@ -217,36 +194,16 @@ export default function AiWizard({ onClose, userId, nav }) {
           cnt++; prog.set(Math.max(2, Math.round((cnt / imgs.length) * 100))); setGenLabel(`Lager bilder … (${cnt}/${imgs.length})`)
         }))
       }
-      setGenLabel('Lagrer …')
-      // tematisk dekor-illustrasjon (kun når ingen ferdig mal er valgt – malen gir sitt eget uttrykk)
-      if (!tpl) try {
-        const decorIdx = outline.map((o, i) => (o.layout === 'cover' || o.layout === 'section' ? i : -1)).filter((i) => i >= 0 && slides[i])
-        if (decorIdx.length) {
-          const { data } = await supabase.functions.invoke('smart-task', { body: { mode: 'image', prompt: `subtil dekorativ bakgrunns-illustrasjon som passer temaet «${title || 'presentasjon'}», enkel, rolig, mye åpen plass`, topic: title || 'presentasjon' } })
-          if (data?.image) {
-            const blob = await (await fetch('data:image/jpeg;base64,' + data.image)).blob()
-            const url = await uploadImage(blob)
-            if (url) decorIdx.forEach((i) => {
-              slides[i].elements.unshift(imageEl({ x: 0, y: 0, w: CW, h: CH, src: url, fit: 'cover', pos: '50% 50%', opacity: 0.14, decorative: true }))
-            })
-          }
-        }
-      } catch (_e) { /* dekor er valgfritt */ }
-      let deck
-      if (tpl) {
-        setGenLabel('Bruker mal …')
-        const bg = tpl.bgCss || useTheme.bg
-        slides.forEach((s) => { s.background = bg })
-        const cov = outline.find((o) => o.layout === 'cover') || outline[0]
-        if (slides[0]) slides[0] = tpl.cover(title || 'Uten tittel', (cov && cov.subtitle) || '')
-        deck = { theme: useTheme, title: title || 'Uten tittel', slides: slides.length ? slides : newDeck(title, useTheme).slides, fromTemplate: tpl.id }
-        const q = photoQueryOf(tpl)
-        if (q) { setGenLabel('Henter foto …'); const src = await fetchPixabay(q); if (src) deck = deckWithPhotoBg(deck, src, tpl.scrim || 'dark') }
-      } else {
-        deck = { theme, title: title || 'Uten tittel', slides: slides.length ? slides : newDeck(title, theme).slides }
-      }
+      setGenLabel('Bruker mal …')
+      const bg = useTpl.bgCss || useTheme.bg
+      slides.forEach((s) => { s.background = bg })
+      const cov = outline.find((o) => o.layout === 'cover') || outline[0]
+      if (slides[0]) slides[0] = useTpl.cover(title || 'Uten tittel', (cov && cov.subtitle) || '')
+      let deck = { theme: useTheme, title: title || 'Uten tittel', slides: slides.length ? slides : newDeck(title, useTheme).slides, fromTemplate: useTpl.id }
+      const q = photoQueryOf(useTpl)
+      if (q) { setGenLabel('Henter foto …'); const src = await fetchPixabay(q); if (src) deck = deckWithPhotoBg(deck, src, useTpl.scrim || 'dark') }
       const { data, error } = await supabase.from('presentations')
-        .insert({ owner_id: userId, title: deck.title, theme: (tpl ? tpl.name : theme?.name) || 'Egendefinert', data: deck }).select('id').single()
+        .insert({ owner_id: userId, title: deck.title, theme: useTpl.name, data: deck }).select('id').single()
       if (error) throw error
       prog.done()
       nav('/p/' + data.id)
@@ -264,14 +221,7 @@ export default function AiWizard({ onClose, userId, nav }) {
             <label>Manus / stikkord</label>
             <textarea rows={6} value={manuscript} onChange={(e) => setManuscript(e.target.value)} spellCheck lang="nb"
               placeholder="Skriv manus eller bare stikkord – AI tolker og bygger ut resten." />
-            {!tpl && (
-              <>
-                <label>Hvordan skal det se ut? (AI lager et tema ut fra dette)</label>
-                <input value={visualStyle} onChange={(e) => setVisualStyle(e.target.value)}
-                  placeholder="F.eks. «lekent og fargerikt for barn», «rolig pastell», «mørkt og stilig»" />
-              </>
-            )}
-            <label>{tpl ? 'Ferdig mal' : 'Eller velg en ferdig mal'}</label>
+            <label>{tpl ? 'Ferdig mal' : 'Velg en ferdig mal'}</label>
             <div className="seg" style={{ display: 'flex', gap: 8 }}>
               <button className="btn ghost" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setTplOpen(true)} disabled={busy}>
                 <LayoutTemplate size={16} /> {tpl ? `Mal: ${tpl.name}` : 'Bla i alle maler'}
@@ -290,7 +240,7 @@ export default function AiWizard({ onClose, userId, nav }) {
             {busy && <ProgressBar p={prog.p} label={genLabel || 'Lager presentasjonen …'} />}
             <div className="modal-foot">
               <button className="btn ghost" onClick={onClose} disabled={busy}>Avbryt</button>
-              <button className="btn primary" onClick={createPresentation} disabled={busy || !title.trim() || !manuscript.trim() || !visualStyle.trim()}>{busy ? 'Lager …' : 'Lag presentasjon ✨'}</button>
+              <button className="btn primary" onClick={createPresentation} disabled={busy || !title.trim() || !manuscript.trim()}>{busy ? 'Lager …' : 'Lag presentasjon ✨'}</button>
             </div>
           </>
         ) : (
@@ -299,25 +249,15 @@ export default function AiWizard({ onClose, userId, nav }) {
             <p className="muted">Rediger teksten på hvert lysbilde før du lager presentasjonen. Forside er først og oppsummering sist.</p>
 
             <div className="style-prev">
-              <div className="style-swatches">
-                <span style={{ background: theme.bg }} /><span style={{ background: theme.title }} />
-                <span style={{ background: theme.accent }} /><span style={{ background: theme.text }} />
-              </div>
               <div className="style-meta">
-                <b style={{ fontFamily: `'${theme.fontHead}'` }}>{theme.name}</b>
-                <span className="muted small">{theme.fontHead} + {theme.fontBody}</span>
+                <b>Stil</b>
+                <span className="muted small">Bestemmes av valgt mal</span>
               </div>
-              <button className="chip" onClick={updateStyle} disabled={styleBusy} title="Lag ny stil ut fra beskrivelsen">
-                <RefreshCw size={14} className={styleBusy ? 'spin' : ''} /> Ny stil
-              </button>
               <button className="chip" onClick={() => setTplOpen(true)} disabled={busy} title="Velg en ferdig mal til presentasjonen">
                 <LayoutTemplate size={14} /> {tpl ? `Mal: ${tpl.name}` : 'Velg mal'}
               </button>
               {tpl && <button className="chip" onClick={() => setTpl(null)} disabled={busy} title="Fjern mal">✕</button>}
             </div>
-            <input className="style-input" value={visualStyle} onChange={(e) => setVisualStyle(e.target.value)}
-              placeholder="Endre den visuelle stilen og trykk «Ny stil»" />
-            {styleBusy && <ProgressBar p={sprog.p} label="Lager ny stil …" />}
             <label style={{ marginTop: 12 }}>Tittel</label>
             <input value={title} onChange={(e) => setTitle(e.target.value)} />
 
