@@ -53,7 +53,7 @@ function fit(text, base, w, maxLines = 2) {
   if (lines <= maxLines) return base
   return Math.max(Math.round(base * (maxLines / lines) * 1.06), Math.round(base * 0.55))
 }
-const photoQ = (spec) => (spec.image && spec.image.caption) || spec.photo || spec.title || spec.statement || ''
+const photoQ = (spec) => (spec.image && spec.image.caption) || spec.photo || spec.figure || spec.title || spec.statement || ''
 
 // ---------- layouts (returnerer {background, elements}) ----------
 function bg(st) { return st.bgCss || st.bg }
