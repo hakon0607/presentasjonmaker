@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { slidesFromAi, newDeck, normalizeTheme, genId, imageEl, CW, CH, figureDecor } from '../lib/deck'
-import { Sparkles, ChevronLeft, ChevronUp, ChevronDown, Trash2, Plus, RefreshCw } from 'lucide-react'
+import { applyTemplateToDeck } from '../lib/templates'
+import TemplatePicker from './TemplatePicker'
+import { Sparkles, ChevronLeft, ChevronUp, ChevronDown, Trash2, Plus, RefreshCw, LayoutTemplate } from 'lucide-react'
 import { useProgress, ProgressBar } from './Progress'
 
 // Henter et passende ikon/figur fra nett-albumet Iconify (200k+ gratis ikoner)
@@ -71,6 +73,8 @@ export default function AiWizard({ onClose, userId, nav }) {
   // steg 2
   const [outline, setOutline] = useState([])
   const [theme, setTheme] = useState(normalizeTheme(null))
+  const [tpl, setTpl] = useState(null)          // valgt ferdig mal (valgfritt)
+  const [tplOpen, setTplOpen] = useState(false)
   const [styleBusy, setStyleBusy] = useState(false)
   const [genLabel, setGenLabel] = useState('')
   const prog = useProgress()
@@ -200,8 +204,8 @@ export default function AiWizard({ onClose, userId, nav }) {
         }))
       }
       setGenLabel('Lagrer …')
-      // tematisk dekor-illustrasjon (subtil bakgrunn på forside + kapittel-skille)
-      try {
+      // tematisk dekor-illustrasjon (kun når ingen ferdig mal er valgt – malen gir sitt eget uttrykk)
+      if (!tpl) try {
         const decorIdx = outline.map((o, i) => (o.layout === 'cover' || o.layout === 'section' ? i : -1)).filter((i) => i >= 0 && slides[i])
         if (decorIdx.length) {
           const { data } = await supabase.functions.invoke('smart-task', { body: { mode: 'image', prompt: `subtil dekorativ bakgrunns-illustrasjon som passer temaet «${title || 'presentasjon'}», enkel, rolig, mye åpen plass`, topic: title || 'presentasjon' } })
@@ -214,9 +218,11 @@ export default function AiWizard({ onClose, userId, nav }) {
           }
         }
       } catch (_e) { /* dekor er valgfritt */ }
-      const deck = { theme, title: title || 'Uten tittel', slides: slides.length ? slides : newDeck(title, theme).slides }
+      let deck = { theme, title: title || 'Uten tittel', slides: slides.length ? slides : newDeck(title, theme).slides }
+      // Valgt ferdig mal: legg malens fulle uttrykk (farger, fonter, figurer, oppsett) på alle sider – teksten beholdes.
+      if (tpl) { const td = applyTemplateToDeck(deck, tpl, 'all', 0); deck = { ...td, title: deck.title } }
       const { data, error } = await supabase.from('presentations')
-        .insert({ owner_id: userId, title: deck.title, theme: theme?.name || 'Egendefinert', data: deck }).select('id').single()
+        .insert({ owner_id: userId, title: deck.title, theme: (tpl ? tpl.name : theme?.name) || 'Egendefinert', data: deck }).select('id').single()
       if (error) throw error
       prog.done()
       nav('/p/' + data.id)
@@ -269,6 +275,10 @@ export default function AiWizard({ onClose, userId, nav }) {
               <button className="chip" onClick={updateStyle} disabled={styleBusy} title="Lag ny stil ut fra beskrivelsen">
                 <RefreshCw size={14} className={styleBusy ? 'spin' : ''} /> Ny stil
               </button>
+              <button className="chip" onClick={() => setTplOpen(true)} disabled={busy} title="Velg en ferdig mal til presentasjonen">
+                <LayoutTemplate size={14} /> {tpl ? `Mal: ${tpl.name}` : 'Velg mal'}
+              </button>
+              {tpl && <button className="chip" onClick={() => setTpl(null)} disabled={busy} title="Fjern mal">✕</button>}
             </div>
             <input className="style-input" value={visualStyle} onChange={(e) => setVisualStyle(e.target.value)}
               placeholder="Endre den visuelle stilen og trykk «Ny stil»" />
@@ -323,6 +333,15 @@ export default function AiWizard({ onClose, userId, nav }) {
           </>
         )}
       </div>
+      {tplOpen && (
+        <TemplatePicker
+          heading="Velg en mal til presentasjonen"
+          subtitle="AI fyller inn teksten din i denne stilen. Du kan bytte mal når som helst etterpå."
+          actionLabel="Velg denne"
+          onPick={(t) => { setTpl(t); setTheme(normalizeTheme(t.theme)); setTplOpen(false) }}
+          onClose={() => setTplOpen(false)}
+        />
+      )}
     </div>
   )
 }

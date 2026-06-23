@@ -64,6 +64,21 @@ function withFigures(s, figs) {
   return { ...s, elements: [...decor, ...figs, ...rest] }
 }
 
+// Resolverte figurer (path + plassering + farge) – brukes av mal-velgeren til å
+// tegne en lett, statisk scene-miniatyr (uten tung SlideStage per kort).
+export function templateFigures(t) {
+  const th = normalizeTheme({ ...t.theme })
+  const named = { accent: th.accent, title: th.title, text: th.text, bg: th.bg }
+  return (t.figures || []).map((f) => {
+    const sil = SIL_BY_ID[f.sid]
+    if (!sil) return null
+    const w = Math.round(f.w || 120)
+    const h = Math.round(w / (sil.ratio || 1))
+    const fill = (typeof f.fill === 'string' && f.fill[0] === '#') ? f.fill : (named[f.fill] || th.accent)
+    return { path: sil.path, x: Math.round(f.x), y: Math.round(f.y), w, h, fill, op: f.op != null ? f.op : 1, rot: f.rot || 0, flip: !!f.flip }
+  }).filter(Boolean)
+}
+
 // Rekkefølgen her styrer kategori-knappene i velgeren.
 export const TEMPLATE_CATEGORIES = [
   'Alle', 'Business', 'Korporativ', 'Skole', 'Krig', 'Sport', 'Helse', 'Tech',
@@ -219,6 +234,48 @@ export const TEMPLATES = [
       { sid: 'graduate', x: 408, y: 40, w: 150, fill: 'accent' },
       { sid: 'book', x: 52, y: 418, w: 140, fill: '#1f2937', op: 0.85 },
       { sid: 'pencil', x: 852, y: 414, w: 80, fill: '#f59e0b' },
+    ] },
+
+  // ======================= DEMO-scener (komponerte, ikke bare sirkler) =======================
+  // Landskap – lagdelte fjell, sol, skyer, fugler og trær = en ekte scene.
+  { id: 'demo-landscape', name: 'Fjellandskap', category: 'Natur', align: 'center',
+    keywords: ['natur', 'landskap', 'fjell', 'scene', 'sol', 'tre', 'demo', 'utsikt'],
+    theme: { bg: '#e0f2fe', title: '#0c4a6e', text: '#0369a1', accent: '#0ea5e9', fontHead: 'Quicksand', fontBody: 'Inter', style: 'wave' },
+    figures: [
+      { sid: 'cloud', x: 120, y: 70, w: 120, fill: '#ffffff', op: 0.9 },
+      { sid: 'sun', x: 720, y: 56, w: 120, fill: '#fbbf24', op: 0.9 },
+      { sid: 'bird', x: 540, y: 120, w: 64, fill: '#1e3a8a', op: 0.6 },
+      { sid: 'bird', x: 610, y: 150, w: 48, fill: '#1e3a8a', op: 0.5 },
+      { sid: 'mountains', x: -30, y: 300, w: 520, fill: '#93c5fd', op: 0.85 },
+      { sid: 'mountains', x: 360, y: 330, w: 640, fill: '#3b82f6', op: 0.9 },
+      { sid: 'tree', x: 70, y: 438, w: 64, fill: '#166534' },
+      { sid: 'tree', x: 150, y: 452, w: 48, fill: '#166534', op: 0.9 },
+    ] },
+
+  // WW2 – luftslag: jagerfly i formasjon, røyk-skyer, lav sol, tank + soldater på bakken.
+  { id: 'demo-ww2', name: 'Luftslag', category: 'Krig', align: 'left',
+    keywords: ['krig', 'ww2', 'luftslag', 'fly', 'scene', 'dramatisk', 'demo', 'historie'],
+    theme: { bg: '#161b29', title: '#f8fafc', text: '#cbd5e1', accent: '#f59e0b', fontHead: 'Oswald', fontBody: 'Inter', style: 'diagonal' },
+    figures: [
+      { sid: 'cloud', x: 560, y: 56, w: 220, fill: '#475569', op: 0.45 },
+      { sid: 'cloud', x: 100, y: 92, w: 170, fill: '#334155', op: 0.4 },
+      { sid: 'sun', x: 40, y: 330, w: 150, fill: '#b45309', op: 0.45 },
+      { sid: 'jet', x: 110, y: 58, w: 180, fill: '#0f172a', op: 0.95 },
+      { sid: 'jet', x: 300, y: 116, w: 130, fill: '#1e293b', op: 0.85 },
+      { sid: 'jet', x: 650, y: 46, w: 210, fill: '#f59e0b', op: 0.9, flip: true },
+      { sid: 'tank', x: 36, y: 430, w: 230, fill: '#0f172a' },
+      { sid: 'soldier', x: 330, y: 392, w: 80, fill: '#0f172a' },
+      { sid: 'soldier', x: 764, y: 398, w: 74, fill: '#1e293b', flip: true },
+      { sid: 'flag', x: 872, y: 358, w: 80, fill: '#f59e0b', op: 0.9 },
+    ] },
+
+  // Æstetisk – rolig, raffinert: serif-type, kremfarge, arch-pynt og et par dempede blader.
+  { id: 'demo-aesthetic', name: 'Æstetisk', category: 'Elegant', align: 'center',
+    keywords: ['elegant', 'astetisk', 'aesthetic', 'rolig', 'minimal', 'serif', 'demo', 'raffinert'],
+    theme: { bg: '#f4efe7', title: '#2b2b2b', text: '#57534e', accent: '#b08968', fontHead: 'Cormorant Garamond', fontBody: 'EB Garamond', style: 'arch' },
+    figures: [
+      { sid: 'leaf', x: 812, y: 54, w: 92, fill: '#b08968', op: 0.45, rot: 18 },
+      { sid: 'leaf', x: 44, y: 372, w: 84, fill: '#9caf88', op: 0.4, rot: -16 },
     ] },
 
   // ======================= Helse =======================

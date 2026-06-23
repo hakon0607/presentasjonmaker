@@ -1,28 +1,38 @@
 import { useEffect, useMemo, useState } from 'react'
 import { LayoutTemplate, Search, X, Check } from 'lucide-react'
-import SlideStage from './SlideStage'
-import { TEMPLATE_CATEGORIES, searchTemplates, sampleSlideForTemplate } from '../lib/templates'
+import { TEMPLATE_CATEGORIES, searchTemplates, templateFigures } from '../lib/templates'
 
-// Lett, statisk mini-preview til rutenettet (raskt – ingen tung SlideStage per kort).
-// Viser malens ekte farger, overskriftsfont og navn, så du kjenner igjen stilen.
+// Lett, statisk scene-miniatyr i ren SVG (ingen tung SlideStage) – tegner malens
+// bakgrunn, figurer (scene) og navn. Mange kan vises samtidig uten ytelsesproblemer.
 function TemplateThumb({ t }) {
   const th = t.theme
+  const figs = templateFigures(t)
+  const center = t.align !== 'left'
   return (
-    <div className="tpl-thumb" style={{ background: th.bg }}>
-      <div className="tpl-thumb-name" style={{ color: th.title, fontFamily: `'${th.fontHead}', sans-serif` }}>{t.name}</div>
-      <div className="tpl-thumb-bar" style={{ background: th.accent }} />
-      <div className="tpl-thumb-lines">
-        <span style={{ background: th.text }} />
-        <span style={{ background: th.text }} />
-      </div>
-      <div className="tpl-thumb-corner" style={{ background: th.accent }} />
-    </div>
+    <svg viewBox="0 0 960 540" preserveAspectRatio="xMidYMid slice" className="tpl-thumb-svg">
+      <rect x="0" y="0" width="960" height="540" fill={th.bg} />
+      {figs.map((f, i) => {
+        const tr = [`translate(${f.x} ${f.y})`]
+        if (f.flip) tr.push(`translate(${f.w} 0) scale(-1 1)`)
+        if (f.rot) tr.push(`rotate(${f.rot} ${f.w / 2} ${f.h / 2})`)
+        return (
+          <g key={i} transform={tr.join(' ')} opacity={f.op}>
+            <svg width={f.w} height={f.h} viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+              <path d={f.path} fill={f.fill} fillRule="evenodd" />
+            </svg>
+          </g>
+        )
+      })}
+      <text x={center ? 480 : 92} y="262" textAnchor={center ? 'middle' : 'start'}
+        fontFamily={`'${th.fontHead}', sans-serif`} fontWeight="800" fontSize="62" fill={th.title}>{t.name}</text>
+      <rect x={center ? 430 : 92} y="292" width="100" height="9" rx="4" fill={th.accent} />
+    </svg>
   )
 }
 
-// Mal-album: stor ekte forhåndsvisning av valgt mal til venstre, søk + kategori-
-// nedtrekk + rutenett til høyre. Alt leser fra templates.js, så nye maler virker
-// automatisk.
+// Mal-album: ett langt rutenett der ALLE malene vises samtidig som ekte mini-
+// scener. Søk + kategori-nedtrekk øverst, «Bruk»-bekreftelse nederst. Alt leser
+// fra templates.js, så nye maler virker automatisk.
 export default function TemplatePicker({
   onPick, onClose,
   heading = 'Velg en mal',
@@ -40,7 +50,7 @@ export default function TemplatePicker({
     if (!results.some((t) => t.id === selId)) setSelId(results[0].id)
   }, [results, selId])
 
-  const selected = results.find((t) => t.id === selId) || results[0] || null
+  const selected = results.find((t) => t.id === selId) || null
 
   return (
     <div className="modal-bg" onClick={busy ? undefined : onClose}>
@@ -51,58 +61,40 @@ export default function TemplatePicker({
         </div>
         <p className="muted tpl-album-sub">{subtitle}</p>
 
-        <div className="tpl-album-body">
-          {/* Venstre: stor, ekte forhåndsvisning av valgt mal */}
-          <div className="tpl-stage">
-            {selected ? (
-              <>
-                <div className="tpl-stage-prev"><SlideStage slide={sampleSlideForTemplate(selected)} /></div>
-                <div className="tpl-stage-meta">
-                  <div>
-                    <b>{selected.name}</b>
-                    <span className="muted small">{selected.category}</span>
-                  </div>
-                  <button className="btn primary tpl-stage-use" disabled={busy} onClick={() => onPick(selected)}>
-                    {busy ? 'Bytter …' : <><Check size={16} /> {actionLabel}</>}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="tpl-stage-empty">Ingen mal valgt</div>
-            )}
+        <div className="tpl-browse-top">
+          <div className="tpl-search">
+            <Search size={16} />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} spellCheck lang="nb"
+              placeholder="Søk – f.eks. «krig», «mørk», «skole» … (finner også liknende)" autoFocus />
+            {query && <button className="tpl-search-x" onClick={() => setQuery('')} title="Tøm">✕</button>}
           </div>
+          <select className="tpl-catsel" value={cat} onChange={(e) => setCat(e.target.value)} title="Kategori">
+            {TEMPLATE_CATEGORIES.map((c) => (
+              <option key={c} value={c}>{c === 'Alle' ? 'Alle kategorier' : c}</option>
+            ))}
+          </select>
+        </div>
 
-          {/* Høyre: søk + kategori-nedtrekk + rutenett */}
-          <div className="tpl-browse">
-            <div className="tpl-browse-top">
-              <div className="tpl-search">
-                <Search size={16} />
-                <input value={query} onChange={(e) => setQuery(e.target.value)} spellCheck lang="nb"
-                  placeholder="Søk – f.eks. «krig», «mørk», «skole» … (finner også liknende)" autoFocus />
-                {query && <button className="tpl-search-x" onClick={() => setQuery('')} title="Tøm">✕</button>}
-              </div>
-              <select className="tpl-catsel" value={cat} onChange={(e) => setCat(e.target.value)} title="Kategori">
-                {TEMPLATE_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c === 'Alle' ? 'Alle kategorier' : c}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="tpl-gallery">
-              {results.map((t) => (
-                <button key={t.id} className={'tpl-card' + (t.id === selId ? ' on' : '')}
-                  onClick={() => setSelId(t.id)} onDoubleClick={() => !busy && onPick(t)}
-                  title={`${t.name} – ${t.category}`}>
-                  <div className="tpl-card-prev"><TemplateThumb t={t} /></div>
-                  <div className="tpl-card-meta"><b>{t.name}</b><span className="muted small">{t.category}</span></div>
-                </button>
-              ))}
-            </div>
-
-            <div className="tpl-album-foot">
-              <span className="muted small">{results.length} {results.length === 1 ? 'mal' : 'maler'} · klikk for forhåndsvisning, dobbeltklikk for å bruke</span>
-            </div>
+        {results.length === 0 ? (
+          <div className="tpl-stage-empty" style={{ minHeight: 200 }}>Ingen maler matchet.</div>
+        ) : (
+          <div className="tpl-gallery tpl-gallery-full">
+            {results.map((t) => (
+              <button key={t.id} className={'tpl-card' + (t.id === selId ? ' on' : '')}
+                onClick={() => setSelId(t.id)} onDoubleClick={() => !busy && onPick(t)}
+                title={`${t.name} – ${t.category}`}>
+                <div className="tpl-card-prev"><TemplateThumb t={t} /></div>
+                <div className="tpl-card-meta"><b>{t.name}</b><span className="muted small">{t.category}</span></div>
+              </button>
+            ))}
           </div>
+        )}
+
+        <div className="tpl-album-bar">
+          <span className="muted small">{results.length} {results.length === 1 ? 'mal' : 'maler'} · dobbeltklikk en mal for å bruke den med en gang</span>
+          <button className="btn primary tpl-use-btn" disabled={busy || !selected} onClick={() => selected && onPick(selected)}>
+            {busy ? 'Bytter …' : <><Check size={16} /> {selected ? `${actionLabel}: ${selected.name}` : actionLabel}</>}
+          </button>
         </div>
       </div>
     </div>

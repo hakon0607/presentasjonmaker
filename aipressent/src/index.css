@@ -711,3 +711,9 @@ button{font-family:inherit}
 .tpl-thumb-lines span:nth-child(1){width:100%}
 .tpl-thumb-lines span:nth-child(2){width:68%}
 .tpl-thumb-corner{position:absolute;right:-9px;bottom:-9px;width:32px;height:32px;border-radius:50%;opacity:.85}
+
+/* ---- Langt mal-album: alle maler synlige samtidig som scene-miniatyrer ---- */
+.tpl-gallery-full{flex:1;min-height:0;grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+.tpl-thumb-svg{width:100%;height:100%;display:block}
+.tpl-album-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:10px;border-top:1px solid var(--line)}
+.tpl-use-btn{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;max-width:62%;overflow:hidden;text-overflow:ellipsis}
