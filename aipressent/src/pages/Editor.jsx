@@ -35,7 +35,6 @@ export default function Editor() {
   const [editId, setEditId] = useState(null)
   const [present, setPresent] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
-  const [themeOpen, setThemeOpen] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
   const [saved, setSaved] = useState('saved')   // saved | dirty | saving
   const [notesBusy, setNotesBusy] = useState(false)
@@ -557,8 +556,6 @@ export default function Editor() {
           <button className="chip ic" onClick={redo} disabled={!redoStack.current.length} title="Gjenta (Ctrl+Y)"><Redo2 size={15} /></button>
           <button className={'chip' + (saved === 'saved' ? ' ok' : '')} onClick={flush}><Save size={15} /> {saveLabel}</button>
           <TokenBadge />
-          {aiEnabled && <span className="muted small" style={{ alignSelf: 'center' }}>AI-verktøy i panelet til høyre →</span>}
-          {aiEnabled && <button className="chip" data-tour="animate" onClick={animateWithAi} disabled={animBusy}><Clapperboard size={15} /> {animBusy ? 'Animerer …' : 'Animer med AI'}</button>}
           <button className="chip" data-tour="share" onClick={() => setShareOpen(true)}><Share2 size={15} /> Del</button>
           <button className="chip" data-tour="present" onClick={() => { commitEdits(); setTimeout(() => setPresent(true), 0) }}><Play size={15} /> Presenter</button>
           <div className="menu-wrap" data-tour="export">
@@ -644,7 +641,7 @@ export default function Editor() {
         </main>
 
         {aiEnabled && (
-          <aside className={'ai-rail' + (aiPanel ? '' : ' closed')}>
+          <aside data-tour="aipanel" className={'ai-rail' + (aiPanel ? '' : ' closed')}>
             <button className="ai-rail-toggle" onClick={() => setAiPanel((v) => !v)} title={aiPanel ? 'Skjul AI-panel' : 'Vis AI-panel'}>
               {aiPanel ? <ChevronRight size={18} /> : <Sparkles size={18} />}
             </button>
@@ -662,14 +659,14 @@ export default function Editor() {
                   <span><b>Design</b><small>Farger og tema</small></span>
                 </button>
 
-                <button className="ai-tool" onClick={() => setFontOpen(true)}>
-                  <span className="ai-tool-ic">🔤</span>
-                  <span><b>Skrifttype</b><small>Velg fonter</small></span>
-                </button>
-
                 <button className="ai-tool" onClick={() => setReviewOpen(true)}>
                   <span className="ai-tool-ic">✅</span>
                   <span><b>Sjekk kvalitet</b><small>Få vennlige tips</small></span>
+                </button>
+
+                <button className="ai-tool" onClick={animateWithAi} disabled={animBusy}>
+                  <span className="ai-tool-ic">🎬</span>
+                  <span><b>{animBusy ? 'Animerer …' : 'Animer'}</b><small>Fine overganger på alle</small></span>
                 </button>
 
                 <div className="ai-tool-block">
@@ -738,14 +735,10 @@ export default function Editor() {
         { sel: '[data-tour="anim"]', title: 'Animasjon', text: 'Åpne animasjonspanelet (du kan dra det rundt). Klikk et objekt → «Legg til valgt». Velg «Med forrige» (samtidig) eller «Etter forrige» (i rekkefølge), dra radene for å endre rekkefølge, og «Spill av» for å se det.' },
         { sel: '[data-tour="rail"]', title: 'Lysbildene dine', text: 'Alle lysbildene ligger her. Klikk for å bytte, dra for å endre rekkefølge, og «+ Lysbilde» for å legge til. Dra i kanten for å gjøre stripa bredere.' },
         { sel: '[data-tour="canvas"]', title: 'Selve lysbildet', text: 'Dra ting for å flytte dem. Dobbeltklikk på tekst for å skrive – klikk midt i teksten, så går skrivemerket dit. Markér et objekt og dra det runde håndtaket over det for å rotere.' },
-        { sel: '[data-tour="design"]', title: 'Design AI 🎨', text: 'Skriv hva slags farger eller tema du vil ha, så lager AI det. Du kan fylle inn farger, tema eller la stå tomt (da beholdes det). Tekstfargen velges automatisk så den blir lett å lese. Velg «Alle lysbilder» eller «Bare denne» øverst.' },
-        { sel: '[data-tour="font"]', title: 'Skrifttype 🔤', text: 'Velg font for overskrifter og brødtekst – alt samtidig eller hver for seg. Også her velger du «Alle» eller «Bare denne».' },
         ...(aiEnabled ? [
-          { sel: '[data-tour="ai"]', title: 'AI-lysbilde', text: 'La AI lage eller skrive om akkurat DETTE ene lysbildet. Den ser hva som står på lysbildet og hvor, så du kan be den flytte på ting eller legge til noe nytt – eller lage lysbildet på nytt fra en beskrivelse.' },
-          { sel: '[data-tour="check"]', title: 'Sjekk', text: 'AI ser over presentasjonen og gir deg vennlige tips om hva som kan bli bedre.' },
-          { sel: '[data-tour="animate"]', title: 'Animer med AI', text: 'AI velger fine overganger og bevegelse på alle lysbildene på én gang. Trykk «Presenter» etterpå for å se det.' },
+          { sel: '[data-tour="aipanel"]', title: 'AI-verktøy 🤖', text: 'Alle AI-funksjonene bor her: 🪄 Lag lysbilde, 🎨 Design (farger/tema), ✅ Sjekk kvalitet, 🎬 Animer, og 📝 Manus – der du velger hvor mye AI skal skrive (Kort/Middels/Langt). Panelet kan skjules med knappen på kanten.' },
         ] : []),
-        { sel: '[data-tour="notes"]', title: 'Manus til deg selv', text: 'AI skriver et manus til hvert lysbilde automatisk. Det vises i presentasjons-modus og følger med i PowerPoint-eksporten.' },
+        { sel: '[data-tour="notes"]', title: 'Manus / notater', text: 'Her står manuset ditt – bla ned under lysbildet for å se det. Du kan skrive selv, eller la AI skrive det fra AI-panelet. Det vises i presentasjons-modus og følger med i PowerPoint-eksporten.' },
         { sel: '[data-tour="present"]', title: 'Presentér', text: 'Kjør presentasjonen i fullskjerm med animasjoner. Trykk «N» for å se manuset mens du presenterer.' },
         { sel: '[data-tour="share"]', title: 'Del', text: 'Velg «Bare se på» (lenke til visning) eller «Kan redigere» (mottakeren får sin egen kopi). Du kan også sende lenken på e-post.' },
         { sel: '[data-tour="export"]', title: 'Eksporter', text: 'Last ned som PowerPoint eller PDF, eller åpne rett i Google Slides – pynt og farger følger med.' },
@@ -1109,58 +1102,6 @@ function FontMenu({ deck, onApply, onClose }) {
         {done && <p className="muted small" style={{ marginTop: 10 }}>✓ Font oppdatert!</p>}
         <div className="modal-foot">
           <button className="btn primary" onClick={onClose}>Ferdig</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-function ThemeModal({ deck, idx, onApply, onClose }) {
-  const [scope, setScope] = useState('all')
-  const [desc, setDesc] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState('')
-  const [last, setLast] = useState(null)
-  const examples = ['blå overskrifter, hvit tekst, grønn bakgrunn', 'bytt til Arial-font', 'mørkere bakgrunn', 'mer lekent og fargerikt', 'rolig pastell', 'som havet, blått og friskt']
-  async function gen() {
-    if (!desc.trim()) { setErr('Beskriv hvilke farger eller stil du vil ha.'); return }
-    setBusy(true); setErr('')
-    try {
-      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'theme', visualStyle: desc.trim(), current: deck.theme } })
-      if (error) throw new Error(error.message || 'serverfeil')
-      if (data?.error) throw new Error(data.error)
-      const th = normalizeTheme(data.theme)
-      onApply(applyTheme(deck, th, scope, idx, data.tweaks))
-      setLast(th)
-    } catch (e) { setErr('Klarte ikke å lage tema: ' + (e.message || e)) } finally { setBusy(false) }
-  }
-  return (
-    <div className="modal-bg" onClick={busy ? undefined : onClose}>
-      <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="sil-head"><h3><Palette size={20} /> Endre tema med AI</h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
-        <p className="muted" style={{ margin: 0 }}>Be om akkurat det du vil – farger, fonter eller stil. AI endrer <b>bare det du nevner</b> og beholder resten. All tekst blir nøyaktig lik, og layouten legges pent om. <span className="small">(Koster 1 token)</span></p>
-        <div className="seg" style={{ marginTop: 2 }}>
-          <button className={'seg-btn' + (scope === 'all' ? ' on' : '')} onClick={() => setScope('all')}>Hele presentasjonen</button>
-          <button className={'seg-btn' + (scope === 'slide' ? ' on' : '')} onClick={() => setScope('slide')}>Bare dette lysbildet</button>
-        </div>
-        <textarea className="theme-desc" rows={2} value={desc} onChange={(e) => setDesc(e.target.value)} disabled={busy}
-          placeholder="F.eks. «blå overskrifter, hvit tekst, grønn bakgrunn, Arial-font» eller «mørkere»"
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); gen() } }} />
-        <div className="theme-examples">
-          {examples.map((x) => <button key={x} className="theme-ex" onClick={() => setDesc(x)} disabled={busy}>{x}</button>)}
-        </div>
-        {err && <p className="err">{err}</p>}
-        {last && !err && (
-          <div className="theme-result">
-            <span className="muted small">Tema brukt: <b style={{ color: 'var(--ink)' }}>{last.name || 'Nytt tema'}</b> ✓</span>
-            <span className="theme-swatches">
-              {[last.bg, last.title, last.text, last.accent].map((c, i) => <i key={i} style={{ background: c }} />)}
-            </span>
-            <span className="muted small">Likte du det ikke? Prøv en ny beskrivelse.</span>
-          </div>
-        )}
-        <div className="modal-foot">
-          <button className="btn ghost" onClick={onClose} disabled={busy}>Ferdig</button>
-          <button className="btn primary" onClick={gen} disabled={busy || !desc.trim()}>{busy ? 'Lager tema …' : '✨ Lag tema'}</button>
         </div>
       </div>
     </div>

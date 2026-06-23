@@ -105,8 +105,8 @@ button{font-family:inherit}
 .rail-add{margin-top:4px;background:var(--panel-2);border:1px dashed var(--line-2);color:var(--muted);border-radius:8px;padding:9px;font-size:.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
 .rail-add:hover{color:var(--ink);border-color:var(--accent)}
 
-.ed-stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:28px 20px 60px;gap:20px;background:var(--bg);min-width:0;overflow-y:auto}
-.stage-wrap{width:100%;max-width:920px}
+.ed-stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:18px 20px 70px;gap:18px;background:var(--bg);min-width:0;overflow-y:auto;position:relative}
+.stage-wrap{width:100%;display:flex;justify-content:center}
 .stage{position:relative;border-radius:8px;box-shadow:var(--shadow);overflow:hidden;user-select:none}
 .el{position:absolute;display:flex;cursor:move}
 .el .el-text{width:100%;height:100%;overflow:hidden;outline:none;white-space:pre-wrap;word-break:break-word}
@@ -120,8 +120,8 @@ button{font-family:inherit}
 .img-ph-cap{font-size:13px;font-weight:700;line-height:1.2;color:#3f4866}
 .img-ph-hint{font-size:10px;color:#8a93ad}
 .resize{position:absolute;right:-6px;bottom:-6px;width:13px;height:13px;background:var(--accent);border:2px solid #fff;border-radius:50%;cursor:nwse-resize}
-.stage-tools{display:flex;gap:8px}
-.stage-tools button{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 11px;cursor:pointer}
+.stage-tools{display:flex;gap:6px;position:absolute;top:16px;left:16px;z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px;box-shadow:var(--shadow)}
+.stage-tools button{background:transparent;border:none;color:var(--ink);border-radius:7px;padding:7px 9px;cursor:pointer}
 .stage-tools button:hover:not(:disabled){border-color:var(--accent)}
 .stage-tools button:disabled{opacity:.4;cursor:default}
 
@@ -580,9 +580,9 @@ button{font-family:inherit}
 .tb:hover { background: rgba(48,62,108,.62); }
 .anim-panel { background: rgba(18,24,42,.82); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 24px 60px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12); }
 .home-top { background: rgba(11,15,26,.55); border-bottom: 1px solid rgba(255,255,255,.08); }
-.auth-card { background: rgba(20,27,46,.7) !important; border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(20px) saturate(1.5); -webkit-backdrop-filter: blur(20px) saturate(1.5); box-shadow: 0 24px 70px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.10); }
-.img-choice-btn { background: rgba(31,41,71,.5) !important; border: 1px solid rgba(255,255,255,.10) !important; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
-.img-choice-btn:hover { background: rgba(48,62,108,.65) !important; border-color: rgba(255,255,255,.2) !important; }
+.auth-card { background: rgba(255,255,255,.92) !important; border: 1px solid var(--line); backdrop-filter: blur(20px) saturate(1.8); -webkit-backdrop-filter: blur(20px) saturate(1.8); box-shadow: 0 20px 60px rgba(0,0,0,.12); }
+.img-choice-btn { background: #fff !important; border: 1px solid var(--line) !important; }
+.img-choice-btn:hover { background: var(--panel-2) !important; border-color: var(--line-2) !important; }
 
 /* ===== Passord-felt med øyeknapp ===== */
 .pw-row{position:relative;display:flex;width:100%}
@@ -593,9 +593,8 @@ button{font-family:inherit}
 
 /* ===== Velkomst-/guide-banner på Mine-siden ===== */
 .welcome-banner{position:relative;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
-  background:linear-gradient(135deg, rgba(99,102,241,.22), rgba(168,85,247,.18));
-  border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:18px 20px;margin-bottom:18px;
-  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+  background:linear-gradient(135deg, rgba(0,113,227,.08), rgba(88,86,214,.06));
+  border:1px solid var(--line);border-radius:18px;padding:18px 20px;margin-bottom:18px;box-shadow:var(--shadow)}
 .welcome-ic{font-size:2.2rem;line-height:1}
 .welcome-text{display:flex;flex-direction:column;gap:3px;flex:1;min-width:200px}
 .welcome-text b{font-size:1.1rem}

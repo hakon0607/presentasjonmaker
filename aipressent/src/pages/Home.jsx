@@ -83,7 +83,7 @@ export default function Home() {
             <div className="welcome-ic">👋</div>
             <div className="welcome-text">
               <b>Velkommen til AiPresent!</b>
-              <span>Ny her? Se den korte guiden eller få en omvisning som peker på hver knapp – inkludert det nye animasjonspanelet.</span>
+              <span>Ny her? Se den korte guiden eller få en omvisning som peker på hver knapp i appen.</span>
             </div>
             <div className="welcome-btns">
               <button className="btn primary" onClick={() => nav('/guide')}><HelpCircle size={17} /> Se guiden</button>
