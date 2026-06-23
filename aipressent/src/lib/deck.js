@@ -172,6 +172,54 @@ export function figureDecor(src, layout) {
 const asTheme = (t) => (typeof t === 'string' ? (THEMES[t] || THEMES.minimal) : (t || THEMES.minimal))
 
 // Validerer/renser et tema (fra AI eller gammelt nøkkel-format) til et trygt tema-objekt.
+// Tolker enkle norske fargekommandoer DETERMINISTISK (uten AI) så fargen alltid havner i riktig felt.
+// Returnerer { title?, text?, bg?, accent? } eller null hvis den ikke er sikker (da brukes AI).
+const NO_COLORS = [
+  ['lyseblå', '#93c5fd'], ['lyse blå', '#93c5fd'], ['mørkeblå', '#1e3a8a'], ['mørk blå', '#1e3a8a'], ['marineblå', '#1e3a8a'],
+  ['lysegrå', '#d1d5db'], ['lyse grå', '#d1d5db'], ['mørkegrå', '#374151'], ['mørk grå', '#374151'],
+  ['lysegrønn', '#86efac'], ['mørkegrønn', '#166534'], ['turkis', '#14b8a6'],
+  ['mørkerød', '#991b1b'], ['mørk rød', '#991b1b'], ['burgunder', '#7f1d1d'],
+  ['blå', '#2563eb'], ['blått', '#2563eb'], ['rød', '#dc2626'], ['rødt', '#dc2626'], ['grønn', '#16a34a'], ['grønt', '#16a34a'],
+  ['hvit', '#ffffff'], ['hvitt', '#ffffff'], ['svart', '#111111'], ['svart', '#111111'],
+  ['gul', '#facc15'], ['gult', '#facc15'], ['grå', '#6b7280'], ['grått', '#6b7280'],
+  ['rosa', '#ec4899'], ['lyserosa', '#f9a8d4'], ['lilla', '#7c3aed'], ['fiolett', '#7c3aed'],
+  ['oransje', '#f97316'], ['brun', '#92400e'], ['brunt', '#92400e'], ['beige', '#efe7d3'], ['krem', '#fdf6e3'],
+  ['gull', '#d4af37'], ['gyllen', '#d4af37'], ['sølv', '#c0c0c0'],
+]
+export function parseColorInstruction(text) {
+  const t = ' ' + String(text || '').toLowerCase().trim() + ' '
+  // Hvis det handler om å flytte/legge til/fjerne, er det ikke en ren fargekommando → la AI ta den
+  if (/\b(flytt|bytt|st[øo]rre|mindre|midtstill|venstrejuster|h[øo]yrejuster|legg til|fjern|slett|lag (en|ny|et)|roter|animer)\b/.test(t)) return null
+  const findColor = (seg) => {
+    for (const [name, hex] of NO_COLORS) { if (seg.includes(name)) return { hex, name } }
+    // "mørk/mørkt" alene = mørk tekstfarge, "lys/lyst" alene = lys
+    if (/\bm[øo]rk(t|e)?\b/.test(seg)) return { hex: '#111111', name: 'mørk' }
+    if (/\blys(t|e)?\b/.test(seg)) return { hex: '#f3f4f6', name: 'lys' }
+    return null
+  }
+  const targetOf = (seg) => {
+    if (/(overskrift|tittel|titler|heading)/.test(seg)) return 'title'
+    if (/(bakgrunn|bakgrunnen|\bbg\b)/.test(seg)) return 'bg'
+    if (/(aksent|detalj|detaljer|pynt|strek|stripe|kant)/.test(seg)) return 'accent'
+    if (/(br[øo]dtekst|punkt|punkter|kulepunkt|skrift|skriften|tekst|teksten)/.test(seg)) return 'text'
+    return null
+  }
+  // Del opp i biter på komma / "og" / "med" / punktum
+  const segs = t.split(/,| og | med |\.|;/).map((s) => s.trim()).filter(Boolean)
+  const out = {}
+  let any = false
+  for (const seg of segs) {
+    const col = findColor(seg); const tgt = targetOf(seg)
+    if (col && tgt) { out[tgt] = col.hex; any = true }
+  }
+  // Spesialtilfelle: bare én farge nevnt uten felt, men sammen med "tekst/overskrift" i hele strengen
+  if (!any) {
+    const col = findColor(t); const tgt = targetOf(t)
+    if (col && tgt) { out[tgt] = col.hex; any = true }
+  }
+  return any ? out : null
+}
+
 export function normalizeTheme(t) {
   if (!t) return THEMES.minimal
   if (typeof t === 'string') return THEMES[t] || THEMES.minimal

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { THEMES, blankSlide, textEl, imageEl, shapeEl, tableEl, genId, slidesFromAi, normalizeTheme, CW, CH, applyTheme, fitTextBox, FONTS } from '../lib/deck'
+import { THEMES, blankSlide, textEl, imageEl, shapeEl, tableEl, genId, slidesFromAi, normalizeTheme, CW, CH, applyTheme, fitTextBox, FONTS, parseColorInstruction } from '../lib/deck'
 import { SILHOUETTES, SIL_CATS, SCENES } from '../lib/silhouettes'
 import { exportPptx, exportPdf, pptxBlob } from '../lib/export'
 import { importToGoogleSlides, googleConfigured, loadGis } from '../lib/gslides'
@@ -48,7 +48,7 @@ export default function Editor() {
     if (sp.get('tour') === '1') { setTourOpen(true); sp.delete('tour'); setSp(sp, { replace: true }) }
   }, [])
   const [aiSlideOpen, setAiSlideOpen] = useState(false)
-  const [visualOpen, setVisualOpen] = useState(false)
+  const [designOpen, setDesignOpen] = useState(false)
   const [fontOpen, setFontOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [aiImgEl, setAiImgEl] = useState(null)
@@ -199,64 +199,13 @@ export default function Editor() {
 
   function setSlide(ns) { apply({ ...deck, slides: deck.slides.map((s, i) => (i === idx ? ns : s)) }) }
   // Visuell AI: tema (på valgt scope) + flytt/endre/slett/legg til elementer (på dette lysbildet)
-  function applyVisual(data, scope, themeScope) {
-    const clamp = (el) => {
-      const o = { ...el }
-      o.w = Math.max(20, Math.min(CW, o.w || 100)); o.h = Math.max(16, Math.min(CH, o.h || 40))
-      o.x = Math.max(0, Math.min(CW - o.w, o.x || 0)); o.y = Math.max(0, Math.min(CH - o.h, o.y || 0))
-      return o
-    }
-    const removeSet = new Set((data.remove || []).filter(Boolean))
-    const byId = {}
-    ;(data.changes || []).forEach((c) => { if (c && c.id) byId[c.id] = c })
-    // Bygg nye elementer fra add[]
-    const added = (data.add || []).map((a) => {
-      if (!a || !a.type) return null
-      if (a.type === 'text') { const e = textEl({ ...a }); return clamp(fitTextBox(e)) }
-      if (a.type === 'shape') return clamp(shapeEl({ ...a }))
-      if (a.type === 'image') return clamp(imageEl({ ...a }))
-      return null
-    }).filter(Boolean)
-    // Endre dette lysbildet: fjern, patch, legg til
-    let newSlide = { ...slide, elements: [
-      ...slide.elements.filter((el) => !removeSet.has(el.id)).map((el) => {
-        const c = byId[el.id]
-        if (!c) return el
-        const { id, type, text, ...patch } = c
-        // Visuell AI skal ALDRI endre selve tekst-innholdet – kast bort evt. text-felt
-        let merged = { ...el, ...patch }
-        if (el.type === 'text' && patch.h == null && (patch.fontSize != null || patch.bold != null)) merged = fitTextBox(merged)
-        return clamp(merged)
-      }),
-      ...added,
-    ] }
-    let nextDeck = { ...deck, slides: deck.slides.map((s, i) => (i === idx ? newSlide : s)) }
-    // Sikring: valgte du "Alle" men AI ga bare en farge-endring på en overskrift/brødtekst,
-    // løft fargen til temaet så den treffer ALLE lysbildene (ikke bare dette)
-    let themeData = data.theme
-    if (scope === 'all') {
-      const colorChanges = (data.changes || []).filter((c) => c && c.color)
-      if (colorChanges.length && !themeData) {
-        const t = { ...deck.theme }
-        let lifted = false
-        colorChanges.forEach((c) => {
-          const el = slide.elements.find((e) => e.id === c.id)
-          if (!el || el.type !== 'text') return
-          const isHead = el.bold || (el.fontSize || 0) >= 28
-          if (isHead) { t.title = c.color; lifted = true } else { t.text = c.color; lifted = true }
-        })
-        if (lifted) themeData = t
-      }
-    }
-    // Tema (farger/stil) på valgt scope – merg AI sine felt OPPÅ nåværende tema
-    // så et delvis svar (f.eks. bare ny tittelfarge) aldri nullstiller resten
-    if (themeData) {
-      const merged = { ...deck.theme, ...themeData }
-      nextDeck = applyTheme(nextDeck, normalizeTheme(merged), themeScope, idx)
-    }
-    apply(nextDeck)
+  // Design AI: kun farge/tema. Endrer ALDRI tekst-innhold, sletter ALDRI elementer.
+  // Tekstfargene settes via temaet (rolle-basert recolor i applyTheme), som holder tekst lesbar.
+  function applyDesign(themeData, scope) {
+    if (!themeData) return
+    const merged = { ...deck.theme, ...themeData }
+    apply(applyTheme(deck, normalizeTheme(merged), scope, idx))
   }
-  // Font AI: bytt fonter (tema-fonter på valgt scope, og/eller per element på dette lysbildet)
   // Sett fonter direkte (uten AI): overskrift og/eller brødtekst, på valgt scope
   function setFonts({ fontHead, fontBody }, scope) {
     const t = { ...deck.theme }
@@ -647,7 +596,7 @@ export default function Editor() {
             <button onClick={() => moveSlide(1)} title="Flytt ned" disabled={idx === deck.slides.length - 1}><ChevronDown size={16} /></button>
             <button onClick={dupSlide} title="Dupliser"><Copy size={16} /></button>
             <button onClick={delSlide} title="Slett lysbilde" disabled={deck.slides.length === 1}><Trash2 size={16} /></button>
-            {aiEnabled && <button data-tour="visual" onClick={() => setVisualOpen(true)} title="Visuell AI – farger, tema, bakgrunn, flytting og nye elementer" className="wand"><Palette size={16} /></button>}
+            {aiEnabled && <button data-tour="design" onClick={() => setDesignOpen(true)} title="Design AI – farger og tema" className="wand"><Palette size={16} /></button>}
             {aiEnabled && <button data-tour="font" onClick={() => setFontOpen(true)} title="Skrifttype – velg font for overskrifter og brødtekst" className="wand"><span style={{ fontWeight: 800, fontSize: 15, lineHeight: 1 }}>Aa</span></button>}
           </div>
 
@@ -704,15 +653,15 @@ export default function Editor() {
       )}
       {shareMsg && <div className="toast">{shareMsg}</div>}
       {shareOpen && <ShareModal id={id} title={deck.title} onClose={() => setShareOpen(false)} />}
-      {visualOpen && <VisualModal slide={slide} deck={deck} onApply={applyVisual} onClose={() => setVisualOpen(false)} />}
+      {designOpen && <DesignModal deck={deck} onApply={applyDesign} onClose={() => setDesignOpen(false)} />}
       {fontOpen && <FontMenu deck={deck} onApply={setFonts} onClose={() => setFontOpen(false)} />}
       {tourOpen && <Tour onClose={() => setTourOpen(false)} steps={[
         { sel: '[data-tour="toolbar"]', title: 'Verktøylinja', text: 'Her legger du til tekst, bilder, figurer, stickers og tabeller. Klikk et bildefelt for å «Søke på nett», laste opp eget bilde, eller lage med AI. Helt til høyre er «enkel visning» som gjemmer de sjeldne knappene.' },
         { sel: '[data-tour="anim"]', title: 'Animasjon', text: 'Åpne animasjonspanelet (du kan dra det rundt). Klikk et objekt → «Legg til valgt». Velg «Med forrige» (samtidig) eller «Etter forrige» (i rekkefølge), dra radene for å endre rekkefølge, og «Spill av» for å se det.' },
         { sel: '[data-tour="rail"]', title: 'Lysbildene dine', text: 'Alle lysbildene ligger her. Klikk for å bytte, dra for å endre rekkefølge, og «+ Lysbilde» for å legge til. Dra i kanten for å gjøre stripa bredere.' },
         { sel: '[data-tour="canvas"]', title: 'Selve lysbildet', text: 'Dra ting for å flytte dem. Dobbeltklikk på tekst for å skrive – klikk midt i teksten, så går skrivemerket dit. Markér et objekt og dra det runde håndtaket over det for å rotere.' },
-        { sel: '[data-tour="visual"]', title: 'Visuell AI 🎨', text: 'Endrer alt det visuelle – farger, tema, bakgrunn og stil. Den kan også flytte på ting og lage nye elementer så det passer. Teksten din holdes lik. Velg «Alle lysbilder» eller «Bare denne» øverst i boksen.' },
-        { sel: '[data-tour="font"]', title: 'Font AI 🔤', text: 'Endrer bare skrifttypen. Skriv et fontnavn (som «Arial») eller en stemning («noe lekent»). Også her velger du «Alle» eller «Bare denne».' },
+        { sel: '[data-tour="design"]', title: 'Design AI 🎨', text: 'Skriv hva slags farger eller tema du vil ha, så lager AI det. Du kan fylle inn farger, tema eller la stå tomt (da beholdes det). Tekstfargen velges automatisk så den blir lett å lese. Velg «Alle lysbilder» eller «Bare denne» øverst.' },
+        { sel: '[data-tour="font"]', title: 'Skrifttype 🔤', text: 'Velg font for overskrifter og brødtekst – alt samtidig eller hver for seg. Også her velger du «Alle» eller «Bare denne».' },
         ...(aiEnabled ? [
           { sel: '[data-tour="ai"]', title: 'AI-lysbilde', text: 'La AI lage eller skrive om akkurat DETTE ene lysbildet. Den ser hva som står på lysbildet og hvor, så du kan be den flytte på ting eller legge til noe nytt – eller lage lysbildet på nytt fra en beskrivelse.' },
           { sel: '[data-tour="check"]', title: 'Sjekk', text: 'AI ser over presentasjonen og gir deg vennlige tips om hva som kan bli bedre.' },
@@ -796,21 +745,12 @@ function AiSlideModal({ slide, onClose, onApply }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const prog = useProgress()
-  // Tekst-sammendrag (som før) + en kompakt beskrivelse av hva som står hvor (så AI kan se lysbildet)
   const current = (slide.elements || []).filter((e) => e.type === 'text').map((e) => e.text).join(' | ')
-  const layout = (slide.elements || []).filter((e) => !e.decor).map((e) => {
-    const pos = `x${Math.round(e.x)} y${Math.round(e.y)} ${Math.round(e.w)}×${Math.round(e.h)}`
-    if (e.type === 'text') return `tekst («${(e.text || '').slice(0, 40)}») @ ${pos}`
-    if (e.type === 'image') return `bilde @ ${pos}`
-    if (e.type === 'shape') return `figur (${e.kind}) @ ${pos}`
-    if (e.type === 'table') return `tabell @ ${pos}`
-    return `${e.type} @ ${pos}`
-  }).join('\n')
   async function go() {
     if (!instruction.trim()) return
     setBusy(true); setErr(''); prog.start()
     try {
-      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'slide', current, layout, instruction } })
+      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'slide', current, instruction } })
       refreshTokens()
       if (error) throw error
       if (data?.error) throw new Error(data.error)
@@ -821,10 +761,10 @@ function AiSlideModal({ slide, onClose, onApply }) {
   return (
     <div className="modal-bg" onClick={busy ? undefined : onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2><Wand2 size={20} /> AI – dette lysbildet</h2>
-        <p className="muted">Beskriv hva du vil. AI ser hva som står på lysbildet og hvor, så du kan be den flytte på ting, legge til noe nytt, eller lage lysbildet på nytt.</p>
+        <h2><Wand2 size={20} /> AI – lag dette lysbildet</h2>
+        <p className="muted">Beskriv hva lysbildet skal handle om, så lager AI en ferdig side for deg. Den erstatter innholdet på dette lysbildet.</p>
         <textarea rows={3} value={instruction} onChange={(e) => setInstruction(e.target.value)} disabled={busy}
-          placeholder="F.eks. «flytt bildet til venstre og legg til et punkt» eller «lag et lysbilde om hva vi lærte»" />
+          placeholder="F.eks. «lag et lysbilde om hva vi lærte, med 3 korte punkter»" />
         {err && <p className="err">{err}</p>}
         {busy && <ProgressBar p={prog.p} label="Lager lysbildet …" />}
         <div className="modal-foot">
@@ -981,54 +921,56 @@ function ScopeToggle({ scope, setScope, busy }) {
   )
 }
 
-function VisualModal({ slide, deck, onApply, onClose }) {
-  const [desc, setDesc] = useState('')
+function DesignModal({ deck, onApply, onClose }) {
   const [scope, setScope] = useState('all')
+  const [themeWish, setThemeWish] = useState('')
+  const [colors, setColors] = useState('')
+  const [textColor, setTextColor] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [done, setDone] = useState(false)
-  const examples = ['blå overskrifter, hvit tekst, grønn bakgrunn', 'mørkt og elegant tema', 'bytt plass på bildet og teksten', 'gjør det mer lekent og fargerikt', 'tilpass alt til et havtema']
-  const slim = (slide.elements || []).filter((e) => !e.decor).map((e) => {
-    const o = { id: e.id, type: e.type, x: Math.round(e.x), y: Math.round(e.y), w: Math.round(e.w), h: Math.round(e.h) }
-    if (e.type === 'text') { o.text = (e.text || '').slice(0, 60); o.fontSize = e.fontSize; o.align = e.align; o.bold = e.bold }
-    if (e.type === 'image') { o.role = 'bilde'; o.fit = e.fit }
-    if (e.type === 'shape') { o.kind = e.kind }
-    return o
-  })
   async function gen() {
-    if (!desc.trim()) { setErr('Skriv hva du vil endre.'); return }
+    const anyWish = themeWish.trim() || colors.trim() || textColor.trim()
+    if (!anyWish) { setErr('Skriv minst ett ønske – tema, farger eller tekstfarge.'); return }
+    // Snarvei: hvis BARE farge-feltet er fylt og det er en enkel fargekommando, gjør det direkte (gratis)
+    if (colors.trim() && !themeWish.trim() && !textColor.trim()) {
+      const parsed = parseColorInstruction(colors.trim())
+      if (parsed) { onApply(parsed, scope); setDone(true); setErr(''); return }
+    }
     setBusy(true); setErr(''); setDone(false)
     try {
-      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'editvisual', elements: slim, theme: deck.theme, instruction: desc.trim() } })
+      const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'design', theme: deck.theme, themeWish: themeWish.trim(), colors: colors.trim(), textColor: textColor.trim() } })
       if (error) throw new Error(error.message || 'serverfeil')
       if (data?.error) throw new Error(data.error)
-      // Hvis serveren svarer med "slides" har den ikke fått oppdateringen for Visuell AI ennå
-      if (data && data.slides && !data.changes && !data.theme && !data.add) {
-        setErr('Visuell AI er ikke aktivert på serveren ennå. (Last opp den nyeste edge-funksjonen i Supabase og trykk Deploy.)'); return
-      }
-      const hasChange = (data.changes && data.changes.length) || (data.add && data.add.length) || (data.remove && data.remove.length) || data.theme
-      if (!hasChange) { setErr('AI fant ikke noe å endre. Prøv å si det på en annen måte.'); return }
-      onApply(data, scope, scope)
+      if (data && data.slides && !data.theme) { setErr('Design AI er ikke aktivert på serveren ennå. (Last opp nyeste edge-funksjon i Supabase og trykk Deploy.)'); return }
+      if (!data.theme) { setErr('AI fant ikke noe å endre. Prøv å skrive det på en annen måte.'); return }
+      onApply(data.theme, scope)
       setDone(true)
-    } catch (e) { setErr('Klarte ikke å endre: ' + (e.message || e)) } finally { setBusy(false) }
+    } catch (e) { setErr('Klarte ikke å lage design: ' + (e.message || e)) } finally { setBusy(false) }
   }
+  const Field = ({ label, hint, value, set, ph }) => (
+    <div>
+      <label className="small" style={{ fontWeight: 700, display: 'block', marginBottom: 3 }}>{label} <span className="muted" style={{ fontWeight: 400 }}>{hint}</span></label>
+      <input className="theme-desc" style={{ width: '100%' }} value={value} onChange={(e) => set(e.target.value)} disabled={busy} placeholder={ph}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); gen() } }} />
+    </div>
+  )
   return (
     <div className="modal-bg" onClick={busy ? undefined : onClose}>
       <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="sil-head"><h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Palette size={20} /> Visuell AI <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', padding: '2px 7px', borderRadius: 999, background: 'rgba(99,102,241,0.15)', color: 'var(--accent,#6366f1)' }}>Beta</span></h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
-        <p className="muted" style={{ margin: 0 }}>Endrer alt det visuelle – farger, tema, bakgrunn og stil. Den kan også flytte, fjerne og lage nye elementer så det passer. <b>Teksten din holdes lik.</b> <span className="small">(Koster 1 token)</span></p>
+        <div className="sil-head"><h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Palette size={20} /> Design AI</h3><button className="modal-x" onClick={onClose}><X size={18} /></button></div>
+        <p className="muted" style={{ margin: 0 }}>Fyll inn det du vil endre. Lar du et felt stå tomt, beholdes det. <span className="small">(Koster 1 token, eller gratis for enkle fargevalg)</span></p>
         <ScopeToggle scope={scope} setScope={setScope} busy={busy} />
-        <textarea className="theme-desc" rows={2} value={desc} onChange={(e) => setDesc(e.target.value)} disabled={busy}
-          placeholder="F.eks. «blå overskrifter, grønn bakgrunn» eller «tilpass alt til et havtema»"
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); gen() } }} />
-        <div className="theme-examples">
-          {examples.map((x) => <button key={x} className="theme-ex" onClick={() => setDesc(x)} disabled={busy}>{x}</button>)}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 6 }}>
+          <Field label="Tema" hint="– stemning/stil" value={themeWish} set={setThemeWish} ph="F.eks. «mørkt og elegant» eller «lekent og fargerikt»" />
+          <Field label="Farger" hint="– hva som skal endres" value={colors} set={setColors} ph="F.eks. «blå overskrift, beige bakgrunn»" />
+          <Field label="Tekstfarge" hint="– valgfritt, ellers velges den automatisk" value={textColor} set={setTextColor} ph="La stå tom for best lesbarhet" />
         </div>
         {err && <p className="err">{err}</p>}
-        {done && !err && <p className="muted small">✓ Endret! Prøv gjerne en ny instruksjon.</p>}
+        {done && !err && <p className="muted small">✓ Design oppdatert! Prøv gjerne mer.</p>}
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose} disabled={busy}>Ferdig</button>
-          <button className="btn primary" onClick={gen} disabled={busy || !desc.trim()}>{busy ? 'Endrer …' : '✨ Endre'}</button>
+          <button className="btn primary" onClick={gen} disabled={busy}>{busy ? 'Lager …' : '✨ Bruk design'}</button>
         </div>
       </div>
     </div>
