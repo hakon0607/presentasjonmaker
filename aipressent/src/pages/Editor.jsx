@@ -248,8 +248,12 @@ export default function Editor() {
         if (lifted) themeData = t
       }
     }
-    // Tema (farger/stil) på valgt scope
-    if (themeData) nextDeck = applyTheme(nextDeck, normalizeTheme(themeData), themeScope, idx)
+    // Tema (farger/stil) på valgt scope – merg AI sine felt OPPÅ nåværende tema
+    // så et delvis svar (f.eks. bare ny tittelfarge) aldri nullstiller resten
+    if (themeData) {
+      const merged = { ...deck.theme, ...themeData }
+      nextDeck = applyTheme(nextDeck, normalizeTheme(merged), themeScope, idx)
+    }
     apply(nextDeck)
   }
   // Font AI: bytt fonter (tema-fonter på valgt scope, og/eller per element på dette lysbildet)
@@ -1007,6 +1011,10 @@ function VisualModal({ slide, deck, onApply, onClose }) {
       const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'editvisual', elements: slim, theme: deck.theme, instruction: desc.trim() } })
       if (error) throw new Error(error.message || 'serverfeil')
       if (data?.error) throw new Error(data.error)
+      // Hvis serveren svarer med "slides" har den ikke fått oppdateringen for Visuell AI ennå
+      if (data && data.slides && !data.changes && !data.theme && !data.add) {
+        setErr('Visuell AI er ikke aktivert på serveren ennå. (Last opp den nyeste edge-funksjonen i Supabase og trykk Deploy.)'); return
+      }
       const hasChange = (data.changes && data.changes.length) || (data.add && data.add.length) || (data.remove && data.remove.length) || data.theme
       if (!hasChange) { setErr('AI fant ikke noe å endre. Prøv å si det på en annen måte.'); return }
       onApply(data, scope, scope)
