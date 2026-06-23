@@ -35,7 +35,8 @@ export default function Canvas({ slide, onChange, selectedId, setSelectedId, sel
       const w = el.clientWidth
       const parent = el.parentElement
       const availH = parent ? parent.clientHeight - 24 : 99999
-      let next = Math.max(0.12, Math.min(w / CW, availH / CH))
+      // Tilpass til ~90 % av plassen, så lysbildet får litt luft rundt seg (ikke helt ut til kanten)
+      let next = Math.max(0.12, Math.min(w / CW, availH / CH) * 0.9)
       next = Math.round(next * 1000) / 1000
       // Oppdater bare ved merkbar endring – hindrer sub-piksel-løkka som får lerretet til å «riste» (særlig på 100 %)
       if (Math.abs(next - last) > 0.002) { last = next; setBase(next) }

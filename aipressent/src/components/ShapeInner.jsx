@@ -7,7 +7,7 @@ export default function ShapeInner({ el, W, H }) {
   const borderStyle = sw > 0 ? { border: `${sw}px solid ${sc}`, boxSizing: 'border-box' } : {}
   switch (el.kind) {
     case 'silhouette':
-      return <svg width={W} height={H} viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"><path d={el.path} fill={f} fillRule="evenodd" strokeLinejoin="round" {...svgStroke} /></svg>
+      return <svg width={W} height={H} viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" style={el.flipH ? { transform: 'scaleX(-1)' } : undefined}><path d={el.path} fill={f} fillRule="evenodd" strokeLinejoin="round" {...svgStroke} /></svg>
     case 'circle':
       return <div style={{ width: '100%', height: '100%', background: f, borderRadius: '50%', ...borderStyle }} />
     case 'line':

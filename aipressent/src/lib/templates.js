@@ -26,12 +26,48 @@
 //  orbit, ribbon.
 // ============================================================================
 
-import { buildSlide, applyTheme, tidySlide, normalizeTheme } from './deck'
+import { buildSlide, applyTheme, tidySlide, normalizeTheme, shapeEl } from './deck'
+import { SILHOUETTES } from './silhouettes'
+
+// Oppslag id → silhuett (path + ratio), brukt til å plassere mal-figurer.
+const SIL_BY_ID = Object.fromEntries(SILHOUETTES.map((s) => [s.id, s]))
+
+// Gjør en figur-spec om til et silhuett-element.
+// Spec: { sid, x, y, w, fill, op, rot, flip }
+//  - sid  = silhuett-id (se silhouettes.js: jet, tank, soldier, plane, flag, medal,
+//           book, pencil, graduate, bulb, ball, lightning, person, rocket, …)
+//  - x,y  = posisjon på lerretet (960×540), w = bredde (høyde regnes ut fra formen)
+//  - fill = '#hex' ELLER 'accent' | 'title' | 'text' (henter farge fra temaet)
+//  - op   = opasitet (0–1), rot = grader, flip = true for å speile vannrett
+function figureEl(f, th) {
+  const sil = SIL_BY_ID[f.sid]
+  if (!sil) return null
+  const w = Math.round(f.w || 120)
+  const h = Math.round(w / (sil.ratio || 1))
+  const named = { accent: th.accent, title: th.title, text: th.text, bg: th.bg }
+  const fill = (typeof f.fill === 'string' && f.fill[0] === '#') ? f.fill : (named[f.fill] || th.accent)
+  return shapeEl({
+    kind: 'silhouette', path: sil.path, sid: sil.id,
+    x: Math.round(f.x), y: Math.round(f.y), w, h, fill, radius: 0,
+    rotation: f.rot || 0, opacity: f.op != null ? f.op : 1, flipH: !!f.flip,
+  })
+}
+function figureEls(t, th) {
+  return Array.isArray(t.figures) ? t.figures.map((f) => figureEl(f, th)).filter(Boolean) : []
+}
+
+// Legg figurer BAK teksten (foran bakteppe-pynten), så de rammer inn uten å dekke.
+function withFigures(s, figs) {
+  if (!figs || !figs.length) return s
+  const decor = s.elements.filter((e) => e.decor)
+  const rest = s.elements.filter((e) => !e.decor)
+  return { ...s, elements: [...decor, ...figs, ...rest] }
+}
 
 // Rekkefølgen her styrer kategori-knappene i velgeren.
 export const TEMPLATE_CATEGORIES = [
-  'Alle', 'Business', 'Korporativ', 'Skole', 'Helse', 'Tech', 'Minimal',
-  'Elegant', 'Natur', 'Reise', 'Mat', 'Pastell', 'Gradient', 'Retro',
+  'Alle', 'Business', 'Korporativ', 'Skole', 'Krig', 'Sport', 'Helse', 'Tech',
+  'Minimal', 'Elegant', 'Natur', 'Reise', 'Mat', 'Pastell', 'Gradient', 'Retro',
   'Bold', 'Kreativ', 'Lekent',
 ]
 
@@ -95,6 +131,95 @@ export const TEMPLATES = [
   { id: 'sch-history', name: 'Historie', category: 'Skole', align: 'left',
     keywords: ['skole', 'historie', 'fortid', 'brun', 'klassisk', 'serif'],
     theme: { bg: '#f5f0e8', title: '#44403c', text: '#57534e', accent: '#92400e', fontHead: 'Bitter', fontBody: 'PT Serif', style: 'rings' } },
+
+  // ======================= Krig =======================
+  { id: 'war-ww2', name: 'Andre verdenskrig', category: 'Krig', align: 'left',
+    keywords: ['krig', 'ww2', 'verdenskrig', 'historie', 'fly', 'stridsvogn', 'soldat', 'mørk', 'action', 'dramatisk'],
+    theme: { bg: '#14161a', title: '#f8fafc', text: '#cbd5e1', accent: '#f59e0b', fontHead: 'Oswald', fontBody: 'Inter', style: 'diagonal' },
+    figures: [
+      { sid: 'jet', x: 40, y: 28, w: 200, fill: 'accent', op: 0.9 },
+      { sid: 'jet', x: 720, y: 84, w: 180, fill: 'accent', op: 0.75, flip: true },
+      { sid: 'tank', x: 36, y: 424, w: 220, fill: '#64748b' },
+      { sid: 'soldier', x: 320, y: 386, w: 84, fill: '#64748b' },
+      { sid: 'soldier', x: 690, y: 392, w: 78, fill: '#475569', op: 0.9, flip: true },
+      { sid: 'flag', x: 852, y: 356, w: 92, fill: 'accent', op: 0.9 },
+    ] },
+  { id: 'war-air', name: 'Luftkrig', category: 'Krig', align: 'left',
+    keywords: ['krig', 'luftkrig', 'fly', 'jagerfly', 'himmel', 'natt', 'action', 'dramatisk', 'mørk'],
+    theme: { bg: '#0b1220', title: '#e2e8f0', text: '#94a3b8', accent: '#fbbf24', fontHead: 'Bebas Neue', fontBody: 'Inter', style: 'stripes' },
+    figures: [
+      { sid: 'jet', x: 28, y: 44, w: 160, fill: 'accent' },
+      { sid: 'jet', x: 732, y: 28, w: 188, fill: 'accent', op: 0.8, flip: true },
+      { sid: 'jet', x: 430, y: 10, w: 130, fill: '#64748b', op: 0.6 },
+      { sid: 'plane', x: 70, y: 424, w: 92, fill: '#475569' },
+      { sid: 'plane', x: 842, y: 420, w: 86, fill: '#475569', op: 0.85, flip: true },
+    ] },
+  { id: 'war-front', name: 'Frontlinjen', category: 'Krig', align: 'left',
+    keywords: ['krig', 'front', 'soldat', 'stridsvogn', 'bakke', 'historie', 'action', 'jord'],
+    theme: { bg: '#1c1917', title: '#fafaf9', text: '#d6d3d1', accent: '#d97706', fontHead: 'Anton', fontBody: 'Inter', style: 'wedge' },
+    figures: [
+      { sid: 'tank', x: 28, y: 416, w: 240, fill: '#57534e' },
+      { sid: 'soldier', x: 346, y: 388, w: 84, fill: '#44403c' },
+      { sid: 'soldier', x: 460, y: 394, w: 78, fill: '#57534e', flip: true },
+      { sid: 'soldier', x: 880, y: 392, w: 74, fill: '#44403c' },
+      { sid: 'jet', x: 770, y: 30, w: 150, fill: '#92400e', op: 0.8, flip: true },
+    ] },
+  { id: 'war-victory', name: 'Seier', category: 'Krig', align: 'center',
+    keywords: ['krig', 'seier', 'flagg', 'medalje', 'historie', 'minne', 'rolig', 'lys'],
+    theme: { bg: '#f5f0e8', title: '#44403c', text: '#57534e', accent: '#b45309', fontHead: 'DM Serif Display', fontBody: 'Lora', style: 'rings' },
+    figures: [
+      { sid: 'flag', x: 432, y: 56, w: 120, fill: '#44403c' },
+      { sid: 'medal', x: 150, y: 398, w: 92, fill: '#b45309' },
+      { sid: 'medal', x: 726, y: 408, w: 82, fill: '#92400e', op: 0.9, flip: true },
+    ] },
+
+  // ======================= Sport =======================
+  { id: 'sport-football', name: 'Fotball', category: 'Sport', align: 'left',
+    keywords: ['sport', 'fotball', 'ball', 'kamp', 'lag', 'grønn', 'gress', 'energi'],
+    theme: { bg: '#052e16', title: '#ecfdf5', text: '#bbf7d0', accent: '#fbbf24', fontHead: 'Oswald', fontBody: 'Inter', style: 'stripes' },
+    figures: [
+      { sid: 'ball', x: 56, y: 398, w: 112, fill: '#ecfdf5' },
+      { sid: 'person', x: 836, y: 360, w: 80, fill: '#fbbf24' },
+      { sid: 'lightning', x: 440, y: 28, w: 58, fill: '#fbbf24', op: 0.8 },
+      { sid: 'ball', x: 804, y: 40, w: 68, fill: '#bbf7d0', op: 0.55 },
+    ] },
+  { id: 'sport-win', name: 'Vinnerlag', category: 'Sport', align: 'left',
+    keywords: ['sport', 'seier', 'medalje', 'ball', 'mester', 'lys', 'energi', 'pokal'],
+    theme: { bg: '#ffffff', title: '#0a0a0a', text: '#404040', accent: '#16a34a', fontHead: 'Anton', fontBody: 'Inter', style: 'topband' },
+    figures: [
+      { sid: 'medal', x: 60, y: 388, w: 100, fill: 'accent' },
+      { sid: 'ball', x: 836, y: 398, w: 104, fill: '#0a0a0a' },
+      { sid: 'lightning', x: 876, y: 30, w: 48, fill: 'accent' },
+      { sid: 'person', x: 44, y: 40, w: 78, fill: '#16a34a', op: 0.85 },
+    ] },
+  { id: 'sport-energy', name: 'Energi', category: 'Sport', align: 'left',
+    keywords: ['sport', 'energi', 'løp', 'trening', 'fart', 'lyn', 'mørk', 'dynamisk'],
+    theme: { bg: '#1e1b4b', title: '#f8fafc', text: '#c7d2fe', accent: '#818cf8', fontHead: 'Bebas Neue', fontBody: 'Inter', style: 'diagonal' },
+    figures: [
+      { sid: 'person', x: 60, y: 368, w: 90, fill: 'accent' },
+      { sid: 'lightning', x: 836, y: 356, w: 72, fill: 'accent' },
+      { sid: 'ball', x: 436, y: 28, w: 72, fill: '#c7d2fe', op: 0.55 },
+      { sid: 'lightning', x: 60, y: 36, w: 50, fill: '#818cf8', op: 0.7, flip: true },
+    ] },
+
+  // ---------- Skole (med figurer) ----------
+  { id: 'sch-fig-project', name: 'Skoleprosjekt', category: 'Skole', align: 'left',
+    keywords: ['skole', 'prosjekt', 'bok', 'blyant', 'studenthatt', 'lyspære', 'figurer', 'lys'],
+    theme: { bg: '#f0f9ff', title: '#0c4a6e', text: '#0369a1', accent: '#38bdf8', fontHead: 'Nunito', fontBody: 'Inter', style: 'dots' },
+    figures: [
+      { sid: 'graduate', x: 40, y: 22, w: 130, fill: 'accent', op: 0.9 },
+      { sid: 'pencil', x: 836, y: 28, w: 88, fill: '#0369a1' },
+      { sid: 'book', x: 44, y: 406, w: 150, fill: 'accent' },
+      { sid: 'bulb', x: 846, y: 398, w: 80, fill: '#f59e0b' },
+    ] },
+  { id: 'sch-fig-exam', name: 'Eksamen', category: 'Skole', align: 'center',
+    keywords: ['skole', 'eksamen', 'studenthatt', 'bok', 'blyant', 'figurer', 'gul'],
+    theme: { bg: '#fefce8', title: '#1f2937', text: '#52525b', accent: '#f59e0b', fontHead: 'Rubik', fontBody: 'Karla', style: 'brackets' },
+    figures: [
+      { sid: 'graduate', x: 408, y: 40, w: 150, fill: 'accent' },
+      { sid: 'book', x: 52, y: 418, w: 140, fill: '#1f2937', op: 0.85 },
+      { sid: 'pencil', x: 852, y: 414, w: 80, fill: '#f59e0b' },
+    ] },
 
   // ======================= Helse =======================
   { id: 'hel-clinic', name: 'Klinikk', category: 'Helse', align: 'left',
@@ -354,30 +479,92 @@ export const TEMPLATES = [
 
 const lc = (s) => String(s || '').toLowerCase()
 
-// Søk på navn + nøkkelord, og filtrer på kategori. Tom query = alle (i kategori).
-export function searchTemplates(query = '', category = 'Alle') {
-  const q = lc(query).trim()
-  return TEMPLATES.filter((t) => {
-    if (category && category !== 'Alle' && t.category !== category) return false
-    if (!q) return true
-    const hay = lc(t.name) + ' ' + lc(t.category) + ' ' + (t.keywords || []).map(lc).join(' ')
-    return q.split(/\s+/).every((word) => hay.includes(word))
-  })
+// Liten redigeringsavstand (for skrivefeil som «elgant» → «elegant»)
+function editDist(a, b) {
+  if (a === b) return 0
+  const m = a.length, n = b.length
+  if (!m) return n; if (!n) return m
+  let prev = Array.from({ length: n + 1 }, (_, i) => i)
+  for (let i = 1; i <= m; i++) {
+    const cur = [i]
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost)
+    }
+    prev = cur
+  }
+  return prev[n]
 }
 
-// Et ekte lite forhåndsvisnings-lysbilde (forside) bygget med malens tema/stil.
+// Synonymer/aliaser → gjør at «blue», «dark», «business» osv. også treffer norske nøkkelord.
+const SYN = {
+  blue: 'blå', dark: 'mørk', light: 'lys', green: 'grønn', red: 'rød', pink: 'rosa',
+  purple: 'lilla', yellow: 'gul', orange: 'oransje', gold: 'gull', black: 'svart',
+  white: 'hvit', business: 'business', school: 'skole', nature: 'natur', clean: 'minimal',
+  fun: 'lekent', elegant: 'elegant', retro: 'retro', bold: 'bold', food: 'mat', travel: 'reise',
+  health: 'helse', tech: 'tech', professional: 'profesjonell', kids: 'barn', playful: 'lekent',
+}
+const expand = (w) => (SYN[w] ? [w, SYN[w]] : [w])
+
+// Hvor godt matcher ETT søkeord en mal? Returnerer en score (0 = ingen match).
+function wordScore(word, hayWords) {
+  let best = 0
+  for (const w of expand(word)) {
+    for (const h of hayWords) {
+      if (h === w) best = Math.max(best, 5)
+      else if (h.startsWith(w) || w.startsWith(h)) best = Math.max(best, 4)
+      else if (h.includes(w) || w.includes(h)) best = Math.max(best, 3)
+      else if (w.length >= 4 && editDist(w, h) <= 1) best = Math.max(best, 2)
+      else if (w.length >= 5 && editDist(w, h) <= 2) best = Math.max(best, 1)
+    }
+  }
+  return best
+}
+
+// Søk på navn + kategori + nøkkelord, og filtrer på kategori.
+// Tom query = alle (i kategori). Ellers RANGERES alle maler, og vi viser de
+// beste – aldri tomt: finner ikke noe eksakt, kommer NÆRMESTE treff opp.
+export function searchTemplates(query = '', category = 'Alle') {
+  const inCat = TEMPLATES.filter((t) => !(category && category !== 'Alle' && t.category !== category))
+  const q = lc(query).trim()
+  if (!q) return inCat
+
+  const words = q.split(/\s+/).filter(Boolean)
+  const scored = inCat.map((t) => {
+    const hayWords = (lc(t.name) + ' ' + lc(t.category) + ' ' + (t.keywords || []).map(lc).join(' ')).split(/\s+/).filter(Boolean)
+    let total = 0, allHit = true
+    for (const word of words) {
+      const s = wordScore(word, hayWords)
+      if (s === 0) allHit = false
+      total += s
+    }
+    return { t, total, allHit }
+  })
+
+  // 1) maler der ALLE søkeordene traff noe – best først
+  const strict = scored.filter((x) => x.allHit && x.total > 0).sort((a, b) => b.total - a.total)
+  if (strict.length) return strict.map((x) => x.t)
+  // 2) ellers: nærmeste treff (minst ett ord traff), best først
+  const loose = scored.filter((x) => x.total > 0).sort((a, b) => b.total - a.total)
+  if (loose.length) return loose.map((x) => x.t)
+  // 3) fant ingenting i det hele tatt → vis alt i kategorien (aldri tomt)
+  return inCat
+}
+
+// Et ekte lite forhåndsvisnings-lysbilde (forside) bygget med malens tema/stil + figurer.
 export function sampleSlideForTemplate(t, title) {
   const th = normalizeTheme({ ...t.theme })
-  return buildSlide({
+  const cover = buildSlide({
     layout: 'cover',
     title: title || t.name,
     subtitle: 'Slik ser denne malen ut',
     style: t.theme.style,
   }, th, 0)
+  return withFigures(cover, figureEls(t, th))
 }
 
-// Ny presentasjon FRA en mal: én pen forside i malens stil. Teksten kan
-// brukeren endre etterpå; ingenting er låst.
+// Ny presentasjon FRA en mal: én pen forside i malens stil (med figurer). Teksten
+// kan brukeren endre etterpå; ingenting er låst.
 export function deckFromTemplate(title, t) {
   const th = normalizeTheme({ ...t.theme })
   const cover = buildSlide({
@@ -392,18 +579,29 @@ export function deckFromTemplate(title, t) {
     bullets: ['Skriv ditt eget innhold her', 'Legg til så mange punkter du vil', 'Bytt mal når som helst – teksten beholdes'],
     style: t.theme.style,
   }, th, 1)
-  return { theme: th, title: title || 'Ny presentasjon', slides: [tidySlide(cover), tidySlide(body)] }
+  return { theme: th, title: title || 'Ny presentasjon', slides: [withFigures(tidySlide(cover), figureEls(t, th)), tidySlide(body)] }
 }
 
-// Bytt mal UNDERVEIS: behold ALL tekst og alle bilder nøyaktig, men bytt det
-// visuelle (farger, fonter, stil, bakteppe) til den nye malen. Rydder hvert
-// lysbilde etterpå så ingenting overlapper eller kuttes.
+// Bytt mal UNDERVEIS: behold ALL tekst og alle ekte bilder nøyaktig, men bytt det
+// visuelle (farger, fonter, stil, bakteppe) til den nye malen. Gamle silhuetter/
+// figurer fjernes, og den NYE malens figurer settes inn. Rydder hvert lysbilde så
+// ingenting overlapper eller kuttes.
 export function applyTemplateToDeck(deck, t, scope = 'all', idx = 0) {
   const th = normalizeTheme({ ...t.theme })
   // align gir en synlig plasseringsforskjell på overskriftene uten å røre brødtekst-lister
   const tweaks = (t.align === 'center' || t.align === 'left' || t.align === 'right')
     ? { align: t.align, applyTo: 'headings' } : null
-  let nd = applyTheme(deck, th, scope, idx, tweaks)
-  nd = { ...nd, slides: nd.slides.map((s, i) => ((scope === 'all' || i === idx) ? tidySlide(s) : s)) }
+  const inScope = (i) => scope === 'all' || i === idx
+  // Fjern gamle silhuetter og dekor-figurer på sidene som bytter mal – behold ALL tekst og ekte bilder.
+  const stripFigures = (s) => ({
+    ...s,
+    elements: s.elements.filter((e) => !(e.kind === 'silhouette' || (e.decor && e.type === 'image'))),
+  })
+  const cleaned = { ...deck, slides: deck.slides.map((s, i) => (inScope(i) ? stripFigures(s) : s)) }
+  let nd = applyTheme(cleaned, th, scope, idx, tweaks)
+  nd = {
+    ...nd,
+    slides: nd.slides.map((s, i) => (inScope(i) ? withFigures(tidySlide(s), figureEls(t, th)) : s)),
+  }
   return nd
 }

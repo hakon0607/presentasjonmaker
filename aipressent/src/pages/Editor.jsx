@@ -262,7 +262,11 @@ export default function Editor() {
     if (error) throw new Error(error.message || 'nettverksfeil')
     if (data?.error) throw new Error(data.error)
     const nt = String(data.text || '').trim()
-    if (!nt) throw new Error('AI ga ingen tekst tilbake.')
+    if (!nt) {
+      // Den gamle edge-funksjonen (uten 'rewrite'-modus) svarer typisk med {slides}/{theme} eller tomt.
+      if (data && (data.slides || data.theme)) throw new Error('Omskriv er ikke aktivert på serveren ennå. Last opp nyeste smart-task edge-funksjon i Supabase og trykk Deploy.')
+      throw new Error('AI ga ingen tekst tilbake.')
+    }
     const d = deckRef.current || deck
     const ns = d.slides.map((s) => (s.elements.some((e) => e.id === el.id)
       ? { ...s, elements: s.elements.map((e) => (e.id === el.id ? fitTextBox({ ...e, text: nt, html: null }) : e)) }
