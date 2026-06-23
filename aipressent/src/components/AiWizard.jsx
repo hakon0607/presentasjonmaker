@@ -131,7 +131,7 @@ export default function AiWizard({ onClose, userId, nav }) {
       const realTitle = title || o.title || 'Uten tittel'
       const dd = designDeck(o.slides || [], { title: realTitle, hint: visualStyle })
       const slides = dd.slides
-      await fillPhotos(slides, realTitle)
+      await fillPhotos(slides, realTitle, dd.styleId, dd.style)
       setGenLabel('Lagrer …')
       const deck = { theme: themeOfStyle(dd.styleId), title: realTitle, slides: slides.length ? slides : newDeck(realTitle, 'minimal').slides, design: dd.styleId }
       const { data, error } = await supabase.from('presentations')
@@ -142,27 +142,44 @@ export default function AiWizard({ onClose, userId, nav }) {
     } catch (e) { setErr('Klarte ikke å lage presentasjonen: ' + (e.message || e)); setBusy(false); prog.reset() }
   }
 
-  // Henter ekte foto til alle bilde-felt (de som har photoQuery) og laster dem opp.
-  async function fillPhotos(slides, topic) {
+  // Stil-stemninger som gjør AI-bildene passende og helhetlige (ikke kjedelige stock-bilder).
+  const PHOTO_MOODS = {
+    editorial: 'editorial film photography, warm muted tones, soft natural light, minimal',
+    natur: 'natural-light nature photography, fresh greenery, calm, documentary',
+    pastell: 'soft pastel photography, dreamy, bright, gentle tones',
+    graatone: 'black and white fine-art photography, high contrast, minimal',
+    natt: 'cinematic dark photography, warm moody premium lighting',
+    tech: 'futuristic technology, dark background, glowing neon-blue accents, sleek',
+    botanisk: 'botanical photography, plants and leaves, soft natural light, elegant',
+  }
+  // Henter bilde til hvert bilde-felt: AI-generert (skreddersydd + stil) → nett-foto → fargefelt.
+  async function fillPhotos(slides, topic, styleId, style) {
     const imgs = []
     slides.forEach((s) => (s.elements || []).forEach((e) => { if (e.photoQuery) imgs.push(e) }))
     if (!imgs.length) return
     const uniq = [...new Set(imgs.map((e) => e.photoQuery).filter(Boolean))]
-    prog.stop(); prog.set(2); setGenLabel(`Henter bilder … (0/${uniq.length})`)
+    const mood = PHOTO_MOODS[styleId] || 'high-quality aesthetic photography'
+    prog.stop(); prog.set(2); setGenLabel(`Lager bilder … (0/${uniq.length})`)
     const map = {}
     let cnt = 0
     await Promise.all(uniq.map(async (q) => {
+      let b64 = null
+      // 1) AI-generert bilde tilpasset innhold + stil
       try {
-        const b64 = await fetchPhoto(q, topic)
-        if (b64) {
-          const blob = await (await fetch(b64)).blob()
-          const url = await uploadImage(blob)
-          map[q.toLowerCase()] = url || b64
-        }
-      } catch (_e) { /* hopp over */ }
-      cnt++; prog.set(Math.max(2, Math.round((cnt / uniq.length) * 100))); setGenLabel(`Henter bilder … (${cnt}/${uniq.length})`)
+        const { data } = await supabase.functions.invoke('smart-task', { body: { mode: 'image', prompt: `${q}, ${mood}`, topic } })
+        if (data?.image) b64 = 'data:image/jpeg;base64,' + data.image
+      } catch (_e) { /* prøv nett */ }
+      // 2) reserve: ekte nett-foto
+      if (!b64) { try { b64 = await fetchPhoto(q, topic) } catch (_e) { /* gir opp dette */ } }
+      if (b64) {
+        try { const blob = await (await fetch(b64)).blob(); const url = await uploadImage(blob); map[q.toLowerCase()] = url || b64 } catch (_e) { /* hopp */ }
+      }
+      cnt++; prog.set(Math.max(2, Math.round((cnt / uniq.length) * 100))); setGenLabel(`Lager bilder … (${cnt}/${uniq.length})`)
     }))
     imgs.forEach((e) => { const u = map[String(e.photoQuery).toLowerCase()]; if (u) e.src = u })
+    // 3) ingen bilder skal stå tomme: bytt resten til et rent fargefelt
+    const fill = (style && style.card) || '#e7e7e5'
+    imgs.forEach((e) => { if (!e.src) { e.type = 'shape'; e.kind = 'rect'; e.fill = fill; e.radius = 0; e.opacity = 1; e.decor = true; delete e.photoSlot; delete e.photoQuery } })
   }
 
   function setSlide(i, patch) { setOutline((o) => o.map((s, j) => (j === i ? { ...s, ...patch } : s))) }
@@ -177,7 +194,7 @@ export default function AiWizard({ onClose, userId, nav }) {
       const realTitle = title || 'Uten tittel'
       const dd = designDeck(outline.map(toAi), { title: realTitle, hint: visualStyle })
       const slides = dd.slides
-      await fillPhotos(slides, realTitle)
+      await fillPhotos(slides, realTitle, dd.styleId, dd.style)
       setGenLabel('Lagrer …')
       const deck = { theme: themeOfStyle(dd.styleId), title: realTitle, slides: slides.length ? slides : newDeck(realTitle, 'minimal').slides, design: dd.styleId }
       const { data, error } = await supabase.from('presentations')
