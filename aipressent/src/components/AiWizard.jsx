@@ -122,7 +122,7 @@ export default function AiWizard({ onClose, userId, nav }) {
   async function createPresentation() {
     if (!title.trim()) { setErr('Gi presentasjonen en tittel.'); return }
     if (!manuscript.trim()) { setErr('Skriv litt manus eller noen stikkord.'); return }
-    if (!visualStyle.trim()) { setErr('Beskriv kort hvordan det skal se ut.'); return }
+    if (!tpl && !visualStyle.trim()) { setErr('Beskriv kort hvordan det skal se ut, eller velg en ferdig mal.'); return }
     setBusy(true); setErr(''); setGenLabel('Lager innhold …'); prog.start()
     try {
       if (!tokensUnlimited && typeof tokens === 'number' && tokens < 5) throw new Error(`Du trenger 5 tokens for å lage en hel AI-presentasjon, men har ${tokens}. Du kan fortsatt lage en tom presentasjon og redigere selv – og AI-bilder er gratis. Du får påfyll i morgen.`)
@@ -245,10 +245,14 @@ export default function AiWizard({ onClose, userId, nav }) {
             <label>Manus / stikkord</label>
             <textarea rows={6} value={manuscript} onChange={(e) => setManuscript(e.target.value)} spellCheck lang="nb"
               placeholder="Skriv manus eller bare stikkord – AI tolker og bygger ut resten." />
-            <label>Hvordan skal det se ut? (AI lager et tema ut fra dette)</label>
-            <input value={visualStyle} onChange={(e) => setVisualStyle(e.target.value)}
-              placeholder="F.eks. «lekent og fargerikt for barn», «rolig pastell», «mørkt og stilig»" />
-            <label>Eller velg en ferdig mal</label>
+            {!tpl && (
+              <>
+                <label>Hvordan skal det se ut? (AI lager et tema ut fra dette)</label>
+                <input value={visualStyle} onChange={(e) => setVisualStyle(e.target.value)}
+                  placeholder="F.eks. «lekent og fargerikt for barn», «rolig pastell», «mørkt og stilig»" />
+              </>
+            )}
+            <label>{tpl ? 'Ferdig mal' : 'Eller velg en ferdig mal'}</label>
             <div className="seg" style={{ display: 'flex', gap: 8 }}>
               <button className="btn ghost" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setTplOpen(true)} disabled={busy}>
                 <LayoutTemplate size={16} /> {tpl ? `Mal: ${tpl.name}` : 'Bla i alle maler'}
