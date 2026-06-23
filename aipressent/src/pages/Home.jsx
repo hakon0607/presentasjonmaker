@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -6,13 +6,14 @@ import { newDeck, THEMES } from '../lib/deck'
 import { exportPptx } from '../lib/export'
 import AiWizard from '../components/AiWizard'
 import TemplatePicker from '../components/TemplatePicker'
-import { deckFromTemplate, photoQueryOf, deckWithPhotoBg } from '../lib/templates'
+import TemplateThumb from '../components/TemplateThumb'
+import { deckFromTemplate, photoQueryOf, deckWithPhotoBg, searchTemplates, TEMPLATE_CATEGORIES } from '../lib/templates'
 import { fetchPixabay } from '../lib/photo'
 import Tour from '../components/Tour'
 import InstallButton from '../components/InstallButton'
 import TokenBadge from '../components/TokenBadge'
 import TokenMeter from '../components/TokenMeter'
-import { Plus, Sparkles, Trash2, LogOut, Presentation, Download, HelpCircle, User, Play } from 'lucide-react'
+import { Plus, Sparkles, Trash2, LogOut, Presentation, Download, HelpCircle, User, Play, Search } from 'lucide-react'
 
 export default function Home() {
   const { user, signOut, aiEnabled, tokens, tokensUnlimited, tokensCap } = useAuth()
@@ -21,6 +22,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [aiOpen, setAiOpen] = useState(false)
   const [tplOpen, setTplOpen] = useState(false)
+  const [tplQuery, setTplQuery] = useState('')
+  const [tplCat, setTplCat] = useState('Alle')
+  const tplResults = useMemo(() => searchTemplates(tplQuery, tplCat), [tplQuery, tplCat])
   const [tplBusy, setTplBusy] = useState(false)
   const [tourOpen, setTourOpen] = useState(false)
   const [showWelcome, setShowWelcome] = useState(() => { try { return localStorage.getItem('ap_welcome_hidden') !== '1' } catch (_e) { return true } })
@@ -149,6 +153,35 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      <section className="home-templates" data-tour="templates">
+        <div className="home-templates-head">
+          <h2>Start fra en mal</h2>
+          <div className="tpl-browse-top">
+            <div className="tpl-search">
+              <Search size={16} />
+              <input value={tplQuery} onChange={(e) => setTplQuery(e.target.value)} spellCheck lang="nb"
+                placeholder="Søk i maler – f.eks. «krig», «foto», «skole» …" />
+              {tplQuery && <button className="tpl-search-x" onClick={() => setTplQuery('')} title="Tøm">✕</button>}
+            </div>
+            <select className="tpl-catsel" value={tplCat} onChange={(e) => setTplCat(e.target.value)} title="Kategori">
+              {TEMPLATE_CATEGORIES.map((c) => (
+                <option key={c} value={c}>{c === 'Alle' ? 'Alle kategorier' : c}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <p className="muted small" style={{ margin: '0 0 10px' }}>Klikk en mal for å lage en presentasjon i den stilen{tplBusy ? ' – lager …' : ''}.</p>
+        <div className="tpl-gallery tpl-gallery-full home-tpl-gallery">
+          {tplResults.map((t) => (
+            <button key={t.id} className="tpl-card" disabled={tplBusy}
+              onClick={() => createFromTemplate(t)} title={`${t.name} – ${t.category}`}>
+              <div className="tpl-card-prev"><TemplateThumb t={t} /></div>
+              <div className="tpl-card-meta"><b>{t.name}</b><span className="muted small">{t.photo ? '📷 ' : ''}{t.category}</span></div>
+            </button>
+          ))}
+        </div>
+      </section>
 
       {tplOpen && (
         <TemplatePicker

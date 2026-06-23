@@ -1,34 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { LayoutTemplate, Search, X, Check } from 'lucide-react'
-import { TEMPLATE_CATEGORIES, searchTemplates, templateFigures } from '../lib/templates'
-
-// Lett, statisk scene-miniatyr i ren SVG (ingen tung SlideStage) – tegner malens
-// bakgrunn, figurer (scene) og navn. Mange kan vises samtidig uten ytelsesproblemer.
-function TemplateThumb({ t }) {
-  const th = t.theme
-  const figs = templateFigures(t)
-  const center = t.align !== 'left'
-  return (
-    <svg viewBox="0 0 960 540" preserveAspectRatio="xMidYMid slice" className="tpl-thumb-svg">
-      <rect x="0" y="0" width="960" height="540" fill={th.bg} />
-      {figs.map((f, i) => {
-        const tr = [`translate(${f.x} ${f.y})`]
-        if (f.flip) tr.push(`translate(${f.w} 0) scale(-1 1)`)
-        if (f.rot) tr.push(`rotate(${f.rot} ${f.w / 2} ${f.h / 2})`)
-        return (
-          <g key={i} transform={tr.join(' ')} opacity={f.op}>
-            <svg width={f.w} height={f.h} viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
-              <path d={f.path} fill={f.fill} fillRule="evenodd" />
-            </svg>
-          </g>
-        )
-      })}
-      <text x={center ? 480 : 92} y="262" textAnchor={center ? 'middle' : 'start'}
-        fontFamily={`'${th.fontHead}', sans-serif`} fontWeight="800" fontSize="62" fill={th.title}>{t.name}</text>
-      <rect x={center ? 430 : 92} y="292" width="100" height="9" rx="4" fill={th.accent} />
-    </svg>
-  )
-}
+import { TEMPLATE_CATEGORIES, searchTemplates } from '../lib/templates'
+import TemplateThumb from './TemplateThumb'
 
 // Mal-album: ett langt rutenett der ALLE malene vises samtidig som ekte mini-
 // scener. Søk + kategori-nedtrekk øverst, «Bruk»-bekreftelse nederst. Alt leser
