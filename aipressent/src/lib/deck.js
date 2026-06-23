@@ -442,6 +442,10 @@ export function applyTheme(deck, newTheme, scope, idx, tweaks) {
   }
   const apply = (s, i) => {
     const from = asTheme(s.theme || deck.theme)
+    // Relativ overskrift-gjenkjenning: største tekst på lysbildet teller som overskrift
+    const sizes = s.elements.filter((e) => e.type === 'text' && !e.decor).map((e) => e.fontSize || 0)
+    const maxSize = Math.max(0, ...sizes)
+    const isHeadingRel = (el) => el.bold || (el.fontSize || 0) >= 28 || (maxSize > 0 && (el.fontSize || 0) >= maxSize * 0.85)
     const map = buildColorMap(from, nt)
     const fontMap = {}
     if (from.fontHead) fontMap[lowc(from.fontHead)] = nt.fontHead
@@ -454,7 +458,7 @@ export function applyTheme(deck, newTheme, scope, idx, tweaks) {
       if (col && col === lowc(from.accent)) nc = nt.accent
       else if (col && col === lowc(from.title) && col !== lowc(from.text)) nc = nt.title
       else if (col && col === lowc(from.text) && col !== lowc(from.title)) nc = nt.text
-      else nc = isHeading(el) ? nt.title : nt.text   // lik gammel farge / ukjent → bruk størrelse/fet
+      else nc = isHeadingRel(el) ? nt.title : nt.text   // lik gammel farge / ukjent → bruk størrelse/fet
       // Sikkerhetsnett: bare hvis fargen er så å si IDENTISK med bakgrunnen (helt usynlig),
       // nudg den så teksten ikke forsvinner helt. Bevisste valg (f.eks. hvit på beige) røres ikke.
       if (Math.abs(lum(nc) - lum(nt.bg)) < 0.06) nc = lum(nt.bg) > 0.5 ? '#1a1a1a' : '#ffffff'
