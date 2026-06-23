@@ -172,15 +172,15 @@ export default function Canvas({ slide, onChange, selectedId, setSelectedId, sel
           }
 
           const editing = editingId === el.id
-          const html = (!editing && el.list && el.list !== 'none') ? listHtml(el.text, el.list) : esc(el.text)
+          const html = el.html ? el.html : ((!editing && el.list && el.list !== 'none') ? listHtml(el.text, el.list) : esc(el.text))
           return (
             <div key={el.id} className={'el' + (sel ? ' sel' : '') + (editing ? ' editing' : '') + lockCls} style={box}
               onPointerDown={(e) => { if (editing) { e.stopPropagation(); return } start(e, el, 'move') }}
               onDoubleClick={(e) => enterEdit(e, el)}>
-              <div className="el-text" contentEditable={editing} suppressContentEditableWarning
+              <div className="el-text" id={'eltext-' + el.id} contentEditable={editing} suppressContentEditableWarning
                 spellCheck={editing} lang="nb"
                 ref={(n) => { if (n && editing) placeCaret(n) }}
-                onBlur={(ev) => { const text = ev.currentTarget.innerText; const fitted = fitTextBox({ ...el, text }); updateEl(el.id, { text, h: fitted.h, y: fitted.y }); setEditingId(null); focusedId.current = null; editPoint.current = null }}
+                onBlur={(ev) => { const node = ev.currentTarget; const text = node.innerText; const rich = node.innerHTML; const hasFont = /font-family/i.test(rich); const patch = { text, html: hasFont ? rich : null }; const fitted = fitTextBox({ ...el, ...patch }); updateEl(el.id, { ...patch, h: fitted.h, y: fitted.y }); setEditingId(null); focusedId.current = null; editPoint.current = null }}
                 style={{ fontFamily: `'${el.fontFamily}', sans-serif`, fontSize: el.fontSize * scale, color: el.color,
                   fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? 'italic' : 'normal',
                   textDecoration: el.underline ? 'underline' : 'none', textAlign: el.align, lineHeight: el.lineHeight,

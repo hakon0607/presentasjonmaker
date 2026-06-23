@@ -19,7 +19,7 @@ function transformSel(map) {
 }
 const STICKERS = ['⭐', '✨', '❤️', '🔥', '✅', '❌', '💡', '📌', '🎯', '🚀', '🎉', '👍', '👏', '🙌', '😀', '😎', '🤔', '🥳', '🌈', '☀️', '🌙', '⚡', '🌸', '🍀', '🐶', '🐱', '🦊', '🐼', '🍎', '🍕', '⚽', '🎈', '🎁', '📚', '✏️', '🖍️', '🎨', '🎵', '💬', '❓']
 
-export default function Toolbar({ el, update, onAddText, onAddImageChoice, onAddShape, onAddSticker, onAddTable, onAiImage, onReplaceSel, onDelete, onFront, onBack, onAnim, onSilhouette, bg, onBg, aiEnabled, grid, onGrid, minimal, onMinimal }) {
+export default function Toolbar({ el, update, onFont, onAddText, onAddImageChoice, onAddShape, onAddSticker, onAddTable, onAiImage, onReplaceSel, onDelete, onFront, onBack, onAnim, onSilhouette, bg, onBg, aiEnabled, grid, onGrid, minimal, onMinimal }) {
   const [pop, setPop] = useState(null)
   const adv = !minimal
   const shapes = [
@@ -57,7 +57,7 @@ export default function Toolbar({ el, update, onAddText, onAddImageChoice, onAdd
       {el && el.type === 'text' && (
         <>
           <span className="tb-sep" />
-          <select value={el.fontFamily} onChange={(e) => update({ fontFamily: e.target.value })} style={{ fontFamily: el.fontFamily }}>
+          <select value={el.fontFamily} onChange={(e) => (onFont ? onFont(e.target.value) : update({ fontFamily: e.target.value }))} style={{ fontFamily: el.fontFamily }} title="Marker tekst først for å endre font kun på den delen">
             {FONTS.map((f) => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
           </select>
           <button className="tb ic" onClick={() => stepSize(-2)} title="Mindre">A−</button>

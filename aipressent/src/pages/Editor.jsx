@@ -241,6 +241,23 @@ export default function Editor() {
       return shouldFit ? fitTextBox(merged) : merged
     }) })
   }
+  // Font: redigerer du tekst og har markert noe, settes fonten BARE på det markerte (rik tekst). Ellers hele boksen.
+  function setFontSmart(font) {
+    if (!sel || sel.type !== 'text') return
+    const node = document.getElementById('eltext-' + sel.id)
+    const selObj = window.getSelection && window.getSelection()
+    const inside = node && selObj && selObj.rangeCount > 0 && !selObj.isCollapsed && node.contains(selObj.anchorNode) && node.contains(selObj.focusNode)
+    if (editId === sel.id && inside) {
+      try {
+        document.execCommand('styleWithCSS', false, true)
+        document.execCommand('fontName', false, font)
+        const html = node.innerHTML
+        setSlide({ ...slide, elements: slide.elements.map((e) => (e.id === sel.id ? { ...e, html } : e)) })
+        return
+      } catch (_e) { /* faller tilbake */ }
+    }
+    updateSel({ fontFamily: font })
+  }
   function addText() {
     const th = deck.theme || THEMES.minimal
     const e = textEl({ text: 'Ny tekst', fontFamily: th.fontBody, color: th.text, x: 120, y: 240 })
@@ -558,7 +575,7 @@ export default function Editor() {
         </div>
       </header>
 
-      <Toolbar el={sel} update={updateSel} onAddText={addText} onAddImageChoice={addImageChoice} onAddShape={addShape} onAddSticker={addSticker} onAddTable={addTable} onAiImage={(e) => setAiImgEl(e)} onReplaceSel={replaceImage} onDelete={deleteSel} onFront={bringFront} onBack={sendBack} onAnim={() => setAnimOpen(true)} onSilhouette={() => setSilOpen(true)} bg={slide.background} onBg={setBg} aiEnabled={aiEnabled} grid={grid} onGrid={() => setGrid((g) => !g)} minimal={minimal} onMinimal={toggleMinimal} />
+      <Toolbar el={sel} update={updateSel} onFont={setFontSmart} onAddText={addText} onAddImageChoice={addImageChoice} onAddShape={addShape} onAddSticker={addSticker} onAddTable={addTable} onAiImage={(e) => setAiImgEl(e)} onReplaceSel={replaceImage} onDelete={deleteSel} onFront={bringFront} onBack={sendBack} onAnim={() => setAnimOpen(true)} onSilhouette={() => setSilOpen(true)} bg={slide.background} onBg={setBg} aiEnabled={aiEnabled} grid={grid} onGrid={() => setGrid((g) => !g)} minimal={minimal} onMinimal={toggleMinimal} />
 
       {multiSel.length > 1 && (
         <div className="toolbar multi-toolbar">

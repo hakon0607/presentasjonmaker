@@ -80,7 +80,9 @@ export default function SlideStage({ slide, animate = false }) {
           )}</div>
         )
         return <div key={el.id} style={{ ...box, ...an }}>{inner(
-          <div style={{ width: '100%', height: '100%', fontFamily: `'${el.fontFamily}', sans-serif`, fontSize: el.fontSize * scale, color: el.color, fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? 'italic' : 'normal', textDecoration: el.underline ? 'underline' : 'none', textAlign: el.align, lineHeight: el.lineHeight, letterSpacing: (el.letterSpacing || 0) + 'px', background: el.highlight || 'transparent', whiteSpace: 'pre-wrap', overflowWrap: 'break-word', wordBreak: 'break-word' }}>{listText(el)}</div>
+          el.html
+            ? <div style={{ width: '100%', height: '100%', fontFamily: `'${el.fontFamily}', sans-serif`, fontSize: el.fontSize * scale, color: el.color, fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? 'italic' : 'normal', textDecoration: el.underline ? 'underline' : 'none', textAlign: el.align, lineHeight: el.lineHeight, letterSpacing: (el.letterSpacing || 0) + 'px', background: el.highlight || 'transparent', whiteSpace: 'pre-wrap', overflowWrap: 'break-word', wordBreak: 'break-word' }} dangerouslySetInnerHTML={{ __html: el.html }} />
+            : <div style={{ width: '100%', height: '100%', fontFamily: `'${el.fontFamily}', sans-serif`, fontSize: el.fontSize * scale, color: el.color, fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? 'italic' : 'normal', textDecoration: el.underline ? 'underline' : 'none', textAlign: el.align, lineHeight: el.lineHeight, letterSpacing: (el.letterSpacing || 0) + 'px', background: el.highlight || 'transparent', whiteSpace: 'pre-wrap', overflowWrap: 'break-word', wordBreak: 'break-word' }}>{listText(el)}</div>
         )}</div>
       })}
     </div>

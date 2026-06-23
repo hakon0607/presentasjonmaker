@@ -94,8 +94,6 @@ export default function Home() {
         <div className="home-head">
           <h1>Dine presentasjoner</h1>
           <div className="home-actions">
-            <button className="btn ghost" onClick={() => nav('/guide')}><HelpCircle size={18} /> Guide</button>
-            <button className="btn ghost" onClick={() => setTourOpen(true)}><Play size={18} /> Omvisning</button>
             <button className="btn ghost" data-tour="new" onClick={createBlank}><Plus size={18} /> Ny presentasjon</button>
             {aiEnabled && <button className="btn primary" data-tour="ai" onClick={() => setAiOpen(true)}><Sparkles size={18} /> Lag med AI</button>}
           </div>
