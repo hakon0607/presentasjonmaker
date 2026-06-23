@@ -200,11 +200,28 @@ export default function Editor() {
   function setSlide(ns) { apply({ ...deck, slides: deck.slides.map((s, i) => (i === idx ? ns : s)) }) }
   // Visuell AI: tema (på valgt scope) + flytt/endre/slett/legg til elementer (på dette lysbildet)
   // Design AI: kun farge/tema. Endrer ALDRI tekst-innhold, sletter ALDRI elementer.
-  // Tekstfargene settes via temaet (rolle-basert recolor i applyTheme), som holder tekst lesbar.
+  // Etterpå: tilpass tekstboksene rundt teksten + skyv fra hverandre det som overlapper.
   function applyDesign(themeData, scope) {
     if (!themeData) return
     const merged = { ...deck.theme, ...themeData }
-    apply(applyTheme(deck, normalizeTheme(merged), scope, idx))
+    let nd = applyTheme(deck, normalizeTheme(merged), scope, idx)
+    const tidy = (s) => {
+      // 1) Tilpass hver tekstboks rundt teksten (så ingenting kuttes / masse tomrom)
+      let els = s.elements.map((el) => (el.type === 'text' && !el.decor ? fitTextBox(el) : el))
+      // 2) Skyv tekstbokser nedover hvis de overlapper hverandre (uten å slette noe)
+      const texts = els.filter((e) => e.type === 'text' && !e.decor).sort((a, b) => a.y - b.y)
+      for (let i = 1; i < texts.length; i++) {
+        const prev = texts[i - 1], cur = texts[i]
+        const overlapX = cur.x < prev.x + prev.w && cur.x + cur.w > prev.x
+        if (overlapX && cur.y < prev.y + prev.h + 6) {
+          const ny = Math.min(CH - cur.h, prev.y + prev.h + 8)
+          cur.y = ny
+        }
+      }
+      return { ...s, elements: els }
+    }
+    nd = { ...nd, slides: nd.slides.map((s, i) => (scope === 'all' || i === idx ? tidy(s) : s)) }
+    apply(nd)
   }
   // Sett fonter direkte (uten AI): overskrift og/eller brødtekst, på valgt scope
   function setFonts({ fontHead, fontBody }, scope) {
@@ -913,10 +930,20 @@ function WebImageModal({ el, onClose, onSearch, onPick }) {
 }
 
 function ScopeToggle({ scope, setScope, busy }) {
+  const opt = (val, label) => (
+    <button onClick={() => setScope(val)} disabled={busy}
+      style={{ flex: 1, padding: '9px 10px', borderRadius: 9, border: 'none', cursor: 'pointer',
+        fontWeight: scope === val ? 800 : 500, fontSize: 14,
+        background: scope === val ? 'var(--accent,#6366f1)' : 'transparent',
+        color: scope === val ? '#fff' : 'var(--ink,#374151)' }}>{label}</button>
+  )
   return (
-    <div className="scope-toggle" style={{ display: 'flex', gap: 6, margin: '4px 0' }}>
-      <button className={'theme-ex' + (scope === 'all' ? ' on' : '')} onClick={() => setScope('all')} disabled={busy} style={scope === 'all' ? { borderColor: 'var(--accent,#6366f1)', fontWeight: 700 } : undefined}>Alle lysbilder</button>
-      <button className={'theme-ex' + (scope === 'slide' ? ' on' : '')} onClick={() => setScope('slide')} disabled={busy} style={scope === 'slide' ? { borderColor: 'var(--accent,#6366f1)', fontWeight: 700 } : undefined}>Bare denne</button>
+    <div style={{ margin: '8px 0' }}>
+      <div className="small" style={{ fontWeight: 700, marginBottom: 5 }}>Hvor skal endringen gjelde?</div>
+      <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 12, background: 'var(--line,#eef0f4)' }}>
+        {opt('all', '📑 Alle lysbilder')}
+        {opt('slide', '📄 Bare denne')}
+      </div>
     </div>
   )
 }
@@ -948,13 +975,6 @@ function DesignModal({ deck, onApply, onClose }) {
       setDone(true)
     } catch (e) { setErr('Klarte ikke å lage design: ' + (e.message || e)) } finally { setBusy(false) }
   }
-  const Field = ({ label, hint, value, set, ph }) => (
-    <div>
-      <label className="small" style={{ fontWeight: 700, display: 'block', marginBottom: 3 }}>{label} <span className="muted" style={{ fontWeight: 400 }}>{hint}</span></label>
-      <input className="theme-desc" style={{ width: '100%' }} value={value} onChange={(e) => set(e.target.value)} disabled={busy} placeholder={ph}
-        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); gen() } }} />
-    </div>
-  )
   return (
     <div className="modal-bg" onClick={busy ? undefined : onClose}>
       <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
@@ -962,12 +982,24 @@ function DesignModal({ deck, onApply, onClose }) {
         <p className="muted" style={{ margin: 0 }}>Fyll inn det du vil endre. Lar du et felt stå tomt, beholdes det. <span className="small">(Koster 1 token, eller gratis for enkle fargevalg)</span></p>
         <ScopeToggle scope={scope} setScope={setScope} busy={busy} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 6 }}>
-          <Field label="Tema" hint="– stemning/stil" value={themeWish} set={setThemeWish} ph="F.eks. «mørkt og elegant» eller «lekent og fargerikt»" />
-          <Field label="Farger" hint="– hva som skal endres" value={colors} set={setColors} ph="F.eks. «blå overskrift, beige bakgrunn»" />
-          <Field label="Tekstfarge" hint="– valgfritt, ellers velges den automatisk" value={textColor} set={setTextColor} ph="La stå tom for best lesbarhet" />
+          <div>
+            <label className="small" style={{ fontWeight: 700, display: 'block', marginBottom: 3 }}>Tema <span className="muted" style={{ fontWeight: 400 }}>– stemning/stil</span></label>
+            <input className="theme-desc" style={{ width: '100%' }} value={themeWish} onChange={(e) => setThemeWish(e.target.value)} disabled={busy} placeholder="F.eks. «mørkt og elegant» eller «lekent og fargerikt»"
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); gen() } }} />
+          </div>
+          <div>
+            <label className="small" style={{ fontWeight: 700, display: 'block', marginBottom: 3 }}>Farger <span className="muted" style={{ fontWeight: 400 }}>– hva som skal endres</span></label>
+            <input className="theme-desc" style={{ width: '100%' }} value={colors} onChange={(e) => setColors(e.target.value)} disabled={busy} placeholder="F.eks. «blå overskrift, beige bakgrunn»"
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); gen() } }} />
+          </div>
+          <div>
+            <label className="small" style={{ fontWeight: 700, display: 'block', marginBottom: 3 }}>Tekstfarge <span className="muted" style={{ fontWeight: 400 }}>– valgfritt, ellers velges den automatisk</span></label>
+            <input className="theme-desc" style={{ width: '100%' }} value={textColor} onChange={(e) => setTextColor(e.target.value)} disabled={busy} placeholder="La stå tom for best lesbarhet"
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); gen() } }} />
+          </div>
         </div>
         {err && <p className="err">{err}</p>}
-        {done && !err && <p className="muted small">✓ Design oppdatert! Prøv gjerne mer.</p>}
+        {done && !err && <p className="muted small">✓ {scope === 'all' ? `Endret på alle ${deck.slides.length} lysbildene!` : 'Endret på dette lysbildet!'} Prøv gjerne mer.</p>}
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose} disabled={busy}>Ferdig</button>
           <button className="btn primary" onClick={gen} disabled={busy}>{busy ? 'Lager …' : '✨ Bruk design'}</button>
