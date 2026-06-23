@@ -19,15 +19,24 @@ const STYLE_IDS = Object.keys(STYLES)
 
 // velg stil ut fra emne (enkle stikkord) ellers stabil hash
 export function pickStyle(title = '', hint = '') {
+  const h = String(hint || '').toLowerCase()
   const t = (title + ' ' + hint).toLowerCase()
-  const has = (...w) => w.some((x) => t.includes(x))
-  if (has('natur', 'klima', 'milj', 'dyr', 'skog', 'hav', 'planet', 'baerekraft')) return 'natur'
-  if (has('mat', 'kaffe', 'restaurant', 'reise', 'mote', 'kunst', 'esteti', 'kjaerlighet', 'historie', 'bok')) return 'editorial'
-  if (has('barn', 'skole', 'lek', 'bursdag', 'venn', 'rosa', 'soet')) return 'pastell'
-  if (has('tech', 'teknologi', 'data', 'ai', 'kode', 'app', 'digital', 'fremtid', 'spill')) return 'tech'
-  if (has('pitch', 'startup', 'forretning', 'business', 'penger', 'salg', 'invest')) return 'natt'
-  let h = 0; for (const c of t) h = (h * 31 + c.charCodeAt(0)) >>> 0
-  return STYLE_IDS[h % STYLE_IDS.length]
+  const any = (s, ...w) => w.some((x) => s.includes(x))
+  // 1) eksplisitt ønske i «hvordan skal det se ut»
+  if (any(h, 'gråtone', 'graatone', 'svart', 'minimal', 'enkel', 'clean', 'rene', 'stilren')) return 'graatone'
+  if (any(h, 'pastell', 'rosa', 'søt', 'soet', 'koselig', 'myk', 'lekent', 'barn')) return 'pastell'
+  if (any(h, 'mørk', 'mork', 'dark', 'dempet', 'dramatisk', 'natt', 'varm')) return 'natt'
+  if (any(h, 'elegant', 'editorial', 'serif', 'eksklusiv', 'aesthetic', 'æsteti', 'asteti', 'luksus', 'stilig')) return 'editorial'
+  if (any(h, 'tech', 'neon', 'futurist', 'digital', 'cyber', 'sci-fi')) return 'tech'
+  if (any(h, 'natur', 'grønn', 'gronn', 'miljø', 'miljo', 'organisk', 'frisk')) return 'natur'
+  // 2) ut fra emne
+  if (any(t, 'natur', 'klima', 'milj', 'dyr', 'skog', 'hav', 'planet', 'baerekraft')) return 'natur'
+  if (any(t, 'mat', 'kaffe', 'restaurant', 'reise', 'mote', 'kunst', 'esteti', 'kjaerlighet', 'historie', 'bok')) return 'editorial'
+  if (any(t, 'barn', 'skole', 'lek', 'bursdag', 'venn')) return 'pastell'
+  if (any(t, 'tech', 'teknologi', 'data', 'kode', 'app', 'digital', 'fremtid', 'spill', 'robot')) return 'tech'
+  if (any(t, 'pitch', 'startup', 'forretning', 'business', 'penger', 'salg', 'invest', 'marked')) return 'natt'
+  let n = 0; for (const c of t) n = (n * 31 + c.charCodeAt(0)) >>> 0
+  return STYLE_IDS[n % STYLE_IDS.length]
 }
 
 // ---------- byggeklosser ----------
@@ -53,6 +62,9 @@ function fit(text, base, w, maxLines = 2) {
   if (lines <= maxLines) return base
   return Math.max(Math.round(base * (maxLines / lines) * 1.06), Math.round(base * 0.55))
 }
+// antall linjer + hoyde for en tekst -> brukes til aa stable elementer uten overlapp
+function lineCount(text, fs, w) { const per = Math.max(4, Math.floor(w / (fs * 0.54))); return Math.max(1, Math.ceil(String(text || '').length / per)) }
+function txtH(text, fs, w, lh = 1.04) { return Math.round(lineCount(text, fs, w) * fs * lh) }
 const photoQ = (spec) => (spec.image && spec.image.caption) || spec.photo || spec.figure || spec.title || spec.statement || ''
 
 // ---------- layouts (returnerer {background, elements}) ----------
@@ -62,27 +74,35 @@ function coverSplit(spec, st) {
   const els = []
   els.push(PHOTO({ x: 540, y: 0, w: 420, h: 540 }, photoQ(spec)))
   els.push(...chip(spec.eyebrow || 'Presentasjon', 72, 96, st.acc, '#ffffff'))
-  const fs = fit(spec.title, 84, 430, 2)
-  els.push(T({ x: 72, y: 250, w: 430, h: 200, text: spec.title || 'Tittel', fontFamily: st.head, fontSize: fs, bold: true, color: st.ink, lineHeight: 1.0 }))
-  els.push(RECT({ x: 74, y: 250 + fs * 1.05 + 24, w: 110, h: 6, fill: st.acc, radius: 3 }))
-  if (spec.subtitle) els.push(T({ x: 72, y: 250 + fs * 1.05 + 44, w: 430, h: 70, text: spec.subtitle, fontFamily: st.body, fontSize: 22, italic: st.head.includes('Playfair') || st.head.includes('Serif'), color: st.soft, lineHeight: 1.35 }))
+  const tw = 430
+  const fs = fit(spec.title, 80, tw, 2)
+  const tH = txtH(spec.title, fs, tw, 1.0)
+  const ty = Math.max(150, Math.round(298 - tH / 2))
+  els.push(T({ x: 72, y: ty, w: tw, h: tH + 12, text: spec.title || 'Tittel', fontFamily: st.head, fontSize: fs, bold: true, color: st.ink, lineHeight: 1.0 }))
+  let y = ty + tH + 18
+  els.push(RECT({ x: 74, y, w: 110, h: 6, fill: st.acc, radius: 3 })); y += 22
+  if (spec.subtitle) els.push(T({ x: 72, y, w: tw, h: 80, text: spec.subtitle, fontFamily: st.body, fontSize: 21, italic: st.head.includes('Playfair') || st.head.includes('Serif'), color: st.soft, lineHeight: 1.35 }))
   return { background: bg(st), elements: els }
 }
 function coverFull(spec, st) {
   const els = []
   els.push(PHOTO({ x: 0, y: 0, w: CW, h: CH }, photoQ(spec)))
   els.push(SCRIM('linear-gradient(180deg, rgba(15,15,18,.18) 0%, rgba(15,15,18,.82) 100%)'))
-  els.push(...chip(spec.eyebrow || 'Presentasjon', 72, 360, 'rgba(255,255,255,.92)', '#1a1a1a'))
-  const fs = fit(spec.title, 78, 760, 2)
-  els.push(T({ x: 72, y: 404, w: 760, h: 110, text: spec.title || 'Tittel', fontFamily: st.head, fontSize: fs, bold: true, color: '#ffffff', lineHeight: 1.0 }))
+  const tw = 760
+  const fs = fit(spec.title, 76, tw, 2)
+  const tH = txtH(spec.title, fs, tw, 1.0)
+  const ty = 496 - tH
+  els.push(...chip(spec.eyebrow || 'Presentasjon', 72, ty - 48, 'rgba(255,255,255,.92)', '#1a1a1a'))
+  els.push(T({ x: 72, y: ty, w: tw, h: tH + 12, text: spec.title || 'Tittel', fontFamily: st.head, fontSize: fs, bold: true, color: '#ffffff', lineHeight: 1.0 }))
   return { background: bg(st), elements: els }
 }
 function section(spec, st) {
   const els = []
   els.push(CIRC({ x: 690, y: -90, w: 320, h: 320, fill: st.acc, opacity: st.dark ? 0.18 : 0.14 }))
   els.push(RECT({ x: 72, y: 232, w: 12, h: 120, fill: st.acc, radius: 6 }))
-  const fs = fit(spec.title, 58, 700, 2)
-  els.push(T({ x: 104, y: 240, w: 700, h: 130, text: spec.title || '', fontFamily: st.head, fontSize: fs, bold: true, color: st.ink, lineHeight: 1.04 }))
+  const fs = fit(spec.title, 58, 660, 2)
+  const tH = txtH(spec.title, fs, 660, 1.04)
+  els.push(T({ x: 104, y: Math.round(270 - tH / 2), w: 660, h: tH + 12, text: spec.title || '', fontFamily: st.head, fontSize: fs, bold: true, color: st.ink, lineHeight: 1.04 }))
   return { background: bg(st), elements: els }
 }
 function statBig(spec, st) {
@@ -104,15 +124,22 @@ function quote(spec, st) {
   const els = []
   const q = spec.statement || spec.title || ''
   if (spec.image || photoQ(spec)) {
+    const fs = fit(q, 52, 760, 4)
+    const qH = txtH(q, fs, 760, 1.14)
+    const qy = Math.max(110, Math.round(255 - qH / 2))
     els.push(PHOTO({ x: 0, y: 0, w: CW, h: CH }, photoQ(spec)))
     els.push(SCRIM('linear-gradient(120deg, rgba(20,16,12,.84), rgba(20,16,12,.4))'))
-    els.push(T({ x: 90, y: 180, w: 760, h: 200, text: '“' + q + '”', fontFamily: st.head, fontSize: fit(q, 52, 760, 4), italic: true, bold: true, color: '#ffffff', lineHeight: 1.14 }))
-    if (spec.subtitle) els.push(T({ x: 90, y: 392, w: 760, h: 30, text: '— ' + spec.subtitle, fontFamily: 'Inter', fontSize: 15, color: '#eadccd', letterSpacing: 1.5, bold: true }))
+    els.push(T({ x: 90, y: qy, w: 760, h: qH + 14, text: '“' + q + '”', fontFamily: st.head, fontSize: fs, italic: true, bold: true, color: '#ffffff', lineHeight: 1.14 }))
+    if (spec.subtitle) els.push(T({ x: 90, y: Math.min(qy + qH + 18, 502), w: 760, h: 28, text: '— ' + spec.subtitle, fontFamily: 'Inter', fontSize: 15, color: '#eadccd', letterSpacing: 1.5, bold: true }))
   } else {
-    els.push(RECT({ x: 120, y: 150, w: 720, h: 240, fill: st.card, radius: 22 }))
-    els.push(T({ x: 150, y: 130, w: 200, h: 120, text: '“', fontFamily: st.head, fontSize: 130, bold: true, color: st.acc, lineHeight: 1 }))
-    els.push(T({ x: 170, y: 210, w: 620, h: 160, text: q, fontFamily: st.head, fontSize: fit(q, 46, 620, 4), italic: true, bold: true, color: st.ink, lineHeight: 1.14 }))
-    if (spec.subtitle) els.push(T({ x: 170, y: 360, w: 620, h: 30, text: '— ' + spec.subtitle, fontFamily: 'Inter', fontSize: 14, color: st.acc, letterSpacing: 1.5, bold: true }))
+    const fs = fit(q, 46, 600, 4)
+    const qH = txtH(q, fs, 600, 1.14)
+    const cardH = Math.min(430, qH + 150)
+    const cy = Math.round((540 - cardH) / 2)
+    els.push(RECT({ x: 120, y: cy, w: 720, h: cardH, fill: st.card, radius: 22 }))
+    els.push(T({ x: 150, y: cy - 6, w: 200, h: 110, text: '“', fontFamily: st.head, fontSize: 110, bold: true, color: st.acc, lineHeight: 1 }))
+    els.push(T({ x: 170, y: cy + 72, w: 600, h: qH + 14, text: q, fontFamily: st.head, fontSize: fs, italic: true, bold: true, color: st.ink, lineHeight: 1.14 }))
+    if (spec.subtitle) els.push(T({ x: 170, y: cy + 72 + qH + 16, w: 600, h: 26, text: '— ' + spec.subtitle, fontFamily: 'Inter', fontSize: 14, color: st.acc, letterSpacing: 1.5, bold: true }))
   }
   return { background: bg(st), elements: els }
 }
@@ -156,26 +183,37 @@ function photoText(spec, st, flip = false) {
   const px = flip ? 0 : 560
   els.push(PHOTO({ x: px, y: 0, w: 400, h: 540 }, photoQ(spec)))
   const tx = flip ? 440 : 72
+  const iw = 340
   els.push(RECT({ x: tx, y: 130, w: 392, h: 300, fill: st.card, radius: 20 }))
   els.push(...eyebrow(spec, st, tx + 28, 158))
-  els.push(T({ x: tx + 26, y: 188, w: 340, h: 96, text: spec.title || '', fontFamily: st.head, fontSize: fit(spec.title, 40, 340, 3), bold: true, color: st.ink, lineHeight: 1.04 }))
+  const fs = fit(spec.title, 38, iw, 3)
+  const tH = txtH(spec.title, fs, iw, 1.04)
+  els.push(T({ x: tx + 26, y: 186, w: iw, h: tH + 8, text: spec.title || '', fontFamily: st.head, fontSize: fs, bold: true, color: st.ink, lineHeight: 1.04 }))
+  const by = Math.min(186 + tH + 16, 360)
   const body = (spec.bullets || []).length ? (spec.bullets).map((b) => '· ' + b).join('\n') : (spec.subtitle || '')
-  els.push(T({ x: tx + 26, y: 290, w: 340, h: 130, text: body, fontFamily: st.body, fontSize: 18, color: st.soft, lineHeight: 1.5 }))
+  els.push(T({ x: tx + 26, y: by, w: iw, h: 414 - by, text: body, fontFamily: st.body, fontSize: 17, color: st.soft, lineHeight: 1.5 }))
   return { background: bg(st), elements: els }
 }
 function closing(spec, st) {
   const els = []
+  const title = spec.title || 'Takk'
   if (photoQ(spec)) {
+    const fs = fit(title, 70, 760, 2)
+    const tH = txtH(title, fs, 760, 1.0)
+    const ty = Math.round(280 - tH / 2)
     els.push(PHOTO({ x: 0, y: 0, w: CW, h: CH }, photoQ(spec)))
     els.push(SCRIM('linear-gradient(120deg, rgba(20,18,16,.86), rgba(20,18,16,.4))'))
-    els.push(...chip(spec.eyebrow || 'Takk', 72, 200, st.acc, st.dark ? '#15110e' : '#fff'))
-    els.push(T({ x: 72, y: 250, w: 760, h: 110, text: spec.title || 'Takk', fontFamily: st.head, fontSize: fit(spec.title || 'Takk', 70, 760, 2), bold: true, color: '#fff', lineHeight: 1 }))
-    if (spec.subtitle) els.push(T({ x: 72, y: 372, w: 700, h: 40, text: spec.subtitle, fontFamily: st.body, fontSize: 22, color: '#ecdccd' }))
+    els.push(...chip(spec.eyebrow || 'Takk', 72, ty - 48, st.acc, st.dark ? '#15110e' : '#fff'))
+    els.push(T({ x: 72, y: ty, w: 760, h: tH + 12, text: title, fontFamily: st.head, fontSize: fs, bold: true, color: '#fff', lineHeight: 1 }))
+    if (spec.subtitle) els.push(T({ x: 72, y: Math.min(ty + tH + 16, 470), w: 700, h: 40, text: spec.subtitle, fontFamily: st.body, fontSize: 22, color: '#ecdccd' }))
   } else {
+    const fs = fit(title, 76, 720, 2)
+    const tH = txtH(title, fs, 720, 1.0)
+    const ty = Math.round(270 - tH / 2)
     els.push(CIRC({ x: 700, y: 300, w: 360, h: 360, fill: st.acc, opacity: st.dark ? 0.2 : 0.14 }))
-    els.push(...chip(spec.eyebrow || 'Takk', 72, 180, st.acc, st.dark ? '#15110e' : '#fff'))
-    els.push(T({ x: 72, y: 232, w: 720, h: 120, text: spec.title || 'Takk', fontFamily: st.head, fontSize: fit(spec.title || 'Takk', 76, 720, 2), bold: true, color: st.ink, lineHeight: 1 }))
-    if (spec.subtitle) els.push(T({ x: 72, y: 360, w: 640, h: 40, text: spec.subtitle, fontFamily: st.body, fontSize: 22, color: st.soft }))
+    els.push(...chip(spec.eyebrow || 'Takk', 72, ty - 48, st.acc, st.dark ? '#15110e' : '#fff'))
+    els.push(T({ x: 72, y: ty, w: 720, h: tH + 12, text: title, fontFamily: st.head, fontSize: fs, bold: true, color: st.ink, lineHeight: 1 }))
+    if (spec.subtitle) els.push(T({ x: 72, y: Math.min(ty + tH + 16, 470), w: 640, h: 40, text: spec.subtitle, fontFamily: st.body, fontSize: 22, color: st.soft }))
   }
   return { background: bg(st), elements: els }
 }

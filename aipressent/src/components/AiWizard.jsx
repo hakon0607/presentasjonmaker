@@ -129,7 +129,7 @@ export default function AiWizard({ onClose, userId, nav }) {
       if (oe) throw oe
       if (o?.error) throw new Error(o.error)
       const realTitle = title || o.title || 'Uten tittel'
-      const dd = designDeck(o.slides || [], { title: realTitle })
+      const dd = designDeck(o.slides || [], { title: realTitle, hint: visualStyle })
       const slides = dd.slides
       await fillPhotos(slides, realTitle)
       setGenLabel('Lagrer …')
@@ -175,7 +175,7 @@ export default function AiWizard({ onClose, userId, nav }) {
     setBusy(true); setErr(''); setGenLabel('Bygger lysbilder …'); prog.start()
     try {
       const realTitle = title || 'Uten tittel'
-      const dd = designDeck(outline.map(toAi), { title: realTitle })
+      const dd = designDeck(outline.map(toAi), { title: realTitle, hint: visualStyle })
       const slides = dd.slides
       await fillPhotos(slides, realTitle)
       setGenLabel('Lagrer …')
@@ -199,6 +199,9 @@ export default function AiWizard({ onClose, userId, nav }) {
             <label>Manus / stikkord</label>
             <textarea rows={6} value={manuscript} onChange={(e) => setManuscript(e.target.value)} spellCheck lang="nb"
               placeholder="Skriv manus eller bare stikkord – AI tolker og bygger ut resten." />
+            <label>Hvordan skal det se ut? (valgfritt)</label>
+            <input value={visualStyle} onChange={(e) => setVisualStyle(e.target.value)} spellCheck lang="nb"
+              placeholder="F.eks. «mørkt og stilig», «rolig pastell», «elegant serif», «friskt og grønt», «minimal gråtone»" />
             <label>Hvor mye tekst?</label>
             <div className="seg">
               {AMOUNTS.map((a) => (
