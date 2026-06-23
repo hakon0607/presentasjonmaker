@@ -29,15 +29,22 @@ export default function Canvas({ slide, onChange, selectedId, setSelectedId, sel
 
   useEffect(() => {
     const el = wrapRef.current; if (!el) return
-    const measure = () => {
+    let raf = 0, last = 0
+    const compute = () => {
+      raf = 0
       const w = el.clientWidth
       const parent = el.parentElement
       const availH = parent ? parent.clientHeight - 24 : 99999
-      setBase(Math.max(0.12, Math.min(w / CW, availH / CH)))
+      let next = Math.max(0.12, Math.min(w / CW, availH / CH))
+      next = Math.round(next * 1000) / 1000
+      // Oppdater bare ved merkbar endring – hindrer sub-piksel-løkka som får lerretet til å «riste» (særlig på 100 %)
+      if (Math.abs(next - last) > 0.002) { last = next; setBase(next) }
     }
+    // requestAnimationFrame bryter den synkrone ResizeObserver → render → ResizeObserver-løkka
+    const measure = () => { if (!raf) raf = requestAnimationFrame(compute) }
     const ro = new ResizeObserver(measure); ro.observe(el); if (el.parentElement) ro.observe(el.parentElement); measure()
     window.addEventListener('resize', measure)
-    return () => { ro.disconnect(); window.removeEventListener('resize', measure) }
+    return () => { if (raf) cancelAnimationFrame(raf); ro.disconnect(); window.removeEventListener('resize', measure) }
   }, [])
 
   function updateEl(id, patch) { onChange({ ...slide, elements: slide.elements.map((e) => (e.id === id ? { ...e, ...patch } : e)) }) }
@@ -216,8 +223,9 @@ export default function Canvas({ slide, onChange, selectedId, setSelectedId, sel
           const el = slide.elements.find((q) => q.id === selectedId)
           if (!el || el.type !== 'text' || el.decor || el.locked || editingId === el.id) return null
           const open = rw.id === el.id
-          const pillLeft = Math.min(CW * scale - 96, (el.x + el.w) * scale - 92)
-          const pillTop = Math.max(2, el.y * scale - 34)
+          // Lite rundt ikon sentrert rett over tekstboksen
+          const pillLeft = Math.max(4, Math.min(CW * scale - 40, (el.x + el.w / 2) * scale - 18))
+          const pillTop = Math.max(2, el.y * scale - 42)
           // Popover plasseres under boksen, klemt innenfor lerretet
           const popW = 248
           const popLeft = Math.max(6, Math.min(CW * scale - popW - 6, el.x * scale))
@@ -228,8 +236,8 @@ export default function Canvas({ slide, onChange, selectedId, setSelectedId, sel
                 <button className="rw-pill" style={{ left: pillLeft, top: pillTop }}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); setRw({ id: el.id, instr: '', busy: false, err: '' }) }}
-                  title="Skriv om denne tekstboksen med AI">
-                  <Wand2 size={13} /> Omskriv
+                  title="Skriv om denne tekstboksen med AI" aria-label="Omskriv teksten">
+                  <Wand2 size={15} />
                 </button>
               )}
               {open && (

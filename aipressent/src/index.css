@@ -633,3 +633,23 @@ button{font-family:inherit}
 .theme-result{display:flex;flex-direction:column;gap:6px;background:var(--panel-2);border-radius:12px;padding:12px 14px}
 .theme-swatches{display:flex;gap:6px}
 .theme-swatches i{width:30px;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,.18)}
+
+/* ---- Omskriv: lite ikon over en markert tekstboks + popover ---- */
+.rw-pill{position:absolute;z-index:7;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;border:1px solid rgba(0,0,0,.06);background:var(--accent);color:#fff;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.18);transition:transform .1s ease,box-shadow .1s ease}
+.rw-pill:hover{transform:translateY(-1px) scale(1.06);box-shadow:0 8px 22px rgba(0,0,0,.24)}
+.rw-pill:active{transform:scale(.95)}
+.rw-pop{position:absolute;z-index:8;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.22);padding:12px;display:flex;flex-direction:column;gap:9px}
+.rw-pop-head{display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:.9rem;color:var(--ink)}
+.rw-pop-head span{display:inline-flex;align-items:center;gap:6px}
+.rw-pop-x{background:transparent;border:none;color:var(--muted);cursor:pointer;border-radius:7px;padding:2px;display:inline-flex;align-items:center}
+.rw-pop-x:hover:not(:disabled){background:var(--panel-2);color:var(--ink)}
+.rw-pop-input{width:100%;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);font-size:14px;outline:none;box-sizing:border-box}
+.rw-pop-input:focus{border-color:var(--accent)}
+.rw-chips{display:flex;flex-wrap:wrap;gap:6px}
+.rw-chip{font-size:.78rem;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);cursor:pointer;transition:border-color .1s,color .1s}
+.rw-chip:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.rw-chip:disabled{opacity:.5;cursor:default}
+.rw-err{font-size:.8rem;color:#dc2626;margin:0}
+.rw-go{width:100%;padding:9px 12px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:700;cursor:pointer;transition:opacity .1s}
+.rw-go:hover:not(:disabled){opacity:.92}
+.rw-go:disabled{opacity:.5;cursor:default}

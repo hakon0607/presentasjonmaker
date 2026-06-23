@@ -789,7 +789,7 @@ export default function Editor() {
           onClose={() => !tplBusy && setTplPickerOpen(false)}
         />
       )}
-      {designOpen && <DesignModal deck={deck} onApply={applyDesign} onClose={() => setDesignOpen(false)} />}
+      {designOpen && <DesignModal deck={deck} onApply={applyDesign} onClose={() => setDesignOpen(false)} onOpenTemplates={() => { setDesignOpen(false); setTplPickerOpen(true) }} />}
       {fontOpen && <FontMenu deck={deck} onApply={setFonts} onClose={() => setFontOpen(false)} />}
       {tourOpen && <Tour onClose={() => setTourOpen(false)} steps={[
         { sel: '[data-tour="toolbar"]', title: 'Verktøylinja', text: 'Her legger du til tekst, bilder, figurer, stickers og tabeller. Klikk et bildefelt for å «Søke på nett», laste opp eget bilde, eller lage med AI. Helt til høyre er «enkel visning» som gjemmer de sjeldne knappene.' },
@@ -1063,7 +1063,7 @@ function ScopeToggle({ scope, setScope, busy }) {
   )
 }
 
-function DesignModal({ deck, onApply, onClose }) {
+function DesignModal({ deck, onApply, onClose, onOpenTemplates }) {
   const [scope, setScope] = useState('all')
   const [themeWish, setThemeWish] = useState('')
   const [colors, setColors] = useState('')
@@ -1113,6 +1113,11 @@ function DesignModal({ deck, onApply, onClose }) {
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); gen() } }} />
           </div>
         </div>
+        {onOpenTemplates && (
+          <button className="btn ghost" style={{ width: '100%', justifyContent: 'center', marginTop: 2 }} onClick={onOpenTemplates} disabled={busy}>
+            🧩 Eller velg en ferdig mal – så finjusterer du fargen her
+          </button>
+        )}
         {err && <p className="err">{err}</p>}
         {done && !err && <p className="muted small">✓ {scope === 'all' ? `Endret på alle ${deck.slides.length} lysbildene!` : 'Endret på dette lysbildet!'} Prøv gjerne mer.</p>}
         <div className="modal-foot">
