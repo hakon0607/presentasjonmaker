@@ -81,7 +81,7 @@ const dBar = (x, y, w, h, fill, rot = 0, op = 1) => ({ ...shapeEl({ kind: 'rect'
 const dotGrid = (x0, y0, cols, rows, gap, d, fill, op) => { const o = []; for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) o.push(dCirc(x0 + c * gap, y0 + r * gap, d, fill, op)); return o }
 
 // Slidesgo-aktige design-stiler. AI velger hvilken som passer temaet.
-const DECOR_STYLES = {
+export const DECOR_STYLES = {
   corners: (th, big) => { const A = th.accent, L = mix(th.accent, '#ffffff', 0.45), T = th.title
     const o = [dCirc(-150, -160, 330, A, 0.92), dRing(CW - 130, CH - 140, 270, A, 12, 0.85), dCirc(CW - 56, 54, 64, L, 0.9)]
     if (big) o.push(dCirc(CW - 150, CH - 150, 90, L, 0.9), dCirc(140, CH - 64, 16, T, 0.5)); return o },
@@ -140,7 +140,7 @@ const DECOR_STYLES = {
   ribbon: (th) => { const A = th.accent, L = mix(th.accent, '#ffffff', 0.5)
     return [dBar(-80, CH / 2 - 30, CW + 160, 60, A, -12, 0.12), dCirc(CW - 70, 60, 36, A, 0.7), dCirc(70, CH - 70, 28, L, 0.7)] },
 }
-const STYLE_IDS = Object.keys(DECOR_STYLES)
+export const STYLE_IDS = Object.keys(DECOR_STYLES)
 
 // Komponerer bakteppet: Slidesgo-aktig design-stil i temaets farger.
 function autoBackdrop(th, big, styleId, idx = 0) {
@@ -269,7 +269,7 @@ function scrubSlide(s) {
   return w(s)
 }
 
-function buildSlide(s, th, slideIdx = 0) {
+export function buildSlide(s, th, slideIdx = 0) {
   s = scrubSlide(s)
   const L = s.layout || 'bullets'
   const big = (L === 'cover' || L === 'section')
@@ -416,7 +416,24 @@ function recolorEl(el, map, fontMap, bg) {
   if (el.fontFamily && fontMap[lowc(el.fontFamily)]) out.fontFamily = fontMap[lowc(el.fontFamily)]
   return out
 }
-// scope: 'all' = hele presentasjonen, 'slide' = bare lysbildet på idx
+// Rydder ETT lysbilde etter en tema-/mal-endring:
+//  1) tilpasser hver tekstboks tett rundt teksten (måler høyden),
+//  2) skyver tekstbokser fra hverandre hvis de overlapper – uten å slette noe.
+// Brukes både av Design AI og av mal-bytte, så resultatet alltid er ryddig.
+export function tidySlide(s) {
+  if (!s || !Array.isArray(s.elements)) return s
+  const els = s.elements.map((el) => (el.type === 'text' && !el.decor ? fitTextBox(el) : el))
+  const texts = els.filter((e) => e.type === 'text' && !e.decor).sort((a, b) => a.y - b.y)
+  for (let i = 1; i < texts.length; i++) {
+    const prev = texts[i - 1], cur = texts[i]
+    const overlapX = cur.x < prev.x + prev.w && cur.x + cur.w > prev.x
+    if (overlapX && cur.y < prev.y + prev.h + 6) {
+      cur.y = Math.min(CH - cur.h, prev.y + prev.h + 8)
+    }
+  }
+  return { ...s, elements: els }
+}
+
 // scope: 'all' = hele presentasjonen, 'slide' = bare lysbildet på idx
 export function applyTheme(deck, newTheme, scope, idx, tweaks) {
   const nt = asTheme(newTheme)

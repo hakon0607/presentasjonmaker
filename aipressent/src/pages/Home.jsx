@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext'
 import { newDeck, THEMES } from '../lib/deck'
 import { exportPptx } from '../lib/export'
 import AiWizard from '../components/AiWizard'
+import TemplatePicker from '../components/TemplatePicker'
+import { deckFromTemplate } from '../lib/templates'
 import Tour from '../components/Tour'
 import InstallButton from '../components/InstallButton'
 import TokenBadge from '../components/TokenBadge'
@@ -17,6 +19,8 @@ export default function Home() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [aiOpen, setAiOpen] = useState(false)
+  const [tplOpen, setTplOpen] = useState(false)
+  const [tplBusy, setTplBusy] = useState(false)
   const [tourOpen, setTourOpen] = useState(false)
   const [showWelcome, setShowWelcome] = useState(() => { try { return localStorage.getItem('ap_welcome_hidden') !== '1' } catch (_e) { return true } })
   function hideWelcome() { try { localStorage.setItem('ap_welcome_hidden', '1') } catch (_e) { /* ignore */ } setShowWelcome(false) }
@@ -54,6 +58,17 @@ export default function Home() {
     const { data, error } = await supabase.from('presentations')
       .insert({ owner_id: user.id, title: deck.title, theme: deck.theme?.name || 'Minimal', data: deck }).select('id').single()
     if (!error && data) nav('/p/' + data.id)
+  }
+
+  async function createFromTemplate(t) {
+    if (tplBusy) return
+    setTplBusy(true)
+    const deck = deckFromTemplate('Uten tittel', t)
+    const { data, error } = await supabase.from('presentations')
+      .insert({ owner_id: user.id, title: deck.title, theme: t.name, data: deck }).select('id').single()
+    setTplBusy(false)
+    if (error) { alert('Kunne ikke lage presentasjonen: ' + error.message); return }
+    if (data) nav('/p/' + data.id)
   }
 
   async function remove(id, e) {
@@ -94,7 +109,7 @@ export default function Home() {
         <div className="home-head">
           <h1>Dine presentasjoner</h1>
           <div className="home-actions">
-            <button className="btn ghost" data-tour="new" onClick={createBlank}><Plus size={18} /> Ny presentasjon</button>
+            <button className="btn ghost" data-tour="new" onClick={() => setTplOpen(true)}><Plus size={18} /> Ny presentasjon</button>
             {aiEnabled && <button className="btn primary" data-tour="ai" onClick={() => setAiOpen(true)}><Sparkles size={18} /> Lag med AI</button>}
           </div>
         </div>
@@ -109,7 +124,7 @@ export default function Home() {
             <p>Ingen presentasjoner ennå.</p>
             {aiEnabled
               ? <button className="btn primary" onClick={() => setAiOpen(true)}><Sparkles size={18} /> Lag din første med AI</button>
-              : <button className="btn primary" onClick={createBlank}><Plus size={18} /> Lag din første</button>}
+              : <button className="btn primary" onClick={() => setTplOpen(true)}><Plus size={18} /> Lag din første</button>}
           </div>
         ) : (
           <div className="grid" data-tour="grid">
@@ -132,6 +147,16 @@ export default function Home() {
         )}
       </div>
 
+      {tplOpen && (
+        <TemplatePicker
+          heading="Start fra en mal"
+          subtitle="Velg en ferdig stil å bygge videre på. Du kan skrive ditt eget innhold og bytte mal når som helst."
+          actionLabel="Bruk denne"
+          busy={tplBusy}
+          onPick={createFromTemplate}
+          onClose={() => !tplBusy && setTplOpen(false)}
+        />
+      )}
       {aiOpen && aiEnabled && <AiWizard onClose={() => setAiOpen(false)} userId={user.id} nav={nav} />}
       {tourOpen && <Tour onClose={() => setTourOpen(false)} onFinish={openEditorTour} steps={[
         { sel: '[data-tour="new"]', title: 'Ny presentasjon', text: 'Start en helt tom presentasjon som du bygger selv fra bunnen.' },

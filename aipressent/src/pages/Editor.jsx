@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { THEMES, blankSlide, textEl, imageEl, shapeEl, tableEl, genId, slidesFromAi, normalizeTheme, CW, CH, applyTheme, fitTextBox, FONTS, parseColorInstruction } from '../lib/deck'
+import { THEMES, blankSlide, textEl, imageEl, shapeEl, tableEl, genId, slidesFromAi, normalizeTheme, CW, CH, applyTheme, fitTextBox, FONTS, parseColorInstruction, tidySlide } from '../lib/deck'
+import { applyTemplateToDeck } from '../lib/templates'
+import TemplatePicker from '../components/TemplatePicker'
 import { SILHOUETTES, SIL_CATS, SCENES } from '../lib/silhouettes'
 import { exportPptx, exportPdf, pptxBlob } from '../lib/export'
 import { importToGoogleSlides, googleConfigured, loadGis } from '../lib/gslides'
@@ -23,7 +25,7 @@ import Toolbar from '../components/Toolbar'
 import AnimPanel from '../components/AnimPanel'
 import { useProgress, ProgressBar } from '../components/Progress'
 import Tour from '../components/Tour'
-import { ChevronLeft, ChevronRight, Plus, Copy, Trash2, Play, Download, Sparkles, ChevronUp, ChevronDown, Undo2, Redo2, Save, FileText, Wand2, CheckCircle2, Share2, Image as ImageIcon, Clapperboard, Grid3x3, X, Search, Palette } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Copy, Trash2, Play, Download, Sparkles, ChevronUp, ChevronDown, Undo2, Redo2, Save, FileText, Wand2, CheckCircle2, Share2, Image as ImageIcon, Clapperboard, Grid3x3, X, Search, Palette, LayoutTemplate } from 'lucide-react'
 
 export default function Editor() {
   const { id } = useParams()
@@ -60,6 +62,9 @@ export default function Editor() {
   const [notesLen, setNotesLen] = useState('medium')
   const [notesOpen, setNotesOpen] = useState(false)
   const [aiPanel, setAiPanel] = useState(true)
+  const [tplPickerOpen, setTplPickerOpen] = useState(false)
+  const [tplBusy, setTplBusy] = useState(false)
+  const [rewriteEl, setRewriteEl] = useState(null)   // tekst-element som skrives om
   const [multiSel, setMultiSel] = useState([])
   const [minimal, setMinimal] = useState(() => { try { return localStorage.getItem('ap_minimal') === '1' } catch (_e) { return false } })
   const [silOpen, setSilOpen] = useState(false)
@@ -199,14 +204,15 @@ export default function Editor() {
   const slide = deck.slides[idx] || deck.slides[0]
   const sel = slide.elements.find((e) => e.id === selId) || null
 
-  function setSlide(ns) { apply({ ...deck, slides: deck.slides.map((s, i) => (i === idx ? ns : s)) }) }
+  function setSlide(ns) { const d = deckRef.current || deck; apply({ ...d, slides: d.slides.map((s, i) => (i === idx ? ns : s)) }) }
   // Visuell AI: tema (på valgt scope) + flytt/endre/slett/legg til elementer (på dette lysbildet)
   // Design AI: kun farge/tema. Endrer ALDRI tekst-innhold, sletter ALDRI elementer.
   // Etterpå: tilpass tekstboksene rundt teksten + skyv fra hverandre det som overlapper.
   function applyDesign(themeData, scope) {
     if (!themeData) return
-    const merged = { ...deck.theme, ...themeData }
-    let nd = applyTheme(deck, normalizeTheme(merged), scope, idx)
+    const d = deckRef.current || deck   // alltid nyeste versjon (også ved 2. og 3. endring)
+    const merged = { ...d.theme, ...themeData }
+    let nd = applyTheme(d, normalizeTheme(merged), scope, idx)
     const tidy = (s) => {
       // 1) Tilpass hver tekstboks rundt teksten (så ingenting kuttes / masse tomrom)
       let els = s.elements.map((el) => (el.type === 'text' && !el.decor ? fitTextBox(el) : el))
@@ -227,10 +233,42 @@ export default function Editor() {
   }
   // Sett fonter direkte (uten AI): overskrift og/eller brødtekst, på valgt scope
   function setFonts({ fontHead, fontBody }, scope) {
-    const t = { ...deck.theme }
+    const d = deckRef.current || deck
+    const t = { ...d.theme }
     if (fontHead) t.fontHead = fontHead
     if (fontBody) t.fontBody = fontBody
-    apply(applyTheme(deck, normalizeTheme(t), scope, idx))
+    apply(applyTheme(d, normalizeTheme(t), scope, idx))
+  }
+  // Bytt mal underveis: behold ALL tekst/bilder, bytt bare det visuelle.
+  function switchTemplate(t) {
+    if (tplBusy) return
+    setTplBusy(true)
+    try {
+      const d = deckRef.current || deck
+      const nd = applyTemplateToDeck(d, t, 'all', idx)
+      apply(nd)
+      setSelId(null); setMultiSel([]); setEditId(null)
+      setTplPickerOpen(false)
+      setShareMsg(`Byttet til malen «${t.name}» – teksten din er beholdt ✓`)
+      setTimeout(() => setShareMsg(''), 3500)
+    } finally { setTplBusy(false) }
+  }
+  // Skriv om ÉN tekstboks med AI. Endrer kun den boksens tekst, beholder resten.
+  async function rewriteText(el, instruction) {
+    const cur = String(el.text || '')
+    if (!cur.trim()) throw new Error('Tekstboksen er tom.')
+    const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'rewrite', text: cur, instruction, topic: deck.title } })
+    refreshTokens()
+    if (error) throw new Error(error.message || 'nettverksfeil')
+    if (data?.error) throw new Error(data.error)
+    const nt = String(data.text || '').trim()
+    if (!nt) throw new Error('AI ga ingen tekst tilbake.')
+    const d = deckRef.current || deck
+    const ns = d.slides.map((s) => (s.elements.some((e) => e.id === el.id)
+      ? { ...s, elements: s.elements.map((e) => (e.id === el.id ? fitTextBox({ ...e, text: nt, html: null }) : e)) }
+      : s))
+    apply({ ...d, slides: ns })
+    return nt
   }
   function updateSel(patch) {
     if (!sel) return
@@ -616,7 +654,7 @@ export default function Editor() {
         </aside>
 
         <main className="ed-stage" data-tour="canvas">
-          <Canvas slide={slide} onChange={setSlide} selectedId={selId} setSelectedId={setSelId} selectedIds={multiSel} onSelect={selectEl} editingId={editId} setEditingId={setEditId} onReplaceImage={(el) => setImgChoice(el)} grid={grid} zoom={zoom} />
+          <Canvas slide={slide} onChange={setSlide} selectedId={selId} setSelectedId={setSelId} selectedIds={multiSel} onSelect={selectEl} editingId={editId} setEditingId={setEditId} onReplaceImage={(el) => setImgChoice(el)} onRewrite={aiEnabled ? rewriteText : null} grid={grid} zoom={zoom} />
           <div className="zoom-ctl">
             <button onClick={() => setZoom((z) => Math.max(0.4, Math.round((z - 0.1) * 10) / 10))} title="Zoom ut">−</button>
             <span>{Math.round(zoom * 100)}%</span>
@@ -665,6 +703,11 @@ export default function Editor() {
                 <button className="ai-tool" onClick={() => setDesignOpen(true)}>
                   <span className="ai-tool-ic">🎨</span>
                   <span><b>Design</b><small>Farger og tema</small></span>
+                </button>
+
+                <button className="ai-tool" onClick={() => setTplPickerOpen(true)}>
+                  <span className="ai-tool-ic">🧩</span>
+                  <span><b>Maler</b><small>Bytt hele stilen – teksten beholdes</small></span>
                 </button>
 
                 <button className="ai-tool" onClick={() => setReviewOpen(true)}>
@@ -736,6 +779,16 @@ export default function Editor() {
       )}
       {shareMsg && <div className="toast">{shareMsg}</div>}
       {shareOpen && <ShareModal id={id} title={deck.title} onClose={() => setShareOpen(false)} />}
+      {tplPickerOpen && (
+        <TemplatePicker
+          heading="Bytt mal"
+          subtitle="Velg en ny stil. All teksten og alle bildene dine beholdes nøyaktig – bare farger, fonter og oppsett bytter."
+          actionLabel="Bytt til denne"
+          busy={tplBusy}
+          onPick={switchTemplate}
+          onClose={() => !tplBusy && setTplPickerOpen(false)}
+        />
+      )}
       {designOpen && <DesignModal deck={deck} onApply={applyDesign} onClose={() => setDesignOpen(false)} />}
       {fontOpen && <FontMenu deck={deck} onApply={setFonts} onClose={() => setFontOpen(false)} />}
       {tourOpen && <Tour onClose={() => setTourOpen(false)} steps={[
@@ -1064,7 +1117,7 @@ function DesignModal({ deck, onApply, onClose }) {
         {done && !err && <p className="muted small">✓ {scope === 'all' ? `Endret på alle ${deck.slides.length} lysbildene!` : 'Endret på dette lysbildet!'} Prøv gjerne mer.</p>}
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose} disabled={busy}>Ferdig</button>
-          <button className="btn primary" onClick={gen} disabled={busy}>{busy ? 'Lager …' : '✨ Bruk design'}</button>
+          <button className="btn primary" onClick={gen} disabled={busy}>{busy ? 'Lager …' : (scope === 'all' ? `✨ Bruk på alle ${deck.slides.length} sider` : '✨ Bruk på denne siden')}</button>
         </div>
       </div>
     </div>

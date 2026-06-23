@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { CW, CH, fitTextBox } from '../lib/deck'
 import ShapeInner from './ShapeInner'
+import { Wand2, X } from 'lucide-react'
+
+const REWRITE_CHIPS = ['Gjør den kortere', 'Mer formell', 'Enklere språk', 'Som et spørsmål', 'Mer levende']
 
 const esc = (t) => (t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 function listHtml(text, list) {
@@ -10,11 +13,15 @@ function listHtml(text, list) {
   return esc(text)
 }
 
-export default function Canvas({ slide, onChange, selectedId, setSelectedId, selectedIds = [], onSelect, editingId, setEditingId, onReplaceImage, grid, zoom = 1 }) {
+export default function Canvas({ slide, onChange, selectedId, setSelectedId, selectedIds = [], onSelect, editingId, setEditingId, onReplaceImage, onRewrite, grid, zoom = 1 }) {
   const wrapRef = useRef(null)
   const stageRef = useRef(null)
   const [base, setBase] = useState(1)
   const [guide, setGuide] = useState({ x: null, y: null })
+  // Omskriv-popover: { id, instr, busy, err } – id = elementet som skrives om
+  const [rw, setRw] = useState({ id: null, instr: '', busy: false, err: '' })
+  useEffect(() => { setRw((s) => (s.id && s.id !== selectedId ? { id: null, instr: '', busy: false, err: '' } : s)) }, [selectedId])
+  useEffect(() => { if (editingId) setRw({ id: null, instr: '', busy: false, err: '' }) }, [editingId])
   const drag = useRef(null)
   const editPoint = useRef(null)
   const focusedId = useRef(null)
@@ -113,6 +120,18 @@ export default function Canvas({ slide, onChange, selectedId, setSelectedId, sel
     if (range && n.contains(range.startContainer)) { const s = window.getSelection(); s.removeAllRanges(); s.addRange(range) }
   }
 
+  async function doRewrite(el, instruction) {
+    const instr = (instruction || '').trim()
+    if (!instr || rw.busy || !onRewrite) return
+    setRw((s) => ({ ...s, busy: true, err: '' }))
+    try {
+      await onRewrite(el, instr)
+      setRw({ id: null, instr: '', busy: false, err: '' })
+    } catch (e) {
+      setRw((s) => ({ ...s, busy: false, err: (e && e.message) ? e.message : 'Klarte det ikke – prøv igjen.' }))
+    }
+  }
+
   const isSel = (el) => selectedId === el.id || selectedIds.includes(el.id)
   const showHandle = (el) => selectedId === el.id && selectedIds.length <= 1 && !el.locked
   const grips = (el) => showHandle(el)
@@ -191,6 +210,54 @@ export default function Canvas({ slide, onChange, selectedId, setSelectedId, sel
         })}
         {guide.x != null && <div className="snap-v" style={{ left: guide.x * scale }} />}
         {guide.y != null && <div className="snap-h" style={{ top: guide.y * scale }} />}
+
+        {(() => {
+          if (!onRewrite || selectedIds.length > 1) return null
+          const el = slide.elements.find((q) => q.id === selectedId)
+          if (!el || el.type !== 'text' || el.decor || el.locked || editingId === el.id) return null
+          const open = rw.id === el.id
+          const pillLeft = Math.min(CW * scale - 96, (el.x + el.w) * scale - 92)
+          const pillTop = Math.max(2, el.y * scale - 34)
+          // Popover plasseres under boksen, klemt innenfor lerretet
+          const popW = 248
+          const popLeft = Math.max(6, Math.min(CW * scale - popW - 6, el.x * scale))
+          const popTop = Math.min(CH * scale - 8, (el.y + el.h) * scale + 8)
+          return (
+            <>
+              {!open && (
+                <button className="rw-pill" style={{ left: pillLeft, top: pillTop }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); setRw({ id: el.id, instr: '', busy: false, err: '' }) }}
+                  title="Skriv om denne tekstboksen med AI">
+                  <Wand2 size={13} /> Omskriv
+                </button>
+              )}
+              {open && (
+                <div className="rw-pop" style={{ left: popLeft, top: popTop, width: popW }}
+                  onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                  <div className="rw-pop-head">
+                    <span><Wand2 size={13} /> Skriv om teksten</span>
+                    <button className="rw-pop-x" onClick={() => setRw({ id: null, instr: '', busy: false, err: '' })} disabled={rw.busy}><X size={14} /></button>
+                  </div>
+                  <input className="rw-pop-input" autoFocus value={rw.instr} spellCheck lang="nb"
+                    disabled={rw.busy}
+                    placeholder="Hvordan? F.eks. «kortere»"
+                    onChange={(e) => setRw((s) => ({ ...s, instr: e.target.value }))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); doRewrite(el, rw.instr) } }} />
+                  <div className="rw-chips">
+                    {REWRITE_CHIPS.map((c) => (
+                      <button key={c} className="rw-chip" disabled={rw.busy} onClick={() => { setRw((s) => ({ ...s, instr: c })); doRewrite(el, c) }}>{c}</button>
+                    ))}
+                  </div>
+                  {rw.err && <div className="rw-err">{rw.err}</div>}
+                  <button className="rw-go" disabled={rw.busy || !rw.instr.trim()} onClick={() => doRewrite(el, rw.instr)}>
+                    {rw.busy ? 'Skriver om …' : 'Skriv om'}
+                  </button>
+                </div>
+              )}
+            </>
+          )
+        })()}
       </div>
     </div>
   )
