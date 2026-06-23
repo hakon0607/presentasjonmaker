@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { slidesFromAi, newDeck, normalizeTheme, genId, imageEl, CW, CH, figureDecor } from '../lib/deck'
-import { applyTemplateToDeck } from '../lib/templates'
+import { applyTemplateToDeck, photoQueryOf, deckWithPhotoBg } from '../lib/templates'
+import { fetchPixabay } from '../lib/photo'
 import TemplatePicker from './TemplatePicker'
 import { Sparkles, ChevronLeft, ChevronUp, ChevronDown, Trash2, Plus, RefreshCw, LayoutTemplate } from 'lucide-react'
 import { useProgress, ProgressBar } from './Progress'
@@ -220,7 +221,11 @@ export default function AiWizard({ onClose, userId, nav }) {
       } catch (_e) { /* dekor er valgfritt */ }
       let deck = { theme, title: title || 'Uten tittel', slides: slides.length ? slides : newDeck(title, theme).slides }
       // Valgt ferdig mal: legg malens fulle uttrykk (farger, fonter, figurer, oppsett) på alle sider – teksten beholdes.
-      if (tpl) { const td = applyTemplateToDeck(deck, tpl, 'all', 0); deck = { ...td, title: deck.title } }
+      if (tpl) {
+        const td = applyTemplateToDeck(deck, tpl, 'all', 0); deck = { ...td, title: deck.title }
+        const q = photoQueryOf(tpl)
+        if (q) { setGenLabel('Henter foto …'); const src = await fetchPixabay(q); if (src) deck = deckWithPhotoBg(deck, src, tpl.scrim || 'dark') }
+      }
       const { data, error } = await supabase.from('presentations')
         .insert({ owner_id: userId, title: deck.title, theme: (tpl ? tpl.name : theme?.name) || 'Egendefinert', data: deck }).select('id').single()
       if (error) throw error
@@ -243,6 +248,13 @@ export default function AiWizard({ onClose, userId, nav }) {
             <label>Hvordan skal det se ut? (AI lager et tema ut fra dette)</label>
             <input value={visualStyle} onChange={(e) => setVisualStyle(e.target.value)}
               placeholder="F.eks. «lekent og fargerikt for barn», «rolig pastell», «mørkt og stilig»" />
+            <label>Eller velg en ferdig mal</label>
+            <div className="seg" style={{ display: 'flex', gap: 8 }}>
+              <button className="btn ghost" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setTplOpen(true)} disabled={busy}>
+                <LayoutTemplate size={16} /> {tpl ? `Mal: ${tpl.name}` : 'Bla i alle maler'}
+              </button>
+              {tpl && <button className="btn ghost" onClick={() => setTpl(null)} disabled={busy} title="Fjern mal">✕</button>}
+            </div>
             <label>Hvor mye tekst?</label>
             <div className="seg">
               {AMOUNTS.map((a) => (

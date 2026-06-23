@@ -26,7 +26,7 @@
 //  orbit, ribbon.
 // ============================================================================
 
-import { buildSlide, applyTheme, tidySlide, normalizeTheme, shapeEl, relayoutSlide } from './deck'
+import { buildSlide, applyTheme, tidySlide, normalizeTheme, shapeEl, relayoutSlide, imageEl, CW, CH } from './deck'
 import { SILHOUETTES } from './silhouettes'
 
 // Oppslag id → silhuett (path + ratio), brukt til å plassere mal-figurer.
@@ -77,6 +77,28 @@ export function templateFigures(t) {
     const fill = (typeof f.fill === 'string' && f.fill[0] === '#') ? f.fill : (named[f.fill] || th.accent)
     return { path: sil.path, x: Math.round(f.x), y: Math.round(f.y), w, h, fill, op: f.op != null ? f.op : 1, rot: f.rot || 0, flip: !!f.flip }
   }).filter(Boolean)
+}
+
+// Søkeordet en mal vil ha foto for (Pixabay), om noe.
+export function photoQueryOf(t) { return (t && typeof t.photo === 'string' && t.photo.trim()) ? t.photo.trim() : null }
+
+// Legger et foto som fullflate-bakgrunn + et lese-slør på sidene i scope. `src`
+// er en data-URL eller vanlig URL. Fjerner geometrisk pynt og evt. gammelt foto,
+// men beholder tekst, ekte bilder og figurer OPPÅ fotoet. scrim 'dark'|'light'.
+export function deckWithPhotoBg(deck, src, scrim = 'dark', scope = 'all', idx = 0) {
+  if (!src || !deck) return deck
+  const dark = scrim !== 'light'
+  const mk = () => ([
+    { ...imageEl({ x: 0, y: 0, w: CW, h: CH, src, fit: 'cover', pos: '50% 50%' }), decor: true, photoBg: true },
+    { ...shapeEl({ kind: 'rect', x: 0, y: 0, w: CW, h: CH, fill: dark ? '#0b0f1a' : '#ffffff', radius: 0, opacity: dark ? 0.44 : 0.3 }), decor: true, photoBg: true },
+  ])
+  const inScope = (i) => scope === 'all' || i === idx
+  return {
+    ...deck,
+    slides: deck.slides.map((s, i) => (inScope(i)
+      ? { ...s, elements: [...mk(), ...s.elements.filter((e) => !e.decor)] }
+      : s)),
+  }
 }
 
 // Rekkefølgen her styrer kategori-knappene i velgeren.
@@ -239,8 +261,9 @@ export const TEMPLATES = [
   // ======================= DEMO-scener (komponerte, ikke bare sirkler) =======================
   // Landskap – lagdelte fjell, sol, skyer, fugler og trær = en ekte scene.
   { id: 'demo-landscape', name: 'Fjellandskap', category: 'Natur', align: 'center',
-    keywords: ['natur', 'landskap', 'fjell', 'scene', 'sol', 'tre', 'demo', 'utsikt'],
-    theme: { bg: '#e0f2fe', title: '#0c4a6e', text: '#0369a1', accent: '#0ea5e9', fontHead: 'Quicksand', fontBody: 'Inter', style: 'wave' },
+    keywords: ['natur', 'landskap', 'fjell', 'scene', 'sol', 'tre', 'demo', 'utsikt', 'foto'],
+    photo: 'mountain landscape', scrim: 'dark',
+    theme: { bg: '#e0f2fe', title: '#ffffff', text: '#e2e8f0', accent: '#38bdf8', fontHead: 'Quicksand', fontBody: 'Inter', style: 'wave' },
     figures: [
       { sid: 'cloud', x: 120, y: 70, w: 120, fill: '#ffffff', op: 0.9 },
       { sid: 'sun', x: 720, y: 56, w: 120, fill: '#fbbf24', op: 0.9 },
@@ -254,7 +277,8 @@ export const TEMPLATES = [
 
   // WW2 – luftslag: jagerfly i formasjon, røyk-skyer, lav sol, tank + soldater på bakken.
   { id: 'demo-ww2', name: 'Luftslag', category: 'Krig', align: 'left',
-    keywords: ['krig', 'ww2', 'luftslag', 'fly', 'scene', 'dramatisk', 'demo', 'historie'],
+    keywords: ['krig', 'ww2', 'luftslag', 'fly', 'scene', 'dramatisk', 'demo', 'historie', 'foto'],
+    photo: 'world war 2 airplane sky', scrim: 'dark',
     theme: { bg: '#161b29', title: '#f8fafc', text: '#cbd5e1', accent: '#f59e0b', fontHead: 'Oswald', fontBody: 'Inter', style: 'diagonal' },
     figures: [
       { sid: 'cloud', x: 560, y: 56, w: 220, fill: '#475569', op: 0.45 },
@@ -271,12 +295,38 @@ export const TEMPLATES = [
 
   // Æstetisk – rolig, raffinert: serif-type, kremfarge, arch-pynt og et par dempede blader.
   { id: 'demo-aesthetic', name: 'Æstetisk', category: 'Elegant', align: 'center',
-    keywords: ['elegant', 'astetisk', 'aesthetic', 'rolig', 'minimal', 'serif', 'demo', 'raffinert'],
+    keywords: ['elegant', 'astetisk', 'aesthetic', 'rolig', 'minimal', 'serif', 'demo', 'raffinert', 'foto'],
+    photo: 'minimal aesthetic beige texture', scrim: 'light',
     theme: { bg: '#f4efe7', title: '#2b2b2b', text: '#57534e', accent: '#b08968', fontHead: 'Cormorant Garamond', fontBody: 'EB Garamond', style: 'arch' },
     figures: [
       { sid: 'leaf', x: 812, y: 54, w: 92, fill: '#b08968', op: 0.45, rot: 18 },
       { sid: 'leaf', x: 44, y: 372, w: 84, fill: '#9caf88', op: 0.4, rot: -16 },
     ] },
+
+  // ======================= FOTO-TEST-MALER (ekte Pixabay-foto som bakgrunn) =======================
+  // Disse har et `photo`-søkeord → henter ekte foto fra Pixabay og legger det som
+  // fullflate-bakgrunn med lese-slør. (Krever PIXABAY_KEY + deployet edge-funksjon.)
+  { id: 'photo-bakery', name: 'Bakeri foto', category: 'Mat', align: 'center',
+    keywords: ['mat', 'bakeri', 'foto', 'bilde', 'brød', 'varm'], photo: 'bakery bread pastry', scrim: 'dark',
+    theme: { bg: '#2a1d12', title: '#ffffff', text: '#f1e7da', accent: '#fbbf24', fontHead: 'Pacifico', fontBody: 'Quicksand', style: 'frame' } },
+  { id: 'photo-landscape', name: 'Fjell foto', category: 'Natur', align: 'center',
+    keywords: ['natur', 'fjell', 'landskap', 'foto', 'bilde', 'utsikt'], photo: 'mountain landscape sunrise', scrim: 'dark',
+    theme: { bg: '#0e1b2a', title: '#ffffff', text: '#e2e8f0', accent: '#38bdf8', fontHead: 'Montserrat', fontBody: 'Inter', style: 'frame' } },
+  { id: 'photo-ww2', name: 'Krig foto', category: 'Krig', align: 'left',
+    keywords: ['krig', 'ww2', 'foto', 'bilde', 'fly', 'historie'], photo: 'military aircraft sky vintage', scrim: 'dark',
+    theme: { bg: '#14161a', title: '#ffffff', text: '#e5e7eb', accent: '#f59e0b', fontHead: 'Oswald', fontBody: 'Inter', style: 'frame' } },
+  { id: 'photo-city', name: 'Storby foto', category: 'Korporativ', align: 'left',
+    keywords: ['business', 'korporativ', 'by', 'foto', 'bilde', 'natt'], photo: 'city skyline night', scrim: 'dark',
+    theme: { bg: '#0b1220', title: '#ffffff', text: '#dbeafe', accent: '#38bdf8', fontHead: 'Manrope', fontBody: 'Inter', style: 'frame' } },
+  { id: 'photo-food', name: 'Mat foto', category: 'Mat', align: 'center',
+    keywords: ['mat', 'sunn', 'foto', 'bilde', 'bord', 'fersk'], photo: 'fresh healthy food table', scrim: 'dark',
+    theme: { bg: '#1a2410', title: '#ffffff', text: '#ecfccb', accent: '#84cc16', fontHead: 'Fredoka', fontBody: 'Nunito', style: 'frame' } },
+  { id: 'photo-beach', name: 'Strand foto', category: 'Reise', align: 'center',
+    keywords: ['reise', 'strand', 'hav', 'foto', 'bilde', 'sommer'], photo: 'tropical beach ocean', scrim: 'dark',
+    theme: { bg: '#08312e', title: '#ffffff', text: '#ccfbf1', accent: '#2dd4bf', fontHead: 'Quicksand', fontBody: 'Inter', style: 'frame' } },
+  { id: 'photo-forest', name: 'Skog foto', category: 'Natur', align: 'center',
+    keywords: ['natur', 'skog', 'tåke', 'foto', 'bilde', 'tre'], photo: 'forest fog trees', scrim: 'dark',
+    theme: { bg: '#0f1d13', title: '#ffffff', text: '#dcfce7', accent: '#22c55e', fontHead: 'Outfit', fontBody: 'Lora', style: 'frame' } },
 
   // ======================= Helse =======================
   { id: 'hel-clinic', name: 'Klinikk', category: 'Helse', align: 'left',

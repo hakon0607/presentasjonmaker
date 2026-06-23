@@ -84,7 +84,7 @@ export default function TemplatePicker({
                 onClick={() => setSelId(t.id)} onDoubleClick={() => !busy && onPick(t)}
                 title={`${t.name} – ${t.category}`}>
                 <div className="tpl-card-prev"><TemplateThumb t={t} /></div>
-                <div className="tpl-card-meta"><b>{t.name}</b><span className="muted small">{t.category}</span></div>
+                <div className="tpl-card-meta"><b>{t.name}</b><span className="muted small">{t.photo ? '📷 ' : ''}{t.category}</span></div>
               </button>
             ))}
           </div>

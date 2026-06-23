@@ -370,6 +370,28 @@ Deno.serve(async (req) => {
       return json({ tokens: t.unlimited ? null : (t.tokens ?? FIRST_GRANT), unlimited: !!t.unlimited, cap: DAILY_CAP, first: FIRST_GRANT, cost: COST })
     }
 
+    // Pixabay – ekte foto etter søkeord. Krever PIXABAY_KEY som Secret. Gratis, ingen tokens, ingen OpenAI.
+    if (body.mode === 'pixabay') {
+      const pkey = Deno.env.get('PIXABAY_KEY')
+      if (!pkey) return json({ error: 'Pixabay er ikke satt opp: legg til PIXABAY_KEY som Secret på smart-task.' })
+      const q = String(body.query || body.prompt || body.topic || '').slice(0, 100).trim()
+      if (!q) return json({ error: 'Mangler søkeord.' })
+      try {
+        const url = `https://pixabay.com/api/?key=${pkey}&q=${encodeURIComponent(q)}&image_type=photo&orientation=horizontal&safesearch=true&per_page=24&min_width=1200`
+        const r = await fetch(url)
+        if (!r.ok) return json({ error: 'Pixabay-feil: ' + r.status })
+        const d = await r.json().catch(() => ({}))
+        const hits = Array.isArray(d?.hits) ? d.hits : []
+        for (const h of hits) {
+          const src = h.webformatURL || h.largeImageURL || h.fullHDURL
+          if (!src) continue
+          const b64 = await fetchAsB64(src)
+          if (b64) return json({ image: b64, credit: h.user || '' })
+        }
+        return json({ error: 'Fant ingen bilder for «' + q + '».' })
+      } catch (e) { return json({ error: 'Pixabay feilet: ' + String((e as Error)?.message || e).slice(0, 150) }) }
+    }
+
     const key = Deno.env.get('OPENAI_API_KEY')
     if (!key) return json({ error: 'Mangler OPENAI_API_KEY' })
 

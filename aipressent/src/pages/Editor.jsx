@@ -3,7 +3,8 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { THEMES, blankSlide, textEl, imageEl, shapeEl, tableEl, genId, slidesFromAi, normalizeTheme, CW, CH, applyTheme, fitTextBox, FONTS, parseColorInstruction, tidySlide } from '../lib/deck'
-import { applyTemplateToDeck } from '../lib/templates'
+import { applyTemplateToDeck, photoQueryOf, deckWithPhotoBg } from '../lib/templates'
+import { fetchPixabay } from '../lib/photo'
 import TemplatePicker from '../components/TemplatePicker'
 import { SILHOUETTES, SIL_CATS, SCENES } from '../lib/silhouettes'
 import { exportPptx, exportPdf, pptxBlob } from '../lib/export'
@@ -240,16 +241,24 @@ export default function Editor() {
     apply(applyTheme(d, normalizeTheme(t), scope, idx))
   }
   // Bytt mal underveis: behold ALL tekst/bilder, bytt bare det visuelle.
-  function switchTemplate(t) {
+  async function switchTemplate(t) {
     if (tplBusy) return
     setTplBusy(true)
     try {
       const d = deckRef.current || deck
-      const nd = applyTemplateToDeck(d, t, 'all', idx)
+      let nd = applyTemplateToDeck(d, t, 'all', idx)
       apply(nd)
       setSelId(null); setMultiSel([]); setEditId(null)
       setTplPickerOpen(false)
-      setShareMsg(`Byttet til malen «${t.name}» – teksten din er beholdt ✓`)
+      const q = photoQueryOf(t)
+      if (q) {
+        setShareMsg(`Byttet til «${t.name}» – henter foto …`)
+        const src = await fetchPixabay(q)
+        if (src) { nd = deckWithPhotoBg(deckRef.current || nd, src, t.scrim || 'dark', 'all', idx); apply(nd) }
+        setShareMsg(src ? `Byttet til «${t.name}» med foto ✓` : `Byttet til «${t.name}» (fant ikke foto – beholdt scenen)`)
+      } else {
+        setShareMsg(`Byttet til malen «${t.name}» – teksten din er beholdt ✓`)
+      }
       setTimeout(() => setShareMsg(''), 3500)
     } finally { setTplBusy(false) }
   }

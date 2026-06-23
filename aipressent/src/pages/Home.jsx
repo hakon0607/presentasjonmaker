@@ -6,7 +6,8 @@ import { newDeck, THEMES } from '../lib/deck'
 import { exportPptx } from '../lib/export'
 import AiWizard from '../components/AiWizard'
 import TemplatePicker from '../components/TemplatePicker'
-import { deckFromTemplate } from '../lib/templates'
+import { deckFromTemplate, photoQueryOf, deckWithPhotoBg } from '../lib/templates'
+import { fetchPixabay } from '../lib/photo'
 import Tour from '../components/Tour'
 import InstallButton from '../components/InstallButton'
 import TokenBadge from '../components/TokenBadge'
@@ -63,7 +64,9 @@ export default function Home() {
   async function createFromTemplate(t) {
     if (tplBusy) return
     setTplBusy(true)
-    const deck = deckFromTemplate('Uten tittel', t)
+    let deck = deckFromTemplate('Uten tittel', t)
+    const q = photoQueryOf(t)
+    if (q) { const src = await fetchPixabay(q); if (src) deck = deckWithPhotoBg(deck, src, t.scrim || 'dark') }
     const { data, error } = await supabase.from('presentations')
       .insert({ owner_id: user.id, title: deck.title, theme: t.name, data: deck }).select('id').single()
     setTplBusy(false)
