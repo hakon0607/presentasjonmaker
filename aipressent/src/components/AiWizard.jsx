@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { slidesFromAi, newDeck, normalizeTheme, genId, imageEl, CW, CH } from '../lib/deck'
-import { designDeck, themeOfStyle } from '../lib/design'
+import { designDeck, themeOfStyle, previewCover, STYLE_LIST, pickStyle } from '../lib/design'
 import { fetchPhoto } from '../lib/photo'
-import { Sparkles, ChevronLeft, ChevronUp, ChevronDown, Trash2, Plus } from 'lucide-react'
+import SlideStage from './SlideStage'
+import { Sparkles, ChevronLeft, ChevronUp, ChevronDown, Trash2, Plus, ArrowRight, ArrowLeft, RefreshCw, X } from 'lucide-react'
 import { useProgress, ProgressBar } from './Progress'
 
 // Henter et passende ikon/figur fra nett-albumet Iconify (200k+ gratis ikoner)
@@ -62,6 +63,8 @@ function toAi(e) {
 export default function AiWizard({ onClose, userId, nav }) {
   const { tokens, tokensUnlimited, refreshTokens } = useAuth()
   const [step, setStep] = useState('input')
+  const [subStep, setSubStep] = useState(0)            // 0=overskrift 1=manus 2=visuelt
+  const [styleOverride, setStyleOverride] = useState(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   // steg 1
@@ -129,7 +132,7 @@ export default function AiWizard({ onClose, userId, nav }) {
       if (oe) throw oe
       if (o?.error) throw new Error(o.error)
       const realTitle = title || o.title || 'Uten tittel'
-      const dd = designDeck(o.slides || [], { title: realTitle, hint: visualStyle })
+      const dd = designDeck(o.slides || [], { title: realTitle, hint: visualStyle, styleId: styleOverride })
       const slides = dd.slides
       await fillPhotos(slides, realTitle, dd.styleId, dd.style)
       setGenLabel('Lagrer …')
@@ -192,7 +195,7 @@ export default function AiWizard({ onClose, userId, nav }) {
     setBusy(true); setErr(''); setGenLabel('Bygger lysbilder …'); prog.start()
     try {
       const realTitle = title || 'Uten tittel'
-      const dd = designDeck(outline.map(toAi), { title: realTitle, hint: visualStyle })
+      const dd = designDeck(outline.map(toAi), { title: realTitle, hint: visualStyle, styleId: styleOverride })
       const slides = dd.slides
       await fillPhotos(slides, realTitle, dd.styleId, dd.style)
       setGenLabel('Lagrer …')
@@ -205,38 +208,100 @@ export default function AiWizard({ onClose, userId, nav }) {
     } catch (e) { setErr('Kunne ikke lagre: ' + (e.message || e)); setBusy(false); prog.reset() }
   }
 
+  // ---- fremtidig, stegvis inndata ----
+  const FXQ = [
+    { q: 'Hva skal presentasjonen handle om?', hint: 'Gi den en overskrift' },
+    { q: 'Skriv litt manus eller noen stikkord', hint: 'AI tolker og bygger ut resten' },
+    { q: 'Hvordan skal det se ut?', hint: 'Se forhåndsvisning – lag ny til du blir fornøyd' },
+  ]
+  const canNext = subStep === 0 ? !!title.trim() : subStep === 1 ? !!manuscript.trim() : true
+  const previewStyleId = styleOverride || pickStyle(title, visualStyle)
+  const preview = useMemo(() => previewCover(previewStyleId, title), [previewStyleId, title])
+  const previewName = (STYLE_LIST.find((s) => s.id === previewStyleId) || {}).name || ''
+  function fxNext() {
+    setErr('')
+    if (subStep < 2) { if (canNext) setSubStep(subStep + 1); return }
+    createPresentation()
+  }
+  function fxBack() { if (subStep > 0) { setErr(''); setSubStep(subStep - 1) } }
+  function tryAnotherStyle() {
+    const ids = STYLE_LIST.map((s) => s.id)
+    const cur = ids.indexOf(previewStyleId)
+    setStyleOverride(ids[(cur + 1) % ids.length])
+  }
+
+  if (step === 'input') {
+    return (
+      <div className="ai-fx" onClick={busy ? undefined : onClose}>
+        <div className="ai-fx-inner" onClick={(e) => e.stopPropagation()}>
+          {!busy && <button className="ai-fx-close" onClick={onClose} aria-label="Lukk"><X size={20} /></button>}
+          <h1 className="ai-fx-title">Lag din neste presentasjon</h1>
+          <p className="ai-fx-sub">Overskrift → Manus → Stil → ferdige lysbilder</p>
+          <div className="ai-fx-dots">
+            {FXQ.map((s, i) => <span key={i} className={'ai-fx-dot' + (i === subStep ? ' on' : '') + (i < subStep ? ' done' : '')} />)}
+          </div>
+
+          <div className="ai-fx-card">
+            <div className="ai-fx-q">{FXQ[subStep].q}<span className="ai-fx-qhint">{FXQ[subStep].hint}</span></div>
+
+            {subStep === 0 && (
+              <input className="ai-fx-input" autoFocus value={title} spellCheck lang="nb"
+                onChange={(e) => setTitle(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') fxNext() }}
+                placeholder="F.eks. Hvordan ny teknologi endrer hverdagen" />
+            )}
+            {subStep === 1 && (
+              <textarea className="ai-fx-area" rows={4} autoFocus value={manuscript} spellCheck lang="nb"
+                onChange={(e) => setManuscript(e.target.value)}
+                placeholder="Stikkord eller helt manus – f.eks. «historie, viktige årstall, konsekvenser i dag»" />
+            )}
+            {subStep === 2 && (
+              <>
+                <input className="ai-fx-input" autoFocus value={visualStyle} spellCheck lang="nb"
+                  onChange={(e) => { setStyleOverride(null); setVisualStyle(e.target.value) }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') fxNext() }}
+                  placeholder="«mørkt og stilig», «pastell», «botanisk», «tech», «minimal gråtone» … (valgfritt)" />
+                <div className="ai-fx-preview">
+                  <div className="ai-fx-stage"><SlideStage slide={preview} /></div>
+                  <div className="ai-fx-side">
+                    <span className="ai-fx-stylename">{previewName}</span>
+                    <button type="button" className="ai-fx-newstyle" onClick={tryAnotherStyle}><RefreshCw size={15} /> Lag ny stil</button>
+                    <span className="ai-fx-sidehint">Ikke fornøyd? Trykk for en ny stil.</span>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {err && <p className="err" style={{ marginTop: 12 }}>{err}</p>}
+            {busy && <div style={{ marginTop: 14 }}><ProgressBar p={prog.p} label={genLabel || 'Lager presentasjonen …'} /></div>}
+
+            <div className="ai-fx-foot">
+              <div className="ai-fx-left">
+                {subStep === 1 && (
+                  <div className="ai-fx-pills">
+                    {AMOUNTS.map((a) => (
+                      <button key={a.k} type="button" className={'ai-fx-pill' + (textAmount === a.k ? ' on' : '')} onClick={() => setTextAmount(a.k)}>{a.l}</button>
+                    ))}
+                  </div>
+                )}
+                {subStep > 0 && <button type="button" className="ai-fx-back" onClick={fxBack} disabled={busy}><ArrowLeft size={16} /> Tilbake</button>}
+              </div>
+              <button className="ai-fx-arrow" onClick={fxNext} disabled={busy || !canNext} title={subStep < 2 ? 'Neste' : 'Lag presentasjon'}>
+                {busy ? <span className="ai-fx-spin" /> : subStep < 2 ? <ArrowRight size={22} /> : <Sparkles size={20} />}
+              </button>
+            </div>
+          </div>
+          <p className="ai-fx-foothint">Steg {subStep + 1} av 3</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="modal-bg" onClick={onClose}>
       <div className="modal wide" onClick={(e) => e.stopPropagation()}>
-        {step === 'input' ? (
-          <>
-            <h2><Sparkles size={20} /> Lag med AI</h2>
-            <label>Tittel</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} spellCheck lang="nb" placeholder="F.eks. Jobbuke i barnehage" />
-            <label>Manus / stikkord</label>
-            <textarea rows={6} value={manuscript} onChange={(e) => setManuscript(e.target.value)} spellCheck lang="nb"
-              placeholder="Skriv manus eller bare stikkord – AI tolker og bygger ut resten." />
-            <label>Hvordan skal det se ut? (valgfritt)</label>
-            <input value={visualStyle} onChange={(e) => setVisualStyle(e.target.value)} spellCheck lang="nb"
-              placeholder="F.eks. «mørkt og stilig», «rolig pastell», «elegant serif», «friskt og grønt», «minimal gråtone»" />
-            <label>Hvor mye tekst?</label>
-            <div className="seg">
-              {AMOUNTS.map((a) => (
-                <button key={a.k} className={'seg-btn' + (textAmount === a.k ? ' on' : '')} onClick={() => setTextAmount(a.k)}>{a.l}</button>
-              ))}
-            </div>
-            <label>Antall lysbilder</label>
-            <input type="number" min={3} max={20} value={count} onChange={(e) => setCount(Number(e.target.value))} />
-            {err && <p className="err">{err}</p>}
-            {busy && <ProgressBar p={prog.p} label={genLabel || 'Lager presentasjonen …'} />}
-            <div className="modal-foot">
-              <button className="btn ghost" onClick={onClose} disabled={busy}>Avbryt</button>
-              <button className="btn primary" onClick={createPresentation} disabled={busy || !title.trim() || !manuscript.trim()}>{busy ? 'Lager …' : 'Lag presentasjon ✨'}</button>
-            </div>
-          </>
-        ) : (
-          <>
-            <h2><Sparkles size={20} /> Se over utkastet</h2>
+        <>
+          <h2><Sparkles size={20} /> Se over utkastet</h2>
             <p className="muted">Rediger teksten på hvert lysbilde før du lager presentasjonen. Forside er først og oppsummering sist.</p>
 
             <div className="style-prev">
@@ -292,8 +357,7 @@ export default function AiWizard({ onClose, userId, nav }) {
               <button className="btn ghost" onClick={() => setStep('input')} disabled={busy}><ChevronLeft size={16} /> Tilbake</button>
               <button className="btn primary" onClick={generate} disabled={busy}>{busy ? 'Lager …' : 'Generer presentasjon ✨'}</button>
             </div>
-          </>
-        )}
+        </>
       </div>
     </div>
   )

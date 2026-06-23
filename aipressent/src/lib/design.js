@@ -2,7 +2,7 @@
 // i app-formatet (elementer paa 960x540). Inspirert av Slidesgo: foto i tomrom,
 // editorial fonter, tekstbokser med farge bak, myke former. Hvert lysbilde faar
 // sitt eget oppsett -> variasjon.
-import { textEl, shapeEl, imageEl, genId } from './deck'
+import { textEl, shapeEl, imageEl, genId, fitTextBox } from './deck'
 
 const CW = 960, CH = 540
 
@@ -268,9 +268,24 @@ export function designDeck(aiSlides, opts = {}) {
   const list = (aiSlides && aiSlides.length) ? aiSlides : [{ layout: 'cover', title: opts.title || 'Uten tittel' }]
   const slides = list.map((spec, i) => {
     const built = designSlide(spec || {}, st, i, i === 0, i === list.length - 1)
-    return { id: genId(), background: built.background, elements: built.elements, notes: spec.notes || '', anim: { transition: 'fade' }, layout: spec.layout || 'bullets', style: styleId }
+    // lim hver tekstboks tett rundt teksten (måles i nettleseren)
+    const elements = built.elements.map((e) => (e.type === 'text' ? fitTextBox(e) : e))
+    return { id: genId(), background: built.background, elements, notes: spec.notes || '', anim: { transition: 'fade' }, layout: spec.layout || 'bullets', style: styleId }
   })
   return { styleId, style: st, slides }
+}
+
+// Pene navn + liste for forhåndsvisning av stiler
+const PRETTY = { editorial: 'Editorial', natur: 'Natur', pastell: 'Pastell', graatone: 'Gråtone', natt: 'Mørk & varm', tech: 'Tech', botanisk: 'Botanisk' }
+export const STYLE_LIST = STYLE_IDS.map((id) => ({ id, name: PRETTY[id] || id }))
+
+// Et eksempel-forsidebilde i en gitt stil (foto byttes til fargefelt – ingen henting).
+export function previewCover(styleId, title) {
+  const st = STYLES[styleId] || STYLES.editorial
+  const built = coverSplit({ layout: 'cover', title: title || 'Din presentasjon', subtitle: 'Forhåndsvisning av stilen', figure: 'star', eyebrow: 'Forhåndsvisning' }, st)
+  const els = built.elements.map((e) => (e.photoSlot ? { ...shapeEl({ kind: 'rect', x: e.x, y: e.y, w: e.w, h: e.h, fill: st.acc, radius: 0, opacity: 0.92 }), decor: true } : e))
+  els.push({ ...imageEl({ x: 686, y: 230, w: 128, h: 128, src: ICONIFY('ph:sparkle-fill', st.dark ? '#0b1220' : '#ffffff'), fit: 'contain', caption: '' }), decor: true })
+  return { id: genId(), background: built.background, elements: els.map((e) => (e.type === 'text' ? fitTextBox(e) : e)), anim: { transition: 'fade' } }
 }
 
 // tema som lagres paa dekket (for editor-verktoey)
