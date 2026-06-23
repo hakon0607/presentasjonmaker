@@ -13,6 +13,8 @@ function ico(id, color, x, y, w, op = 1) { return { ...imageEl({ x, y, w, h: w, 
 function box(p) { return shapeEl(p) }
 function disc(p) { return shapeEl({ kind: 'circle', ...p }) }
 function bar(x, y, w, h, fill, op = 1) { return shapeEl({ x, y, w, h, fill, radius: h / 2, opacity: op }) }
+// Pent «kort» bak tekst (passende farge bak teksten). Markeres som dekor så det ligger bak.
+function card(x, y, w, h, fill, radius = 18, op = 1) { return { ...shapeEl({ kind: 'rect', x, y, w, h, fill, radius, opacity: op }), decor: true } }
 function T(p) { return textEl(p) }
 function connector(ax, ay, bx, by, fill, thick = 2, op = 0.5) {
   const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy), ang = Math.atan2(dy, dx) * 180 / Math.PI
@@ -61,42 +63,45 @@ function techCover(title, subtitle) {
 }
 function techAgenda() {
   const rows = [['01', 'Hva er 5G?', 'Grunnlaget'], ['02', 'Skyen i hverdagen', 'Lagring & sync'], ['03', 'Smarte enheter', 'Tingenes internett'], ['04', 'Veien videre', '2026 →']]
-  const els = [techHead('OVERSIKT'), T({ x: 70, y: 104, w: 600, h: 78, text: 'Agenda', fontFamily: 'Space Grotesk', fontSize: 58, bold: true, color: '#eaf2ff' })]
-  let y = 214
+  const els = [techHead('OVERSIKT'), T({ x: 72, y: 104, w: 520, h: 78, text: 'Agenda', fontFamily: 'Space Grotesk', fontSize: 58, bold: true, color: '#eaf2ff' })]
+  // Bilde-panel som fyller tomrommet til høyre
+  els.push(card(648, 150, 240, 300, '#101d34', 20))
+  els.push(ico('ph:rocket-launch', '#34e0ea', 702, 196, 132, 0.9))
+  els.push(T({ x: 648, y: 372, w: 240, h: 28, text: 'MOT 2026', fontFamily: 'Inter', fontSize: 15, color: '#9fb3d1', align: 'center', bold: true, letterSpacing: 3 }))
+  let y = 206
   rows.forEach((r) => {
-    els.push(box({ x: 72, y: y - 14, w: 816, h: 1.5, fill: '#22344a' }))
-    els.push(T({ x: 72, y, w: 90, h: 48, text: r[0], fontFamily: 'Space Grotesk', fontSize: 30, bold: true, color: '#34e0ea' }))
-    els.push(T({ x: 180, y, w: 470, h: 48, text: r[1], fontFamily: 'Space Grotesk', fontSize: 30, color: '#eaf2ff' }))
-    els.push(T({ x: 600, y: y + 8, w: 288, h: 32, text: r[2], fontFamily: 'Inter', fontSize: 16, color: '#9fb3d1', align: 'right' }))
+    els.push(card(72, y, 540, 56, '#101d34', 14))
+    els.push(T({ x: 92, y: y + 12, w: 70, h: 36, text: r[0], fontFamily: 'Space Grotesk', fontSize: 26, bold: true, color: '#34e0ea' }))
+    els.push(T({ x: 168, y: y + 13, w: 300, h: 34, text: r[1], fontFamily: 'Space Grotesk', fontSize: 24, color: '#eaf2ff' }))
+    els.push(T({ x: 470, y: y + 18, w: 124, h: 26, text: r[2], fontFamily: 'Inter', fontSize: 14, color: '#9fb3d1', align: 'right' }))
     y += 66
   })
-  els.push(box({ x: 72, y: y - 14, w: 816, h: 1.5, fill: '#22344a' }))
-  return slide(TECH_BG, els)
+  return slide(TECH_GLOW, els)
 }
 function techFeatures() {
   const cols = [['ph:cloud', 'Skyen', 'Alt lagres og synkes i sanntid, uansett enhet.'], ['ph:cpu', 'Ytelse', 'Kraftig databehandling selv på små enheter.'], ['ph:wifi-high', 'Tilkobling', 'Stabilt nett – overalt, hele tiden.']]
-  const xs = [72, 372, 672]
-  const els = [techHead('TRE BYGGEKLOSSER'), T({ x: 70, y: 104, w: 720, h: 70, text: 'Slik henger det sammen', fontFamily: 'Space Grotesk', fontSize: 46, bold: true, color: '#eaf2ff' })]
+  const xs = [72, 352, 632]
+  const els = [techHead('TRE BYGGEKLOSSER'), T({ x: 72, y: 104, w: 816, h: 70, text: 'Slik henger det sammen', fontFamily: 'Space Grotesk', fontSize: 44, bold: true, color: '#eaf2ff' })]
   cols.forEach((cl, i) => {
     const x = xs[i]
-    els.push(box({ x, y: 228, w: 216, h: 3, fill: '#34e0ea', radius: 2 }))
-    els.push(ico(cl[0], '#34e0ea', x, y_(252), 64, 1))
-    els.push(T({ x, y: 332, w: 216, h: 40, text: cl[1], fontFamily: 'Space Grotesk', fontSize: 26, bold: true, color: '#eaf2ff' }))
-    els.push(T({ x, y: 374, w: 216, h: 120, text: cl[2], fontFamily: 'Inter', fontSize: 16, color: '#9fb3d1', lineHeight: 1.45 }))
+    els.push(card(x, 208, 256, 256, '#101d34', 20))
+    els.push(box({ x: x + 24, y: 232, w: 48, h: 4, fill: '#34e0ea', radius: 2 }))
+    els.push(ico(cl[0], '#34e0ea', x + 24, 252, 56, 1))
+    els.push(T({ x: x + 24, y: 330, w: 208, h: 36, text: cl[1], fontFamily: 'Space Grotesk', fontSize: 25, bold: true, color: '#eaf2ff' }))
+    els.push(T({ x: x + 24, y: 372, w: 208, h: 80, text: cl[2], fontFamily: 'Inter', fontSize: 15, color: '#9fb3d1', lineHeight: 1.45 }))
   })
-  return slide(TECH_BG, els)
+  return slide(TECH_GLOW, els)
 }
-function y_(v) { return v } // liten hjelper for lesbarhet
 function techClosing() {
   const stats = [['10×', 'raskere'], ['1 ms', 'forsinkelse'], ['99,9%', 'oppetid']]
-  const xs = [120, 400, 680]
-  const els = []
+  const xs = [210, 430, 650]
+  const els = [card(170, 138, 620, 150, '#101d34', 22)]
   stats.forEach((s, i) => {
-    els.push(T({ x: xs[i], y: 150, w: 160, h: 60, text: s[0], fontFamily: 'Space Grotesk', fontSize: 50, bold: true, color: '#34e0ea', align: 'center' }))
-    els.push(T({ x: xs[i], y: 218, w: 160, h: 28, text: s[1], fontFamily: 'Inter', fontSize: 15, color: '#9fb3d1', align: 'center' }))
+    els.push(T({ x: xs[i], y: 168, w: 160, h: 60, text: s[0], fontFamily: 'Space Grotesk', fontSize: 48, bold: true, color: '#34e0ea', align: 'center' }))
+    els.push(T({ x: xs[i], y: 234, w: 160, h: 28, text: s[1], fontFamily: 'Inter', fontSize: 15, color: '#9fb3d1', align: 'center' }))
   })
-  els.push(T({ x: 0, y: 262, w: 960, h: 100, text: 'Takk.', fontFamily: 'Space Grotesk', fontSize: 78, bold: true, color: '#eaf2ff', align: 'center' }))
-  els.push(T({ x: 0, y: 384, w: 960, h: 28, text: 'AIPRESENT · 2026', fontFamily: 'Inter', fontSize: 16, color: '#9fb3d1', align: 'center', letterSpacing: 3 }))
+  els.push(T({ x: 0, y: 324, w: 960, h: 100, text: 'Takk.', fontFamily: 'Space Grotesk', fontSize: 74, bold: true, color: '#eaf2ff', align: 'center' }))
+  els.push(T({ x: 0, y: 436, w: 960, h: 28, text: 'AIPRESENT · 2026', fontFamily: 'Inter', fontSize: 16, color: '#9fb3d1', align: 'center', letterSpacing: 3 }))
   return slide(TECH_GLOW, els)
 }
 
@@ -121,31 +126,30 @@ function botAgenda() {
   const rows = [['01', 'Innledning'], ['02', 'Naturens former'], ['03', 'Farger og lys'], ['04', 'Refleksjon']]
   const els = [T({ x: 90, y: 80, w: 500, h: 26, text: 'INNHOLD', fontFamily: 'Inter', fontSize: 14, color: '#8a9a6f', bold: true, letterSpacing: 5 }),
     T({ x: 88, y: 108, w: 600, h: 78, text: 'Oversikt', fontFamily: 'Cormorant Garamond', fontSize: 64, bold: true, color: '#3f372e' })]
-  let y = 216
+  let y = 210
   rows.forEach((r) => {
-    els.push(box({ x: 90, y: y - 12, w: 780, h: 1.4, fill: '#ddd3c2' }))
-    els.push(T({ x: 90, y, w: 80, h: 48, text: r[0], fontFamily: 'Cormorant Garamond', fontSize: 30, bold: true, color: '#c08a5e' }))
-    els.push(T({ x: 176, y, w: 600, h: 48, text: r[1], fontFamily: 'Cormorant Garamond', fontSize: 32, color: '#3f372e' }))
-    y += 64
+    els.push(card(90, y, 780, 58, '#ece4d6', 14))
+    els.push(T({ x: 112, y: y + 12, w: 80, h: 40, text: r[0], fontFamily: 'Cormorant Garamond', fontSize: 30, bold: true, color: '#c08a5e' }))
+    els.push(T({ x: 196, y: y + 11, w: 600, h: 40, text: r[1], fontFamily: 'Cormorant Garamond', fontSize: 32, color: '#3f372e' }))
+    y += 70
   })
-  els.push(box({ x: 90, y: y - 12, w: 780, h: 1.4, fill: '#ddd3c2' }))
   return slide(BOT_BG, els)
 }
 function botContent() {
   return slide(BOT_BG, [
-    T({ x: 90, y: 96, w: 500, h: 26, text: 'KAPITTEL 02', fontFamily: 'Inter', fontSize: 14, color: '#8a9a6f', bold: true, letterSpacing: 5 }),
-    T({ x: 88, y: 124, w: 520, h: 76, text: 'Naturens former', fontFamily: 'Cormorant Garamond', fontSize: 58, bold: true, color: '#3f372e' }),
-    T({ x: 90, y: 228, w: 500, h: 200, text: 'Vi henter ro og balanse fra det som vokser sakte. Enkle linjer, dempede farger og rom til å puste – en estetikk som lar innholdet hvile.', fontFamily: 'EB Garamond', fontSize: 22, color: '#6b5d4f', lineHeight: 1.55 }),
-    box({ x: 648, y: 150, w: 232, h: 300, fill: '#e7ead8', radius: 18 }),
-    ico('ph:plant', '#9caf88', 688, 192, 152, 0.85),
+    T({ x: 90, y: 80, w: 500, h: 26, text: 'KAPITTEL 02', fontFamily: 'Inter', fontSize: 14, color: '#8a9a6f', bold: true, letterSpacing: 5 }),
+    T({ x: 88, y: 108, w: 520, h: 76, text: 'Naturens former', fontFamily: 'Cormorant Garamond', fontSize: 58, bold: true, color: '#3f372e' }),
+    card(72, 206, 524, 256, '#ece4d6', 18),
+    T({ x: 102, y: 236, w: 466, h: 200, text: 'Vi henter ro og balanse fra det som vokser sakte. Enkle linjer, dempede farger og rom til å puste – en estetikk som lar innholdet hvile.', fontFamily: 'EB Garamond', fontSize: 22, color: '#6b5d4f', lineHeight: 1.55 }),
+    box({ x: 636, y: 206, w: 252, h: 256, fill: '#e7ead8', radius: 18 }),
+    ico('ph:plant', '#9caf88', 690, 250, 144, 0.85),
   ])
 }
 function botClosing() {
   return slide(BOT_BG, [
-    ico('ph:leaf', '#9caf88', 430, 118, 100, 0.7),
-    T({ x: 0, y: 210, w: 960, h: 158, text: 'Takk', fontFamily: 'Cormorant Garamond', fontSize: 110, italic: true, bold: true, color: '#3f372e', align: 'center' }),
-    bar(440, 358, 80, 2, '#c08a5e'),
-    T({ x: 0, y: 384, w: 960, h: 28, text: 'VEL MØTT IGJEN', fontFamily: 'Inter', fontSize: 14, color: '#7c6f5c', align: 'center', letterSpacing: 5 }),
+    card(280, 168, 400, 224, '#ece4d6', 24),
+    ico('ph:leaf', '#9caf88', 432, 196, 96, 0.7),
+    T({ x: 0, y: 286, w: 960, h: 120, text: 'Takk', fontFamily: 'Cormorant Garamond', fontSize: 92, italic: true, bold: true, color: '#3f372e', align: 'center' }),
   ])
 }
 
@@ -176,16 +180,18 @@ function culCover(title, subtitle) {
 function culSpread() {
   return slide(CUL_BG, [
     ...photoRight(500, 460),
-    T({ x: 72, y: 150, w: 360, h: 26, text: 'KAPITTEL 01', fontFamily: 'Inter', fontSize: 14, color: '#b08642', bold: true, letterSpacing: 5 }),
-    T({ x: 70, y: 182, w: 380, h: 100, text: 'Sesongens råvarer', fontFamily: 'Cormorant Garamond', fontSize: 58, bold: true, color: '#2a1f17', lineHeight: 1.0 }),
-    T({ x: 72, y: 296, w: 380, h: 180, text: 'Vi henter det beste fra årstiden og lar det stå i sentrum. Enkle teknikker, rene smaker og respekt for hver ingrediens.', fontFamily: 'EB Garamond', fontSize: 20, color: '#5a4a3a', lineHeight: 1.55 }),
+    card(60, 132, 392, 296, '#e8ddcc', 18),
+    T({ x: 88, y: 158, w: 360, h: 26, text: 'KAPITTEL 01', fontFamily: 'Inter', fontSize: 14, color: '#b08642', bold: true, letterSpacing: 5 }),
+    T({ x: 86, y: 188, w: 340, h: 92, text: 'Sesongens råvarer', fontFamily: 'Cormorant Garamond', fontSize: 52, bold: true, color: '#2a1f17', lineHeight: 1.0 }),
+    T({ x: 88, y: 300, w: 336, h: 120, text: 'Vi henter det beste fra årstiden og lar det stå i sentrum. Enkle teknikker, rene smaker og respekt for hver ingrediens.', fontFamily: 'EB Garamond', fontSize: 19, color: '#5a4a3a', lineHeight: 1.55 }),
   ])
 }
 function culQuote() {
   return slide(CUL_BG, [
-    T({ x: 0, y: 64, w: 960, h: 120, text: '“', fontFamily: 'Cormorant Garamond', fontSize: 160, bold: true, color: '#c69a52', align: 'center', lineHeight: 1 }),
-    T({ x: 130, y: 214, w: 700, h: 160, text: 'God mat er minner du kan smake.', fontFamily: 'Cormorant Garamond', fontSize: 58, italic: true, bold: true, color: '#2a1f17', align: 'center', lineHeight: 1.12 }),
-    T({ x: 0, y: 402, w: 960, h: 28, text: '— KJØKKENSJEFEN', fontFamily: 'Inter', fontSize: 14, color: '#b08642', align: 'center', letterSpacing: 5, bold: true }),
+    card(150, 168, 660, 204, '#e8ddcc', 22),
+    T({ x: 0, y: 150, w: 960, h: 100, text: '“', fontFamily: 'Cormorant Garamond', fontSize: 130, bold: true, color: '#c69a52', align: 'center', lineHeight: 1 }),
+    T({ x: 200, y: 244, w: 560, h: 110, text: 'God mat er minner du kan smake.', fontFamily: 'Cormorant Garamond', fontSize: 48, italic: true, bold: true, color: '#2a1f17', align: 'center', lineHeight: 1.12 }),
+    T({ x: 0, y: 392, w: 960, h: 28, text: '— KJØKKENSJEFEN', fontFamily: 'Inter', fontSize: 14, color: '#b08642', align: 'center', letterSpacing: 5, bold: true }),
   ])
 }
 function culClosing() {
