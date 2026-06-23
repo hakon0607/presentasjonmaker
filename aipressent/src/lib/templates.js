@@ -20,16 +20,30 @@ function connector(ax, ay, bx, by, fill, thick = 2, op = 0.5) {
 }
 const slide = (background, elements) => ({ id: genId(), background, elements })
 
+// Krymp tittel-fontstørrelse så lang tekst ikke flyter ut av boksen (unngå overlapp).
+function fitSize(text, base, boxW, boxH, lh = 1.06, min = 24, charW = 0.56) {
+  let size = base
+  const t = String(text || '')
+  while (size > min) {
+    const perLine = Math.max(1, Math.floor(boxW / (size * charW)))
+    const lines = Math.ceil(t.length / perLine)
+    if (lines * size * lh <= boxH) break
+    size -= 2
+  }
+  return size
+}
+
 // ============================ 1 · TEKNOLOGI ============================
 const techTheme = { bg: '#070b16', title: '#eaf2ff', text: '#9fb3d1', accent: '#34e0ea', fontHead: 'Space Grotesk', fontBody: 'Inter', style: 'dots' }
 const TECH_BG = '#070b16'
 const TECH_GLOW = 'radial-gradient(62% 78% at 82% 12%, rgba(52,224,234,.22), rgba(99,102,241,.10) 45%, transparent 70%), #070b16'
 function techHead(s, x = 72, y = 72, color = '#34e0ea') { return T({ x, y, w: 600, h: 30, text: s, fontFamily: 'Inter', fontSize: 16, color, bold: true, letterSpacing: 3 }) }
 
-function techCover(title) {
+function techCover(title, subtitle) {
   const n1 = [705, 95, 64], n2 = [815, 152, 64], n3 = [672, 244, 64], n4 = [800, 330, 64]
   const c = (n) => [n[0] + n[2] / 2, n[1] + n[2] / 2]
   const a = c(n1), b = c(n2), d = c(n3), e = c(n4)
+  const ttl = title || 'Fremtidens nettverk'
   return slide(TECH_GLOW, [
     connector(a[0], a[1], b[0], b[1], '#34e0ea', 2, 0.45),
     connector(b[0], b[1], d[0], d[1], '#34e0ea', 2, 0.45),
@@ -40,9 +54,9 @@ function techCover(title) {
     ico('ph:cpu', '#eaf2ff', n3[0], n3[1], n3[2], 0.9),
     ico('ph:device-mobile', '#eaf2ff', n4[0], n4[1], n4[2], 0.85),
     techHead('TEKNOLOGI · 2026', 72, 150),
-    T({ x: 72, y: 188, w: 545, h: 190, text: title || 'Fremtidens nettverk', fontFamily: 'Space Grotesk', fontSize: 74, bold: true, color: '#eaf2ff', lineHeight: 1.02 }),
-    T({ x: 72, y: 376, w: 412, h: 90, text: 'Hvordan 5G, skyen og smarte enheter henger sammen – forklart enkelt.', fontFamily: 'Inter', fontSize: 20, color: '#9fb3d1', lineHeight: 1.5 }),
-    bar(72, 452, 125, 6, '#34e0ea'),
+    T({ x: 72, y: 188, w: 545, h: 196, text: ttl, fontFamily: 'Space Grotesk', fontSize: fitSize(ttl, 74, 545, 196, 1.02, 34), bold: true, color: '#eaf2ff', lineHeight: 1.02 }),
+    T({ x: 72, y: 396, w: 430, h: 84, text: subtitle || 'Hvordan 5G, skyen og smarte enheter henger sammen – forklart enkelt.', fontFamily: 'Inter', fontSize: 19, color: '#9fb3d1', lineHeight: 1.5 }),
+    bar(72, 470, 125, 6, '#34e0ea'),
   ])
 }
 function techAgenda() {
@@ -89,7 +103,8 @@ function techClosing() {
 // ============================ 2 · BOTANISK ============================
 const botTheme = { bg: '#f5efe6', title: '#3f372e', text: '#6b5d4f', accent: '#9caf88', fontHead: 'Cormorant Garamond', fontBody: 'EB Garamond', style: 'arch' }
 const BOT_BG = '#f5efe6'
-function botCover(title) {
+function botCover(title, subtitle) {
+  const ttl = title || 'Botanisk'
   return slide(BOT_BG, [
     box({ x: 340, y: 92, w: 280, h: 356, fill: '#e7ead8', radius: 120 }),
     ico('ph:leaf', '#9caf88', 78, 52, 104, 0.75),
@@ -97,9 +112,9 @@ function botCover(title) {
     ico('ph:plant', '#9caf88', 104, 398, 92, 0.65),
     ico('ph:leaf', '#c08a5e', 768, 398, 82, 0.55),
     T({ x: 0, y: 128, w: 960, h: 28, text: 'EN STILLE STUDIE', fontFamily: 'Inter', fontSize: 15, color: '#8a9a6f', align: 'center', bold: true, letterSpacing: 6 }),
-    T({ x: 0, y: 158, w: 960, h: 168, text: title || 'Botanisk', fontFamily: 'Cormorant Garamond', fontSize: 116, italic: true, bold: true, color: '#3f372e', align: 'center', lineHeight: 1.0 }),
-    T({ x: 180, y: 320, w: 600, h: 56, text: 'Former, farger og ro hentet rett fra naturen.', fontFamily: 'EB Garamond', fontSize: 23, color: '#6b5d4f', align: 'center', lineHeight: 1.4 }),
-    bar(440, 384, 80, 2, '#c08a5e'),
+    T({ x: 60, y: 158, w: 840, h: 168, text: ttl, fontFamily: 'Cormorant Garamond', fontSize: fitSize(ttl, 116, 840, 168, 1.0, 44, 0.5), italic: true, bold: true, color: '#3f372e', align: 'center', lineHeight: 1.0 }),
+    T({ x: 180, y: 332, w: 600, h: 56, text: subtitle || 'Former, farger og ro hentet rett fra naturen.', fontFamily: 'EB Garamond', fontSize: 23, color: '#6b5d4f', align: 'center', lineHeight: 1.4 }),
+    bar(440, 400, 80, 2, '#c08a5e'),
   ])
 }
 function botAgenda() {
@@ -146,15 +161,16 @@ function photoRight(x, w) {
     { ...shapeEl({ x: x + 24, y: 24, w: w - 48, h: 492, fill: 'transparent', stroke: '#ffffff', strokeW: 2, opacity: 0.55, radius: 0 }), decor: true },
   ]
 }
-function culCover(title) {
+function culCover(title, subtitle) {
+  const ttl = title || 'Kulinarisk'
   return slide(CUL_BG, [
     ...photoRight(480, 480),
     disc({ x: 415, y: 205, w: 130, h: 130, fill: '#efe7da', stroke: '#c69a52', strokeW: 2 }),
     T({ x: 415, y: 242, w: 130, h: 60, text: 'EST.\n2026', fontFamily: 'Inter', fontSize: 16, bold: true, color: '#7c5a26', align: 'center', lineHeight: 1.25, letterSpacing: 2 }),
-    T({ x: 72, y: 184, w: 360, h: 26, text: 'RESTAURANT & MENY', fontFamily: 'Inter', fontSize: 14, color: '#b08642', bold: true, letterSpacing: 5 }),
-    T({ x: 70, y: 218, w: 400, h: 110, text: title || 'Kulinarisk', fontFamily: 'Cormorant Garamond', fontSize: 78, bold: true, color: '#2a1f17', lineHeight: 0.96 }),
-    T({ x: 72, y: 336, w: 330, h: 90, text: 'En smaksreise gjennom sesongens råvarer og kjøkkenets håndverk.', fontFamily: 'EB Garamond', fontSize: 20, color: '#5a4a3a', lineHeight: 1.5 }),
-    bar(72, 430, 110, 2, '#c69a52'),
+    T({ x: 72, y: 178, w: 360, h: 26, text: 'RESTAURANT & MENY', fontFamily: 'Inter', fontSize: 14, color: '#b08642', bold: true, letterSpacing: 5 }),
+    T({ x: 70, y: 212, w: 360, h: 132, text: ttl, fontFamily: 'Cormorant Garamond', fontSize: fitSize(ttl, 78, 360, 132, 0.98, 34, 0.5), bold: true, color: '#2a1f17', lineHeight: 0.98 }),
+    T({ x: 72, y: 350, w: 330, h: 84, text: subtitle || 'En smaksreise gjennom sesongens råvarer og kjøkkenets håndverk.', fontFamily: 'EB Garamond', fontSize: 19, color: '#5a4a3a', lineHeight: 1.5 }),
+    bar(72, 440, 110, 2, '#c69a52'),
   ])
 }
 function culSpread() {
@@ -184,14 +200,14 @@ function culClosing() {
 export const TEMPLATES = [
   { id: 'tech', name: 'Teknologi', category: 'Tech',
     keywords: ['tech', 'teknologi', 'data', '5g', 'digital', 'fremtid', 'mørk', 'neon', 'ikoner'],
-    theme: techTheme, make: (t) => [techCover(t), techAgenda(), techFeatures(), techClosing()] },
+    theme: techTheme, cover: (t, s) => techCover(t, s), make: (t) => [techCover(t), techAgenda(), techFeatures(), techClosing()] },
   { id: 'botanical', name: 'Botanisk', category: 'Elegant',
     keywords: ['elegant', 'astetisk', 'aesthetic', 'botanisk', 'blomst', 'natur', 'rolig', 'mote', 'serif'],
-    theme: botTheme, make: (t) => [botCover(t), botAgenda(), botContent(), botClosing()] },
+    theme: botTheme, cover: (t, s) => botCover(t, s), make: (t) => [botCover(t), botAgenda(), botContent(), botClosing()] },
   { id: 'culinary', name: 'Kulinarisk', category: 'Mat',
     keywords: ['mat', 'kulinarisk', 'restaurant', 'meny', 'foto', 'kokk', 'gourmet', 'elegant'],
     theme: culTheme, photo: 'restaurant chef cooking gourmet', scrim: 'dark',
-    make: (t) => [culCover(t), culSpread(), culQuote(), culClosing()] },
+    cover: (t, s) => culCover(t, s), make: (t) => [culCover(t), culSpread(), culQuote(), culClosing()] },
 ]
 
 // ============================ API (samme navn som før) ============================
@@ -218,10 +234,25 @@ export function deckFromTemplate(title, t) {
   return { theme: th, title: title || t.name, slides: t.make(title || t.name) }
 }
 
-// Bytt mal på et eksisterende dekk: behold innhold, legg på malens farger/fonter.
+// Bytt mal på et eksisterende dekk: behold tekst-innhold, legg på malens farger/
+// fonter, bytt inn malens egen forside, og merk dekket som mal-basert.
 export function applyTemplateToDeck(deck, t, scope = 'all', idx = 0) {
   const th = normalizeTheme({ ...t.theme })
-  try { return applyTheme(deck, th, scope, idx) } catch (e) { return { ...deck, theme: th } }
+  let d
+  try { d = applyTheme(deck, th, scope, idx) } catch (e) { d = { ...deck, theme: th } }
+  d = { ...d, theme: th, fromTemplate: t.id }
+  if (t.cover) d = { ...d, slides: d.slides.map((s, i) => (i === 0 ? t.cover(deck.title || t.name, '') : s)) }
+  return d
+}
+
+// AI-flyt: tema + malens forside med AI-tittel/undertittel + mal-merking.
+export function applyTemplateAi(deck, t, coverTitle, coverSubtitle) {
+  const th = normalizeTheme({ ...t.theme })
+  let d
+  try { d = applyTheme(deck, th, 'all', 0) } catch (e) { d = { ...deck, theme: th } }
+  d = { ...d, theme: th, title: deck.title, fromTemplate: t.id }
+  if (t.cover) d = { ...d, slides: d.slides.map((s, i) => (i === 0 ? t.cover(coverTitle || deck.title || t.name, coverSubtitle || '') : s)) }
+  return d
 }
 
 // Legg foto på et dekk. Bespoke-maler har en foto-slot som fylles; ellers fullflate.

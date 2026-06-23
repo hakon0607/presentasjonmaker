@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { slidesFromAi, newDeck, normalizeTheme, genId, imageEl, CW, CH, figureDecor } from '../lib/deck'
-import { applyTemplateToDeck, photoQueryOf, deckWithPhotoBg } from '../lib/templates'
+import { applyTemplateToDeck, applyTemplateAi, photoQueryOf, deckWithPhotoBg } from '../lib/templates'
 import { fetchPixabay } from '../lib/photo'
 import TemplatePicker from './TemplatePicker'
 import { Sparkles, ChevronLeft, ChevronUp, ChevronDown, Trash2, Plus, RefreshCw, LayoutTemplate } from 'lucide-react'
@@ -133,8 +133,8 @@ export default function AiWizard({ onClose, userId, nav }) {
       const th = normalizeTheme(o.theme)
       const realTitle = title || o.title || 'Uten tittel'
       const slides = slidesFromAi(o.slides || [], th)
-      // Hent et passende figur-ikon per lysbilde fra nett-albumet (Iconify)
-      try {
+      // Hent et passende figur-ikon per lysbilde fra nett-albumet (Iconify) – kun uten ferdig mal (malen gir sitt eget uttrykk)
+      if (!tpl) try {
         const kws = [...new Set((o.slides || []).map((s) => String(s.figure || '').trim()).filter(Boolean))]
         if (kws.length) {
           const map = {}
@@ -165,9 +165,16 @@ export default function AiWizard({ onClose, userId, nav }) {
         }))
       }
       setGenLabel('Lagrer …')
-      const deck = { theme: th, title: realTitle, slides: slides.length ? slides : newDeck(realTitle, th).slides }
+      let deck = { theme: th, title: realTitle, slides: slides.length ? slides : newDeck(realTitle, th).slides }
+      // Valgt ferdig mal: malens egen forside (med din tittel/undertittel) + malens stil.
+      if (tpl) {
+        const cov = (o.slides || []).find((s) => s.layout === 'cover') || (o.slides || [])[0]
+        deck = applyTemplateAi(deck, tpl, realTitle, (cov && cov.subtitle) || '')
+        const q = photoQueryOf(tpl)
+        if (q) { setGenLabel('Henter foto …'); const src = await fetchPixabay(q); if (src) deck = deckWithPhotoBg(deck, src, tpl.scrim || 'dark') }
+      }
       const { data, error } = await supabase.from('presentations')
-        .insert({ owner_id: userId, title: deck.title, theme: th?.name || 'Egendefinert', data: deck }).select('id').single()
+        .insert({ owner_id: userId, title: deck.title, theme: (tpl ? tpl.name : th?.name) || 'Egendefinert', data: deck }).select('id').single()
       if (error) throw error
       prog.done()
       nav('/p/' + data.id)
@@ -220,9 +227,11 @@ export default function AiWizard({ onClose, userId, nav }) {
         }
       } catch (_e) { /* dekor er valgfritt */ }
       let deck = { theme, title: title || 'Uten tittel', slides: slides.length ? slides : newDeck(title, theme).slides }
-      // Valgt ferdig mal: legg malens fulle uttrykk (farger, fonter, figurer, oppsett) på alle sider – teksten beholdes.
+      // Valgt ferdig mal: bruk malens egen forside (med din tittel/undertittel) + malens stil. Ikke det generiske.
       if (tpl) {
-        const td = applyTemplateToDeck(deck, tpl, 'all', 0); deck = { ...td, title: deck.title }
+        setGenLabel('Bruker mal …')
+        const cov = outline.find((o) => o.layout === 'cover') || outline[0]
+        deck = applyTemplateAi(deck, tpl, deck.title, (cov && cov.subtitle) || '')
         const q = photoQueryOf(tpl)
         if (q) { setGenLabel('Henter foto …'); const src = await fetchPixabay(q); if (src) deck = deckWithPhotoBg(deck, src, tpl.scrim || 'dark') }
       }

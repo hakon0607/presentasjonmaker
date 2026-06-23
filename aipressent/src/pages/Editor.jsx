@@ -713,10 +713,12 @@ export default function Editor() {
                   <span><b>Lag lysbilde</b><small>Lag eller skriv om denne siden</small></span>
                 </button>
 
-                <button className="ai-tool" onClick={() => setDesignOpen(true)}>
-                  <span className="ai-tool-ic">🎨</span>
-                  <span><b>Design</b><small>Farger og tema</small></span>
-                </button>
+                {!deck?.fromTemplate && (
+                  <button className="ai-tool" onClick={() => setDesignOpen(true)}>
+                    <span className="ai-tool-ic">🎨</span>
+                    <span><b>Design</b><small>Farger og tema</small></span>
+                  </button>
+                )}
 
                 <button className="ai-tool" onClick={() => setTplPickerOpen(true)}>
                   <span className="ai-tool-ic">🧩</span>
