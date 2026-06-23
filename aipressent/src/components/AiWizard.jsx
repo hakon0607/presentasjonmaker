@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { slidesFromAi, newDeck, normalizeTheme, genId, imageEl, CW, CH, figureDecor } from '../lib/deck'
-import { applyTemplateToDeck, photoQueryOf, deckWithPhotoBg, TEMPLATES } from '../lib/templates'
-import { fetchPixabay } from '../lib/photo'
-import TemplatePicker from './TemplatePicker'
-import { Sparkles, ChevronLeft, ChevronUp, ChevronDown, Trash2, Plus, RefreshCw, LayoutTemplate } from 'lucide-react'
+import { slidesFromAi, newDeck, normalizeTheme, genId, imageEl, CW, CH } from '../lib/deck'
+import { designDeck, themeOfStyle } from '../lib/design'
+import { fetchPhoto } from '../lib/photo'
+import { Sparkles, ChevronLeft, ChevronUp, ChevronDown, Trash2, Plus } from 'lucide-react'
 import { useProgress, ProgressBar } from './Progress'
 
 // Henter et passende ikon/figur fra nett-albumet Iconify (200k+ gratis ikoner)
@@ -130,36 +129,40 @@ export default function AiWizard({ onClose, userId, nav }) {
       if (oe) throw oe
       if (o?.error) throw new Error(o.error)
       const realTitle = title || o.title || 'Uten tittel'
-      const useTpl = tpl || TEMPLATES.find((t) => t.id === 'minimal-lys') || TEMPLATES[0]
-      const baseTheme = normalizeTheme(useTpl.theme)
-      const slides = slidesFromAi(o.slides || [], baseTheme)
-      const imgs = []
-      slides.forEach((s) => s.elements.forEach((e) => { if (e.type === 'image' && !e.src && e.caption && e.caption !== 'Sett inn bilde') imgs.push(e) }))
-      if (imgs.length) {
-        prog.stop(); prog.set(2); setGenLabel(`Lager bilder … (0/${imgs.length})`)
-        let cnt = 0
-        await Promise.all(imgs.map(async (e) => {
-          try {
-            const { data } = await supabase.functions.invoke('smart-task', { body: { mode: 'image', prompt: e.caption, topic: realTitle } })
-            if (data?.image) { const blob = await (await fetch('data:image/jpeg;base64,' + data.image)).blob(); const url = await uploadImage(blob); if (url) e.src = url }
-          } catch (_e) { /* hopp over */ }
-          cnt++; prog.set(Math.max(2, Math.round((cnt / imgs.length) * 100))); setGenLabel(`Lager bilder … (${cnt}/${imgs.length})`)
-        }))
-      }
+      const dd = designDeck(o.slides || [], { title: realTitle })
+      const slides = dd.slides
+      await fillPhotos(slides, realTitle)
       setGenLabel('Lagrer …')
-      const bg = useTpl.bgCss || baseTheme.bg
-      slides.forEach((s) => { s.background = bg })
-      const cov = (o.slides || []).find((s) => s.layout === 'cover') || (o.slides || [])[0]
-      if (slides[0]) slides[0] = useTpl.cover(realTitle, (cov && cov.subtitle) || '')
-      let deck = { theme: baseTheme, title: realTitle, slides: slides.length ? slides : newDeck(realTitle, baseTheme).slides, fromTemplate: useTpl.id }
-      const q = photoQueryOf(useTpl)
-      if (q) { setGenLabel('Henter foto …'); const src = await fetchPixabay(q); if (src) deck = deckWithPhotoBg(deck, src, useTpl.scrim || 'dark') }
+      const deck = { theme: themeOfStyle(dd.styleId), title: realTitle, slides: slides.length ? slides : newDeck(realTitle, 'minimal').slides, design: dd.styleId }
       const { data, error } = await supabase.from('presentations')
-        .insert({ owner_id: userId, title: deck.title, theme: useTpl.name, data: deck }).select('id').single()
+        .insert({ owner_id: userId, title: deck.title, theme: dd.styleId, data: deck }).select('id').single()
       if (error) throw error
       prog.done()
       nav('/p/' + data.id)
     } catch (e) { setErr('Klarte ikke å lage presentasjonen: ' + (e.message || e)); setBusy(false); prog.reset() }
+  }
+
+  // Henter ekte foto til alle bilde-felt (de som har photoQuery) og laster dem opp.
+  async function fillPhotos(slides, topic) {
+    const imgs = []
+    slides.forEach((s) => (s.elements || []).forEach((e) => { if (e.photoQuery) imgs.push(e) }))
+    if (!imgs.length) return
+    const uniq = [...new Set(imgs.map((e) => e.photoQuery).filter(Boolean))]
+    prog.stop(); prog.set(2); setGenLabel(`Henter bilder … (0/${uniq.length})`)
+    const map = {}
+    let cnt = 0
+    await Promise.all(uniq.map(async (q) => {
+      try {
+        const b64 = await fetchPhoto(q, topic)
+        if (b64) {
+          const blob = await (await fetch(b64)).blob()
+          const url = await uploadImage(blob)
+          map[q.toLowerCase()] = url || b64
+        }
+      } catch (_e) { /* hopp over */ }
+      cnt++; prog.set(Math.max(2, Math.round((cnt / uniq.length) * 100))); setGenLabel(`Henter bilder … (${cnt}/${uniq.length})`)
+    }))
+    imgs.forEach((e) => { const u = map[String(e.photoQuery).toLowerCase()]; if (u) e.src = u })
   }
 
   function setSlide(i, patch) { setOutline((o) => o.map((s, j) => (j === i ? { ...s, ...patch } : s))) }
@@ -171,39 +174,14 @@ export default function AiWizard({ onClose, userId, nav }) {
   async function generate() {
     setBusy(true); setErr(''); setGenLabel('Bygger lysbilder …'); prog.start()
     try {
-      const useTpl = tpl || TEMPLATES.find((t) => t.id === 'minimal-lys') || TEMPLATES[0]
-      const useTheme = normalizeTheme(useTpl.theme)
-      const slides = slidesFromAi(outline.map(toAi), useTheme)
-      // fyll inn bilder automatisk (Pollinations via edge-funksjonen)
-      const imgs = []
-      slides.forEach((s) => s.elements.forEach((e) => {
-        if (e.type === 'image' && !e.src && e.caption && e.caption !== 'Sett inn bilde') imgs.push(e)
-      }))
-      if (imgs.length) {
-        prog.stop(); prog.set(2); setGenLabel(`Lager bilder … (0/${imgs.length})`)
-        let cnt = 0
-        await Promise.all(imgs.map(async (e) => {
-          try {
-            const { data } = await supabase.functions.invoke('smart-task', { body: { mode: 'image', prompt: e.caption, topic: title || 'presentasjon' } })
-            if (data?.image) {
-              const blob = await (await fetch('data:image/jpeg;base64,' + data.image)).blob()
-              const url = await uploadImage(blob)
-              if (url) e.src = url
-            }
-          } catch (_e) { /* hopp over dette bildet, bruker kan legge inn selv */ }
-          cnt++; prog.set(Math.max(2, Math.round((cnt / imgs.length) * 100))); setGenLabel(`Lager bilder … (${cnt}/${imgs.length})`)
-        }))
-      }
-      setGenLabel('Bruker mal …')
-      const bg = useTpl.bgCss || useTheme.bg
-      slides.forEach((s) => { s.background = bg })
-      const cov = outline.find((o) => o.layout === 'cover') || outline[0]
-      if (slides[0]) slides[0] = useTpl.cover(title || 'Uten tittel', (cov && cov.subtitle) || '')
-      let deck = { theme: useTheme, title: title || 'Uten tittel', slides: slides.length ? slides : newDeck(title, useTheme).slides, fromTemplate: useTpl.id }
-      const q = photoQueryOf(useTpl)
-      if (q) { setGenLabel('Henter foto …'); const src = await fetchPixabay(q); if (src) deck = deckWithPhotoBg(deck, src, useTpl.scrim || 'dark') }
+      const realTitle = title || 'Uten tittel'
+      const dd = designDeck(outline.map(toAi), { title: realTitle })
+      const slides = dd.slides
+      await fillPhotos(slides, realTitle)
+      setGenLabel('Lagrer …')
+      const deck = { theme: themeOfStyle(dd.styleId), title: realTitle, slides: slides.length ? slides : newDeck(realTitle, 'minimal').slides, design: dd.styleId }
       const { data, error } = await supabase.from('presentations')
-        .insert({ owner_id: userId, title: deck.title, theme: useTpl.name, data: deck }).select('id').single()
+        .insert({ owner_id: userId, title: deck.title, theme: dd.styleId, data: deck }).select('id').single()
       if (error) throw error
       prog.done()
       nav('/p/' + data.id)
@@ -221,13 +199,6 @@ export default function AiWizard({ onClose, userId, nav }) {
             <label>Manus / stikkord</label>
             <textarea rows={6} value={manuscript} onChange={(e) => setManuscript(e.target.value)} spellCheck lang="nb"
               placeholder="Skriv manus eller bare stikkord – AI tolker og bygger ut resten." />
-            <label>{tpl ? 'Ferdig mal' : 'Velg en ferdig mal'}</label>
-            <div className="seg" style={{ display: 'flex', gap: 8 }}>
-              <button className="btn ghost" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setTplOpen(true)} disabled={busy}>
-                <LayoutTemplate size={16} /> {tpl ? `Mal: ${tpl.name}` : 'Bla i alle maler'}
-              </button>
-              {tpl && <button className="btn ghost" onClick={() => setTpl(null)} disabled={busy} title="Fjern mal">✕</button>}
-            </div>
             <label>Hvor mye tekst?</label>
             <div className="seg">
               {AMOUNTS.map((a) => (
@@ -250,13 +221,9 @@ export default function AiWizard({ onClose, userId, nav }) {
 
             <div className="style-prev">
               <div className="style-meta">
-                <b>Stil</b>
-                <span className="muted small">Bestemmes av valgt mal</span>
+                <b>Design</b>
+                <span className="muted small">AI velger stil, foto og oppsett ut fra innholdet</span>
               </div>
-              <button className="chip" onClick={() => setTplOpen(true)} disabled={busy} title="Velg en ferdig mal til presentasjonen">
-                <LayoutTemplate size={14} /> {tpl ? `Mal: ${tpl.name}` : 'Velg mal'}
-              </button>
-              {tpl && <button className="chip" onClick={() => setTpl(null)} disabled={busy} title="Fjern mal">✕</button>}
             </div>
             <label style={{ marginTop: 12 }}>Tittel</label>
             <input value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -308,15 +275,6 @@ export default function AiWizard({ onClose, userId, nav }) {
           </>
         )}
       </div>
-      {tplOpen && (
-        <TemplatePicker
-          heading="Velg en mal til presentasjonen"
-          subtitle="AI fyller inn teksten din i denne stilen. Du kan bytte mal når som helst etterpå."
-          actionLabel="Velg denne"
-          onPick={(t) => { setTpl(t); setTheme(normalizeTheme(t.theme)); setTplOpen(false) }}
-          onClose={() => setTplOpen(false)}
-        />
-      )}
     </div>
   )
 }

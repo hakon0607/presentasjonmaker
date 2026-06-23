@@ -11,3 +11,17 @@ export async function fetchPixabay(query) {
     return 'data:image/jpeg;base64,' + data.image
   } catch (_e) { return null }
 }
+
+// Henter ett ekte foto for et søkeord. Prøver Pixabay først, så stock (Commons/Openverse).
+// Returnerer en data-URL (base64) eller null.
+export async function fetchPhoto(query, topic) {
+  const q = String(query || '').trim()
+  if (!q) return null
+  const p = await fetchPixabay(q)
+  if (p) return p
+  try {
+    const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'stock', prompt: q, topic: topic || '' } })
+    if (!error && data && data.image) return 'data:image/jpeg;base64,' + data.image
+  } catch (_e) { /* ignorer */ }
+  return null
+}
