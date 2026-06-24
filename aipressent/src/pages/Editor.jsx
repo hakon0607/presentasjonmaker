@@ -754,18 +754,20 @@ export default function Editor() {
   )
 }
 
-// Bygg opplesnings-tekst for et lysbilde: bruk manus hvis det finnes, ellers tittel + tekst.
-function speechText(slide) {
+// Opplesnings-tekst for et lysbilde. kilde: 'manus' (bruk notater, ellers skjerm) eller 'screen'.
+function speechText(slide, source) {
   if (!slide) return ''
-  if (slide.notes && slide.notes.trim()) return clean(slide.notes)
-  const texts = (slide.elements || [])
+  const clean = (t) => String(t || '').replace(/[•·▪►–-]\s*/g, '').replace(/\s*\n\s*/g, '. ').replace(/\s+/g, ' ').trim()
+  const screen = () => (slide.elements || [])
     .filter((e) => e.type === 'text' && e.text && String(e.text).trim())
     .slice()
     .sort((a, b) => (a.y || 0) - (b.y || 0))
     .map((e) => clean(e.text))
     .filter((t) => t && !/^(presentasjon|oversikt|takk)$/i.test(t.trim()))
-  return texts.join('. ')
-  function clean(t) { return String(t || '').replace(/[•·▪►–-]\s*/g, '').replace(/\s*\n\s*/g, '. ').replace(/\s+/g, ' ').trim() }
+    .join('. ')
+  if (source === 'screen') return screen()
+  if (slide.notes && slide.notes.trim()) return clean(slide.notes)   // 'manus' (standard)
+  return screen()
 }
 
 // Gjenkjenn språk (norsk som standard – bytter bare ved tydelig annet språk).
@@ -799,10 +801,13 @@ function Present({ deck, start, onClose }) {
   const [showNotes, setShowNotes] = useState(false)
   const [playing, setPlaying] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [prep, setPrep] = useState({ done: 0, total: 0 })
+  const [source, setSource] = useState('manus')   // 'manus' | 'screen'
   const audioRef = useRef(null)
+  const dataRef = useRef(null)                     // {idx: dataUrl|null} ved nevral, ellers null
+  const cancelRef = useRef(false)
   const canSpeak = typeof window !== 'undefined' && ('speechSynthesis' in window)
 
-  // last inn nettleserstemmer (reserve) – kommer asynkront i noen nettlesere
   useEffect(() => {
     if (!canSpeak) return
     const s = window.speechSynthesis
@@ -812,61 +817,84 @@ function Present({ deck, start, onClose }) {
   }, [canSpeak])
 
   function stopAll() {
+    cancelRef.current = true
     try { window.speechSynthesis.cancel() } catch (_e) {}
     if (audioRef.current) { try { audioRef.current.pause() } catch (_e) {} audioRef.current = null }
   }
-  // stopp all lyd når vinduet lukkes
+  function stopPresent() { stopAll(); setPlaying(false); setLoading(false) }
   useEffect(() => () => stopAll(), [])
 
-  // nettleser-opplesning (gratis reserve) med språkgjenkjenning
   function browserSpeak(text, onend) {
-    if (!canSpeak) { setTimeout(onend, 700); return }
+    if (!canSpeak || !text) { setTimeout(onend, 600); return }
     try {
-      const synth = window.speechSynthesis
-      synth.cancel()
+      const synth = window.speechSynthesis; synth.cancel()
       const u = new SpeechSynthesisUtterance(text)
-      const lang = detectLang(text)
-      const v = pickVoice(lang); if (v) u.voice = v
+      const lang = detectLang(text); const v = pickVoice(lang); if (v) u.voice = v
       u.lang = (v && v.lang) || (lang === 'nb' ? 'nb-NO' : lang === 'en' ? 'en-US' : lang)
-      u.rate = 1; u.pitch = 1
-      u.onend = onend; u.onerror = onend
-      setTimeout(() => synth.speak(u), 150)
-    } catch (_e) { setTimeout(onend, 700) }
+      u.rate = 1; u.pitch = 1; u.onend = onend; u.onerror = onend
+      setTimeout(() => synth.speak(u), 120)
+    } catch (_e) { setTimeout(onend, 600) }
   }
 
-  // når AI presenterer: les gjeldende side, gå videre når den er ferdig
-  useEffect(() => {
-    if (!playing) { stopAll(); return }
-    let cancelled = false
-    const next = () => { if (!cancelled) setI((v) => { if (v >= deck.slides.length - 1) { setPlaying(false); return v } return v + 1 }) }
-    const text = speechText(deck.slides[i])
-    if (!text) { const t = setTimeout(next, 700); return () => { cancelled = true; clearTimeout(t) } }
+  async function fetchTts(text) {
+    if (!text) return null
+    try {
+      const { data } = await supabase.functions.invoke('smart-task', { body: { mode: 'tts', text, voice: 'nova' } })
+      if (data && data.audio) return 'data:' + (data.mime || 'audio/mpeg') + ';base64,' + data.audio
+    } catch (_e) { /* faller tilbake */ }
+    return null
+  }
 
-    ;(async () => {
-      setLoading(true)
-      let usedNeural = false
-      try {
-        const { data } = await supabase.functions.invoke('smart-task', { body: { mode: 'tts', text, voice: 'nova' } })
-        if (!cancelled && data && data.audio) {
-          const a = new Audio('data:' + (data.mime || 'audio/mpeg') + ';base64,' + data.audio)
-          audioRef.current = a
-          a.onended = next
-          a.onerror = () => browserSpeak(text, next)
-          usedNeural = true
-          setLoading(false)
-          await a.play().catch(() => { usedNeural = false; browserSpeak(text, next) })
-        }
-      } catch (_e) { /* faller tilbake under */ }
-      if (!cancelled && !usedNeural) { setLoading(false); browserSpeak(text, next) }
-    })()
+  // spill side idx (og gå videre når ferdig)
+  function playFrom(idx) {
+    if (cancelRef.current) return
+    setI(idx)
+    const last = deck.slides.length - 1
+    const advance = () => { if (cancelRef.current) return; if (idx >= last) { setPlaying(false); return } playFrom(idx + 1) }
+    const text = speechText(deck.slides[idx], source)
+    if (!text) { setTimeout(advance, 700); return }
+    const url = dataRef.current ? dataRef.current[idx] : undefined
+    if (url) {
+      const a = new Audio(url); audioRef.current = a
+      a.onended = advance; a.onerror = () => browserSpeak(text, advance)
+      a.play().catch(() => browserSpeak(text, advance))
+    } else {
+      browserSpeak(text, advance)   // nettleser-reserve (eller browser-modus)
+    }
+  }
 
-    return () => { cancelled = true; stopAll() }
-  }, [i, playing, deck.slides])
+  // last ALT før start, så det ikke blir pauser mellom sidene
+  async function startPresent() {
+    stopAll(); cancelRef.current = false
+    const from = i
+    const order = []; for (let k = from; k < deck.slides.length; k++) order.push(k)
+    const texts = {}; for (const k of order) texts[k] = speechText(deck.slides[k], source)
+    setLoading(true); setPrep({ done: 0, total: order.length })
+
+    // sjekk om realistisk server-stemme er tilgjengelig (prøv første ikke-tomme side)
+    const firstK = order.find((k) => texts[k])
+    let neural = false; const store = {}
+    if (firstK != null) { const d = await fetchTts(texts[firstK]); if (cancelRef.current) return; if (d) { neural = true; store[firstK] = d } }
+
+    if (neural) {
+      const rest = order.filter((k) => k !== firstK && texts[k])
+      let done = 1; setPrep({ done, total: order.length })
+      let p = 0
+      const worker = async () => { while (p < rest.length) { const k = rest[p++]; const d = await fetchTts(texts[k]); if (cancelRef.current) return; store[k] = d; done++; setPrep({ done, total: order.length }) } }
+      await Promise.all(Array.from({ length: Math.min(4, rest.length) }, worker))
+      if (cancelRef.current) return
+      dataRef.current = store
+    } else {
+      dataRef.current = null   // nettleser-modus (ingen forhåndslasting nødvendig)
+    }
+    setLoading(false); setPlaying(true)
+    playFrom(from)
+  }
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'ArrowRight' || e.key === ' ') { setPlaying(false); setI((v) => Math.min(deck.slides.length - 1, v + 1)) }
-      if (e.key === 'ArrowLeft') { setPlaying(false); setI((v) => Math.max(0, v - 1)) }
+      if (e.key === 'ArrowRight' || e.key === ' ') { stopPresent(); setI((v) => Math.min(deck.slides.length - 1, v + 1)) }
+      if (e.key === 'ArrowLeft') { stopPresent(); setI((v) => Math.max(0, v - 1)) }
       if (e.key.toLowerCase() === 'n') setShowNotes((v) => !v)
       if (e.key === 'Escape') onClose()
     }
@@ -875,19 +903,28 @@ function Present({ deck, start, onClose }) {
   }, [deck.slides.length, onClose])
 
   const s = deck.slides[i]
+  const busy = loading
   return (
-    <div className="present" onClick={() => { setPlaying(false); setI((v) => Math.min(deck.slides.length - 1, v + 1)) }}>
+    <div className="present" onClick={() => { stopPresent(); setI((v) => Math.min(deck.slides.length - 1, v + 1)) }}>
       <button className="present-x" onClick={(e) => { e.stopPropagation(); onClose() }}>✕</button>
       <div className="present-stage"><SlideStage key={i} slide={s} animate /></div>
       {showNotes && s.notes && <div className="present-notes" onClick={(e) => e.stopPropagation()}>{s.notes}</div>}
 
-      <button
-        className={'present-ai' + (playing ? ' on' : '')}
-        onClick={(e) => { e.stopPropagation(); setPlaying((p) => !p) }}
-        title="La AI presentere – blar og leser opp for deg"
-      >
-        {loading && playing ? '…  Laster stemme' : playing ? '⏸  Stopp opplesning' : '🔊  La AI presentere for deg'}
-      </button>
+      <div className="present-ai-bar" onClick={(e) => e.stopPropagation()}>
+        {!playing && !busy && (
+          <div className="present-src" title="Hva skal leses opp?">
+            <button className={source === 'manus' ? 'on' : ''} onClick={() => setSource('manus')}>Manus</button>
+            <button className={source === 'screen' ? 'on' : ''} onClick={() => setSource('screen')}>På skjermen</button>
+          </div>
+        )}
+        <button
+          className={'present-ai' + (playing ? ' on' : '')}
+          disabled={busy}
+          onClick={() => { if (playing || busy) stopPresent(); else startPresent() }}
+        >
+          {busy ? `…  Laster opplesning ${prep.done}/${prep.total}` : playing ? '⏸  Stopp opplesning' : '🔊  La AI presentere for deg'}
+        </button>
+      </div>
 
       <div className="present-count">{i + 1} / {deck.slides.length} · trykk «N» for manus</div>
     </div>
