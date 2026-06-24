@@ -4,13 +4,38 @@ import { CW, CH } from './deck'
 
 const IN_W = 10, IN_H = 5.625
 const sx = IN_W / CW, sy = IN_H / CH
-const noHash = (c) => (c || '#000000').replace('#', '')
-// jsPDF sine standardfonter støtter ikke emoji – fjern dem så de ikke blir rot ("øb8").
-const stripEmoji = (t) => (t || '').replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}\u{200D}]/gu, '').replace(/[ \t]+\n/g, '\n').replace(/[ \t]{2,}/g, ' ').trim()
-function hexRgb(c) {
-  const h = (c || '#000000').replace('#', '')
-  return [parseInt(h.slice(0, 2), 16) || 0, parseInt(h.slice(2, 4), 16) || 0, parseInt(h.slice(4, 6), 16) || 0]
+// senket/hevet tall (₂ ⁴ osv.) -> vanlige tall, så de ikke roter til eksport-fontene
+const SUBSUP = { '₀': '0', '₁': '1', '₂': '2', '₃': '3', '₄': '4', '₅': '5', '₆': '6', '₇': '7', '₈': '8', '₉': '9', '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9' }
+const sanitize = (t) => String(t || '').replace(/[₀-₉⁰¹²³⁴-⁹]/g, (c) => SUBSUP[c] || c)
+// jsPDF/helvetica støtter ikke emoji – fjern dem (og normaliser tall) for PDF.
+const stripEmoji = (t) => sanitize(t).replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}\u{200D}]/gu, '').replace(/[ \t]+\n/g, '\n').replace(/[ \t]{2,}/g, ' ').trim()
+const expandHex = (h) => (h.length === 3 ? h.split('').map((x) => x + x).join('') : h)
+const isGradient = (c) => /gradient/i.test(String(c || ''))
+// -> [r,g,b] for hex (#fff og #ffffff), rgb()/rgba(); ellers null
+function rgbOf(c) {
+  let s = String(c || '').trim()
+  const m = s.match(/rgba?\(([^)]+)\)/i)
+  if (m) { const p = m[1].split(',').map((v) => parseFloat(v)); return [p[0] || 0, p[1] || 0, p[2] || 0] }
+  s = s.replace('#', '')
+  if (/^[0-9a-f]{3}$|^[0-9a-f]{6}$/i.test(s)) { const e = expandHex(s); return [parseInt(e.slice(0, 2), 16), parseInt(e.slice(2, 4), 16), parseInt(e.slice(4, 6), 16)] }
+  return null
 }
+// alltid [r,g,b]; for gradient: finn første farge i strengen, ellers fallback
+function colorOf(c, fallback) {
+  const direct = rgbOf(c)
+  if (direct) return direct
+  const s = String(c || '')
+  const hit = s.match(/rgba?\([^)]+\)|#?[0-9a-f]{6}|#?[0-9a-f]{3}\b/i)
+  if (hit) { const r = rgbOf(hit[0]); if (r) return r }
+  return fallback || [0, 0, 0]
+}
+// 6-sifret hex uten # (PPTX). Gradient/ugyldig -> svart.
+function noHash(c) {
+  const rgb = rgbOf(c) || colorOf(c, null)
+  if (!rgb) return '000000'
+  return rgb.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('').toUpperCase()
+}
+function hexRgb(c) { return colorOf(c, [0, 0, 0]) }
 
 async function buildPptx(deck) {
   const pptx = new PptxGenJS()
@@ -27,7 +52,10 @@ async function buildPptx(deck) {
         const op = el.opacity ?? 1
         const trans = Math.round((1 - op) * 100)
         const isRing = !el.fill || el.fill === 'transparent'
-        const fill = { color: noHash(isRing ? (el.stroke || '#888888') : el.fill), transparency: isRing ? 100 : trans }
+        const grad = isGradient(el.fill) || el.overlay
+        const fill = grad
+          ? { color: '0F0E0C', transparency: 50 }
+          : { color: noHash(isRing ? (el.stroke || '#888888') : el.fill), transparency: isRing ? 100 : trans }
         const line = (el.strokeW && el.stroke) ? { color: noHash(el.stroke), width: Math.max(0.5, el.strokeW * sx), transparency: trans } : undefined
         const rotate = el.rotation || 0
         const opts = { ...box, fill, line, rotate }
@@ -47,9 +75,9 @@ async function buildPptx(deck) {
           options: { fontSize: Math.round(el.fontSize * 0.75), color: noHash(el.color), bold: el.header && ri === 0, fill: el.header && ri === 0 ? { color: noHash(el.accent), transparency: 80 } : undefined, valign: 'middle' } })))
         try { s.addTable(rows, { ...box, border: { type: 'solid', color: noHash(el.accent), pt: 0.5 }, align: 'left' }) } catch (_e) { /* skip */ }
       } else if (el.type === 'text') {
-        s.addText(el.text || '', { ...box, fontSize: Math.round(el.fontSize * 0.75), color: noHash(el.color),
+        s.addText(sanitize(el.text) || '', { ...box, fontSize: Math.round(el.fontSize * 0.75), color: noHash(el.color),
           bold: !!el.bold, italic: !!el.italic, underline: el.underline ? { style: 'sng' } : undefined,
-          align: el.align || 'left', valign: 'top', fontFace: el.fontFamily || 'Inter', lineSpacingMultiple: el.lineHeight || 1.2 })
+          align: el.align || 'left', valign: 'top', fontFace: el.fontFamily || 'Inter', lineSpacingMultiple: el.lineHeight || 1.2, fit: 'shrink', shrinkText: true })
       } else if (el.type === 'image') {
         if (el.decor) { /* dekor-ikon – hoppes over i PowerPoint */ }
         else if (el.src) { try { s.addImage({ path: el.src, ...box, sizing: { type: el.fit === 'contain' ? 'contain' : 'cover', w: box.w, h: box.h } }) } catch (_e) { /* skip */ } }
@@ -79,7 +107,7 @@ export function exportPdf(deck) {
   const mx = mmW / CW, my = mmH / CH
   deck.slides.forEach((slide, i) => {
     if (i > 0) pdf.addPage([mmW, mmH], 'landscape')
-    pdf.setFillColor(...hexRgb(slide.background)); pdf.rect(0, 0, mmW, mmH, 'F')
+    pdf.setFillColor(...colorOf(slide.background, [255, 255, 255])); pdf.rect(0, 0, mmW, mmH, 'F')
     for (const el of slide.elements) {
       const x = el.x * mx, y = el.y * my, w = el.w * mx, h = el.h * my
       if (el.type === 'shape') {
@@ -88,13 +116,26 @@ export function exportPdf(deck) {
         let g
         try { if (op < 1) { g = new pdf.GState({ opacity: op }); pdf.saveGraphicsState(); pdf.setGState(g) } } catch (_e) { g = null }
         const isRing = !el.fill || el.fill === 'transparent'
-        if (isRing && el.stroke) {
+        if (isGradient(el.fill) || el.overlay) {
+          // mørkt slør tegnet som vertikal gradient (lyst øverst -> mørkt nederst),
+          // så fotoet vises og hvit tekst er lesbar – ikke et flatt svart lag.
+          const bands = 18
+          for (let b = 0; b < bands; b++) {
+            const t = bands > 1 ? b / (bands - 1) : 1
+            const op = 0.1 + t * 0.62
+            let gb = null
+            try { gb = new pdf.GState({ opacity: op }); pdf.saveGraphicsState(); pdf.setGState(gb) } catch (_e) { gb = null }
+            pdf.setFillColor(15, 14, 12)
+            pdf.rect(x, y + (h * b) / bands, w, h / bands + 0.4, 'F')
+            if (gb) { try { pdf.restoreGraphicsState() } catch (_e) { /* ignore */ } }
+          }
+        } else if (isRing && el.stroke) {
           pdf.setDrawColor(...hexRgb(el.stroke)); pdf.setLineWidth(Math.max(0.3, (el.strokeW || 2) * mx))
           if (el.kind === 'circle') pdf.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 'S')
           else pdf.rect(x, y, w, h, 'S')
           pdf.setLineWidth(0.2)
         } else {
-          pdf.setFillColor(...hexRgb(el.fill || '#888888'))
+          pdf.setFillColor(...colorOf(el.fill || '#888888', [136, 136, 136]))
           if (el.kind === 'circle') pdf.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 'F')
           else if (el.kind === 'line') pdf.rect(x, y + h / 2 - h * 0.3, w, Math.max(0.5, h * 0.6), 'F')
           else if (el.kind === 'arrow') { pdf.rect(x, y + h * 0.35, w * 0.75, h * 0.3, 'F'); try { pdf.triangle(x + w * 0.7, y, x + w, y + h / 2, x + w * 0.7, y + h, 'F') } catch (_e) { /* ignore */ } }
@@ -126,11 +167,20 @@ export function exportPdf(deck) {
           pdf.setFillColor(238, 238, 238); pdf.rect(x, y, w, h, 'F')
         }
       } else if (el.type === 'text' && el.text) {
-        pdf.setTextColor(...hexRgb(el.color))
+        pdf.setTextColor(...colorOf(el.color, [0, 0, 0]))
         pdf.setFont('helvetica', el.bold ? 'bold' : (el.italic ? 'italic' : 'normal'))
-        const ptSize = el.fontSize * 0.75; pdf.setFontSize(ptSize)
-        const lines = pdf.splitTextToSize(stripEmoji(el.text), w)
-        const lh = (ptSize * 0.3528) * (el.lineHeight || 1.3)
+        const txt = stripEmoji(el.text)
+        let ptSize = el.fontSize * 0.75
+        pdf.setFontSize(ptSize)
+        let lines = pdf.splitTextToSize(txt, w)
+        let lh = (ptSize * 0.3528) * (el.lineHeight || 1.3)
+        // helvetica har andre mål enn design-fonten – krymp så teksten holder seg i boksen
+        let guard = 0
+        while (ptSize > 6 && lines.length * lh > h + 0.6 && guard < 40) {
+          ptSize -= 0.5; pdf.setFontSize(ptSize)
+          lines = pdf.splitTextToSize(txt, w)
+          lh = (ptSize * 0.3528) * (el.lineHeight || 1.3); guard++
+        }
         let ty = y + lh
         const ax = el.align === 'center' ? x + w / 2 : el.align === 'right' ? x + w : x
         lines.forEach((ln) => { pdf.text(ln, ax, ty, { align: el.align || 'left' }); ty += lh })

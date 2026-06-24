@@ -81,6 +81,11 @@ function lineCount(text, fs, w) {
 }
 function txtH(text, fs, w, lh = 1.04) { return Math.round(lineCount(text, fs, w) * fs * lh) }
 const photoQ = (spec) => (spec.image && spec.image.caption) || spec.photo || spec.figure || spec.title || spec.statement || ''
+// ekte bilde-emne? (faller IKKE tilbake til tittel/setning – så f.eks. «Takk» ikke blir et foto)
+const hasPhoto = (spec) => !!((spec.image && spec.image.caption) || spec.photo || spec.figure)
+// senket/hevet tall (CO₂, CH₄) -> vanlige tall, så de ikke roter til verken visning eller eksport
+const SUBSUP_MAP = { '₀': '0', '₁': '1', '₂': '2', '₃': '3', '₄': '4', '₅': '5', '₆': '6', '₇': '7', '₈': '8', '₉': '9', '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9' }
+const cleanText = (t) => String(t == null ? '' : t).replace(/[₀-₉⁰¹²³⁴-⁹]/g, (c) => SUBSUP_MAP[c] || c)
 
 // ---------- layouts (returnerer {background, elements}) ----------
 function bg(st) { return st.bgCss || st.bg }
@@ -138,7 +143,7 @@ function statBig(spec, st) {
 function quote(spec, st) {
   const els = []
   const q = spec.statement || spec.title || ''
-  if (spec.image || photoQ(spec)) {
+  if (spec.image || hasPhoto(spec)) {
     const fs = fit(q, 52, 760, 4)
     const qH = txtH(q, fs, 760, 1.14)
     const qy = Math.max(110, Math.round(255 - qH / 2))
@@ -221,7 +226,7 @@ function photoText(spec, st, flip = false) {
 function closing(spec, st) {
   const els = []
   const title = spec.title || 'Takk'
-  if (photoQ(spec)) {
+  if (hasPhoto(spec)) {
     const fs = fit(title, 70, 760, 2)
     const tH = txtH(title, fs, 760, 1.0)
     const ty = Math.round(280 - tH / 2)
@@ -350,7 +355,7 @@ export function designDeck(aiSlides, opts = {}) {
   const slides = list.map((spec, i) => {
     const built = designSlide(spec || {}, st, i, i === 0, i === list.length - 1)
     // lim hver tekstboks tett rundt teksten (måles i nettleseren)
-    const elements = built.elements.map((e) => (e.type === 'text' ? fitTextBox(e) : e))
+    const elements = built.elements.map((e) => (e.type === 'text' ? fitTextBox({ ...e, text: cleanText(e.text) }) : e))
     return { id: genId(), background: built.background, elements, notes: spec.notes || '', anim: { transition: 'fade' }, layout: spec.layout || 'bullets', style: styleId }
   })
   return { styleId, style: st, styleName: r.name, theme: themeFromStyle(st, styleId), slides }
