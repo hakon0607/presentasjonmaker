@@ -395,6 +395,34 @@ Deno.serve(async (req) => {
     const key = Deno.env.get('OPENAI_API_KEY')
     if (!key) return json({ error: 'Mangler OPENAI_API_KEY' })
 
+    // Realistisk opplesning (nevral TTS). Gjenkjenner språket selv ut fra teksten.
+    if (body.mode === 'tts') {
+      const text = String(body.text || '').slice(0, 4000)
+      if (!text.trim()) return json({ error: 'Ingen tekst å lese.' })
+      const voice = String(body.voice || 'nova')
+      const speed = Math.min(1.3, Math.max(0.7, Number(body.speed) || 1))
+      const tryModel = async (model: string) => {
+        const r = await fetch('https://api.openai.com/v1/audio/speech', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model, voice, input: text, response_format: 'mp3', speed }),
+        })
+        return r
+      }
+      try {
+        let r = await tryModel('gpt-4o-mini-tts')
+        if (!r.ok) r = await tryModel('tts-1')          // reserve hvis nyeste modell ikke er tilgjengelig
+        if (!r.ok) return json({ error: 'TTS feilet: ' + r.status })
+        const buf = new Uint8Array(await r.arrayBuffer())
+        let bin = ''
+        const CH = 0x8000
+        for (let i = 0; i < buf.length; i += CH) bin += String.fromCharCode(...buf.subarray(i, i + CH))
+        return json({ audio: btoa(bin), mime: 'audio/mpeg' })
+      } catch (e) {
+        return json({ error: 'TTS feilet: ' + String((e as Error)?.message || e).slice(0, 150) })
+      }
+    }
+
     // Trekk tokens for AI-handlinger som koster penger (bilder + e-post er gratis)
     const modeName = body.mode || 'generate'
     if (modeName in COST) {

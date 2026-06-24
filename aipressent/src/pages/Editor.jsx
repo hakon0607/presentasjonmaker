@@ -768,19 +768,41 @@ function speechText(slide) {
   function clean(t) { return String(t || '').replace(/[•·▪►–-]\s*/g, '').replace(/\s*\n\s*/g, '. ').replace(/\s+/g, ' ').trim() }
 }
 
-function pickVoice() {
+// Gjenkjenn språk (norsk som standard – bytter bare ved tydelig annet språk).
+function detectLang(text) {
+  const t = ' ' + String(text || '').toLowerCase() + ' '
+  const cnt = (...ws) => ws.reduce((n, w) => n + (t.split(' ' + w + ' ').length - 1), 0)
+  const s = {
+    nb: cnt('og', 'er', 'på', 'ikke', 'jeg', 'det', 'som', 'en', 'å', 'for', 'med', 'de', 'har', 'til', 'kan', 'vi') + (/[æø]/.test(t) ? 4 : 0),
+    en: cnt('the', 'and', 'is', 'of', 'to', 'in', 'that', 'for', 'with', 'are', 'this', 'you', 'it', 'on'),
+    sv: cnt('och', 'är', 'på', 'inte', 'jag', 'det', 'som', 'att', 'för', 'med', 'har', 'vi') + (/ö/.test(t) ? 3 : 0),
+    da: cnt('og', 'er', 'på', 'ikke', 'jeg', 'det', 'som', 'at', 'for', 'med', 'har'),
+    de: cnt('und', 'der', 'die', 'das', 'ist', 'nicht', 'ich', 'mit', 'für', 'den', 'ein', 'sie'),
+    es: cnt('y', 'el', 'la', 'de', 'que', 'en', 'los', 'un', 'por', 'con', 'para', 'una'),
+    fr: cnt('et', 'le', 'la', 'les', 'des', 'est', 'que', 'pour', 'dans', 'avec', 'un', 'une'),
+  }
+  let best = 'nb', bestN = s.nb
+  for (const k in s) if (s[k] > bestN) { best = k; bestN = s[k] }
+  if (best !== 'nb' && bestN - s.nb < 2) best = 'nb'   // bias mot norsk ved tvil
+  return best
+}
+
+function pickVoice(lang) {
   const vs = (window.speechSynthesis && window.speechSynthesis.getVoices()) || []
-  return vs.find((v) => /(^nb)|(^no)|norsk|norweg/i.test((v.lang || '') + ' ' + (v.name || '')))
-    || vs.find((v) => v.default) || vs[0] || null
+  const pre = ({ nb: ['nb', 'no'], en: ['en'], sv: ['sv'], da: ['da'], de: ['de'], es: ['es'], fr: ['fr'] }[lang]) || ['nb', 'no']
+  for (const p of pre) { const v = vs.find((v) => (v.lang || '').toLowerCase().startsWith(p)); if (v) return v }
+  return vs.find((v) => v.default) || vs[0] || null
 }
 
 function Present({ deck, start, onClose }) {
   const [i, setI] = useState(start || 0)
   const [showNotes, setShowNotes] = useState(false)
   const [playing, setPlaying] = useState(false)
-  const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window
+  const [loading, setLoading] = useState(false)
+  const audioRef = useRef(null)
+  const canSpeak = typeof window !== 'undefined' && ('speechSynthesis' in window)
 
-  // last inn stemmer (de kommer asynkront i noen nettlesere)
+  // last inn nettleserstemmer (reserve) – kommer asynkront i noen nettlesere
   useEffect(() => {
     if (!canSpeak) return
     const s = window.speechSynthesis
@@ -789,30 +811,57 @@ function Present({ deck, start, onClose }) {
     return () => s.removeEventListener?.('voiceschanged', warm)
   }, [canSpeak])
 
-  // stopp tale når vinduet lukkes
-  useEffect(() => () => { try { window.speechSynthesis.cancel() } catch (_e) {} }, [])
+  function stopAll() {
+    try { window.speechSynthesis.cancel() } catch (_e) {}
+    if (audioRef.current) { try { audioRef.current.pause() } catch (_e) {} audioRef.current = null }
+  }
+  // stopp all lyd når vinduet lukkes
+  useEffect(() => () => stopAll(), [])
+
+  // nettleser-opplesning (gratis reserve) med språkgjenkjenning
+  function browserSpeak(text, onend) {
+    if (!canSpeak) { setTimeout(onend, 700); return }
+    try {
+      const synth = window.speechSynthesis
+      synth.cancel()
+      const u = new SpeechSynthesisUtterance(text)
+      const lang = detectLang(text)
+      const v = pickVoice(lang); if (v) u.voice = v
+      u.lang = (v && v.lang) || (lang === 'nb' ? 'nb-NO' : lang === 'en' ? 'en-US' : lang)
+      u.rate = 1; u.pitch = 1
+      u.onend = onend; u.onerror = onend
+      setTimeout(() => synth.speak(u), 150)
+    } catch (_e) { setTimeout(onend, 700) }
+  }
 
   // når AI presenterer: les gjeldende side, gå videre når den er ferdig
   useEffect(() => {
-    if (!playing || !canSpeak) return
-    const synth = window.speechSynthesis
-    synth.cancel()
+    if (!playing) { stopAll(); return }
+    let cancelled = false
+    const next = () => { if (!cancelled) setI((v) => { if (v >= deck.slides.length - 1) { setPlaying(false); return v } return v + 1 }) }
     const text = speechText(deck.slides[i])
-    const next = () => setI((v) => { if (v >= deck.slides.length - 1) { setPlaying(false); return v } return v + 1 })
-    let t = null
-    if (!text) { t = setTimeout(next, 700) }
-    else {
+    if (!text) { const t = setTimeout(next, 700); return () => { cancelled = true; clearTimeout(t) } }
+
+    ;(async () => {
+      setLoading(true)
+      let usedNeural = false
       try {
-        const u = new SpeechSynthesisUtterance(text)
-        const v = pickVoice(); if (v) u.voice = v
-        u.lang = (v && v.lang) || 'nb-NO'; u.rate = 1; u.pitch = 1
-        u.onend = next; u.onerror = next
-        // liten pause før neste side leses
-        setTimeout(() => synth.speak(u), 250)
-      } catch (_e) { t = setTimeout(next, 700) }
-    }
-    return () => { if (t) clearTimeout(t); try { synth.cancel() } catch (_e) {} }
-  }, [i, playing, canSpeak, deck.slides])
+        const { data } = await supabase.functions.invoke('smart-task', { body: { mode: 'tts', text, voice: 'nova' } })
+        if (!cancelled && data && data.audio) {
+          const a = new Audio('data:' + (data.mime || 'audio/mpeg') + ';base64,' + data.audio)
+          audioRef.current = a
+          a.onended = next
+          a.onerror = () => browserSpeak(text, next)
+          usedNeural = true
+          setLoading(false)
+          await a.play().catch(() => { usedNeural = false; browserSpeak(text, next) })
+        }
+      } catch (_e) { /* faller tilbake under */ }
+      if (!cancelled && !usedNeural) { setLoading(false); browserSpeak(text, next) }
+    })()
+
+    return () => { cancelled = true; stopAll() }
+  }, [i, playing, deck.slides])
 
   useEffect(() => {
     const onKey = (e) => {
@@ -832,15 +881,13 @@ function Present({ deck, start, onClose }) {
       <div className="present-stage"><SlideStage key={i} slide={s} animate /></div>
       {showNotes && s.notes && <div className="present-notes" onClick={(e) => e.stopPropagation()}>{s.notes}</div>}
 
-      {canSpeak && (
-        <button
-          className={'present-ai' + (playing ? ' on' : '')}
-          onClick={(e) => { e.stopPropagation(); setPlaying((p) => !p) }}
-          title="La AI presentere – blar og leser opp for deg"
-        >
-          {playing ? '⏸  Stopp opplesning' : '🔊  La AI presentere for deg'}
-        </button>
-      )}
+      <button
+        className={'present-ai' + (playing ? ' on' : '')}
+        onClick={(e) => { e.stopPropagation(); setPlaying((p) => !p) }}
+        title="La AI presentere – blar og leser opp for deg"
+      >
+        {loading && playing ? '…  Laster stemme' : playing ? '⏸  Stopp opplesning' : '🔊  La AI presentere for deg'}
+      </button>
 
       <div className="present-count">{i + 1} / {deck.slides.length} · trykk «N» for manus</div>
     </div>
