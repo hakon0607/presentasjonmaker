@@ -15,6 +15,27 @@ export const STYLES = {
   natt:      { bg: '#15110e', bgCss: 'radial-gradient(120% 120% at 80% 0%, #2a2017 0%, #15110e 60%)', ink: '#f6efe6', soft: '#c2b3a3', acc: '#e0a96d', card: '#241c15', head: 'Space Grotesk', body: 'Inter', dark: true },
   tech:      { bg: '#070b16', bgCss: 'radial-gradient(120% 120% at 75% 0%, #15233f 0%, #070b16 60%)', ink: '#eaf2ff', soft: '#9fb3d1', acc: '#34e0ea', card: '#101d34', head: 'Space Grotesk', body: 'Inter', dark: true },
   botanisk:  { bg: '#f5efe6', ink: '#3f372e', soft: '#6b5d4f', acc: '#7e9a5f', card: '#e7ead8', head: 'Cormorant Garamond', body: 'EB Garamond', dark: false },
+
+  korall:    { bg: '#fff6f2', ink: '#4a2c25', soft: '#8a665c', acc: '#ff6f5e', card: '#ffe7df', head: 'Poppins', body: 'Inter', dark: false },
+  ocean:     { bg: '#f0f6fb', ink: '#14304a', soft: '#4a6781', acc: '#1f78c1', card: '#e0ecf6', head: 'Sora', body: 'Inter', dark: false },
+  midnatt:   { bg: '#0c1424', bgCss: 'radial-gradient(120% 120% at 75% 0%, #1a2c4d 0%, #0c1424 60%)', ink: '#e8eefc', soft: '#93a6c8', acc: '#5b8cff', card: '#16223c', head: 'Sora', body: 'Inter', dark: true },
+  solnedgang:{ bg: '#1a1016', bgCss: 'radial-gradient(120% 120% at 80% 0%, #3a1c2a 0%, #1a1016 60%)', ink: '#ffeede', soft: '#d9a98f', acc: '#ff8a4c', card: '#2a1820', head: 'Outfit', body: 'Inter', dark: true },
+  mynte:     { bg: '#f0faf6', ink: '#16413a', soft: '#4a6b63', acc: '#1fae8c', card: '#dff3ec', head: 'Quicksand', body: 'Nunito', dark: false },
+  lavendel:  { bg: '#f6f3fc', ink: '#3d2c5c', soft: '#6f5f8c', acc: '#8b5cf6', card: '#ece4f9', head: 'Plus Jakarta Sans', body: 'Inter', dark: false },
+  safran:    { bg: '#fdf8ee', ink: '#4a3a1c', soft: '#8a7550', acc: '#e0a020', card: '#f6ecd4', head: 'Lora', body: 'Inter', dark: false },
+  burgunder: { bg: '#faf3f3', ink: '#4a1c24', soft: '#8a5a60', acc: '#9c2b3e', card: '#f1e2e3', head: 'Playfair Display', body: 'EB Garamond', dark: false },
+  kull:      { bg: '#16181c', ink: '#f0f1f3', soft: '#a8acb4', acc: '#e8eaee', card: '#22252b', head: 'DM Sans', body: 'Inter', dark: true },
+  sitrus:    { bg: '#fbfdf2', ink: '#36400f', soft: '#6b7536', acc: '#9bbf2e', card: '#f0f5dc', head: 'Outfit', body: 'Inter', dark: false },
+  indigo:    { bg: '#f3f4fb', ink: '#1e2147', soft: '#555a86', acc: '#4f46e5', card: '#e5e7f7', head: 'Manrope', body: 'Inter', dark: false },
+  terracotta:{ bg: '#faf2ec', ink: '#4a2e20', soft: '#8a6450', acc: '#c2643c', card: '#f1e0d3', head: 'Cormorant Garamond', body: 'EB Garamond', dark: false },
+  arktis:    { bg: '#f4f9fc', ink: '#1c3744', soft: '#4e6b78', acc: '#2aa0c4', card: '#e2eff3', head: 'Manrope', body: 'Inter', dark: false },
+  rosegull:  { bg: '#fcf4f1', ink: '#4a302c', soft: '#8a6660', acc: '#c98a6a', card: '#f4e3dc', head: 'Cormorant Garamond', body: 'EB Garamond', dark: false },
+  skog:      { bg: '#0e1a13', bgCss: 'radial-gradient(120% 120% at 78% 0%, #18331f 0%, #0e1a13 60%)', ink: '#e8f3e8', soft: '#9ab8a2', acc: '#4caf6a', card: '#16291c', head: 'Space Grotesk', body: 'Inter', dark: true },
+  plomme:    { bg: '#1a0f1c', bgCss: 'radial-gradient(120% 120% at 80% 0%, #331a38 0%, #1a0f1c 60%)', ink: '#f6e8f6', soft: '#c39ac3', acc: '#d05ce0', card: '#271630', head: 'Sora', body: 'Inter', dark: true },
+  mokka:     { bg: '#f6f0ea', ink: '#3a2a20', soft: '#7a6354', acc: '#9c6b43', card: '#ebe0d4', head: 'Lora', body: 'Inter', dark: false },
+  elektrisk: { bg: '#0a0a12', bgCss: 'radial-gradient(120% 120% at 50% 0%, #16162a 0%, #0a0a12 60%)', ink: '#f2f2ff', soft: '#a0a0c8', acc: '#ffe14d', card: '#15151f', head: 'Space Grotesk', body: 'Inter', dark: true },
+  fersken:   { bg: '#fff5ee', ink: '#5a3a2c', soft: '#9a7464', acc: '#f5a06a', card: '#ffe6d6', head: 'Fredoka', body: 'Nunito', dark: false },
+  staal:     { bg: '#f2f4f6', ink: '#25303a', soft: '#5a6670', acc: '#4a7a9c', card: '#e3e8ec', head: 'Work Sans', body: 'Inter', dark: false },
 }
 const STYLE_IDS = Object.keys(STYLES)
 
@@ -23,6 +44,11 @@ export function pickStyle(title = '', hint = '') {
   const h = String(hint || '').toLowerCase()
   const t = (title + ' ' + hint).toLowerCase()
   const any = (s, ...w) => w.some((x) => s.includes(x))
+  // 0) skrev brukeren et stilnavn direkte? (f.eks. «ocean», «lavendel», «skog»)
+  for (const id of [...STYLE_IDS].sort((a, b) => b.length - a.length)) { if (id.length > 3 && h.includes(id)) return id }
+  if (h.includes('terrakotta')) return 'terracotta'
+  if (h.includes('rosegull') || h.includes('rosa gull')) return 'rosegull'
+  if (h.includes('stål') || h.includes('staal')) return 'staal'
   // 1) eksplisitt ønske i «hvordan skal det se ut»
   if (any(h, 'botanisk', 'blomst', 'plante', 'hage', 'botanikk')) return 'botanisk'
   if (any(h, 'teknologi', 'tech', 'neon', 'futurist', 'digital', 'cyber', 'sci-fi')) return 'tech'
@@ -362,7 +388,12 @@ export function designDeck(aiSlides, opts = {}) {
 }
 
 // Pene navn + liste for forhåndsvisning av stiler
-const PRETTY = { editorial: 'Editorial', natur: 'Natur', pastell: 'Pastell', graatone: 'Gråtone', natt: 'Mørk & varm', tech: 'Tech', botanisk: 'Botanisk' }
+const PRETTY = {
+  editorial: 'Editorial', natur: 'Natur', pastell: 'Pastell', graatone: 'Gråtone', natt: 'Mørk & varm', tech: 'Tech', botanisk: 'Botanisk',
+  korall: 'Korall', ocean: 'Ocean', midnatt: 'Midnatt', solnedgang: 'Solnedgang', mynte: 'Mynte', lavendel: 'Lavendel', safran: 'Safran',
+  burgunder: 'Burgunder', kull: 'Kull', sitrus: 'Sitrus', indigo: 'Indigo', terracotta: 'Terrakotta', arktis: 'Arktis', rosegull: 'Rosegull',
+  skog: 'Skog', plomme: 'Plomme', mokka: 'Mokka', elektrisk: 'Elektrisk', fersken: 'Fersken', staal: 'Stål',
+}
 export const STYLE_LIST = STYLE_IDS.map((id) => ({ id, name: PRETTY[id] || id }))
 
 // Et eksempel-forsidebilde i en gitt stil (foto byttes til fargefelt – ingen henting).
