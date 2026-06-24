@@ -754,25 +754,94 @@ export default function Editor() {
   )
 }
 
+// Bygg opplesnings-tekst for et lysbilde: bruk manus hvis det finnes, ellers tittel + tekst.
+function speechText(slide) {
+  if (!slide) return ''
+  if (slide.notes && slide.notes.trim()) return clean(slide.notes)
+  const texts = (slide.elements || [])
+    .filter((e) => e.type === 'text' && e.text && String(e.text).trim())
+    .slice()
+    .sort((a, b) => (a.y || 0) - (b.y || 0))
+    .map((e) => clean(e.text))
+    .filter((t) => t && !/^(presentasjon|oversikt|takk)$/i.test(t.trim()))
+  return texts.join('. ')
+  function clean(t) { return String(t || '').replace(/[•·▪►–-]\s*/g, '').replace(/\s*\n\s*/g, '. ').replace(/\s+/g, ' ').trim() }
+}
+
+function pickVoice() {
+  const vs = (window.speechSynthesis && window.speechSynthesis.getVoices()) || []
+  return vs.find((v) => /(^nb)|(^no)|norsk|norweg/i.test((v.lang || '') + ' ' + (v.name || '')))
+    || vs.find((v) => v.default) || vs[0] || null
+}
+
 function Present({ deck, start, onClose }) {
   const [i, setI] = useState(start || 0)
   const [showNotes, setShowNotes] = useState(false)
+  const [playing, setPlaying] = useState(false)
+  const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window
+
+  // last inn stemmer (de kommer asynkront i noen nettlesere)
+  useEffect(() => {
+    if (!canSpeak) return
+    const s = window.speechSynthesis
+    const warm = () => s.getVoices()
+    warm(); s.addEventListener?.('voiceschanged', warm)
+    return () => s.removeEventListener?.('voiceschanged', warm)
+  }, [canSpeak])
+
+  // stopp tale når vinduet lukkes
+  useEffect(() => () => { try { window.speechSynthesis.cancel() } catch (_e) {} }, [])
+
+  // når AI presenterer: les gjeldende side, gå videre når den er ferdig
+  useEffect(() => {
+    if (!playing || !canSpeak) return
+    const synth = window.speechSynthesis
+    synth.cancel()
+    const text = speechText(deck.slides[i])
+    const next = () => setI((v) => { if (v >= deck.slides.length - 1) { setPlaying(false); return v } return v + 1 })
+    let t = null
+    if (!text) { t = setTimeout(next, 700) }
+    else {
+      try {
+        const u = new SpeechSynthesisUtterance(text)
+        const v = pickVoice(); if (v) u.voice = v
+        u.lang = (v && v.lang) || 'nb-NO'; u.rate = 1; u.pitch = 1
+        u.onend = next; u.onerror = next
+        // liten pause før neste side leses
+        setTimeout(() => synth.speak(u), 250)
+      } catch (_e) { t = setTimeout(next, 700) }
+    }
+    return () => { if (t) clearTimeout(t); try { synth.cancel() } catch (_e) {} }
+  }, [i, playing, canSpeak, deck.slides])
+
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'ArrowRight' || e.key === ' ') setI((v) => Math.min(deck.slides.length - 1, v + 1))
-      if (e.key === 'ArrowLeft') setI((v) => Math.max(0, v - 1))
+      if (e.key === 'ArrowRight' || e.key === ' ') { setPlaying(false); setI((v) => Math.min(deck.slides.length - 1, v + 1)) }
+      if (e.key === 'ArrowLeft') { setPlaying(false); setI((v) => Math.max(0, v - 1)) }
       if (e.key.toLowerCase() === 'n') setShowNotes((v) => !v)
       if (e.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [deck.slides.length, onClose])
+
   const s = deck.slides[i]
   return (
-    <div className="present" onClick={() => setI((v) => Math.min(deck.slides.length - 1, v + 1))}>
+    <div className="present" onClick={() => { setPlaying(false); setI((v) => Math.min(deck.slides.length - 1, v + 1)) }}>
       <button className="present-x" onClick={(e) => { e.stopPropagation(); onClose() }}>✕</button>
       <div className="present-stage"><SlideStage key={i} slide={s} animate /></div>
       {showNotes && s.notes && <div className="present-notes" onClick={(e) => e.stopPropagation()}>{s.notes}</div>}
+
+      {canSpeak && (
+        <button
+          className={'present-ai' + (playing ? ' on' : '')}
+          onClick={(e) => { e.stopPropagation(); setPlaying((p) => !p) }}
+          title="La AI presentere – blar og leser opp for deg"
+        >
+          {playing ? '⏸  Stopp opplesning' : '🔊  La AI presentere for deg'}
+        </button>
+      )}
+
       <div className="present-count">{i + 1} / {deck.slides.length} · trykk «N» for manus</div>
     </div>
   )

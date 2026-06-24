@@ -830,3 +830,9 @@ button{font-family:inherit}
 .nt-refill-foot b{color:var(--ink)}
 .nt-ok{width:100%;margin-top:20px;justify-content:center}
 
+
+/* ---------- AI presenterer (opplesning) ---------- */
+.present-ai{position:absolute;left:24px;bottom:22px;z-index:5;display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.28);border-radius:980px;padding:11px 18px;font-size:.95rem;font-weight:700;cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:background .15s,transform .12s}
+.present-ai:hover{background:rgba(255,255,255,.22);transform:translateY(-1px)}
+.present-ai.on{background:#fff;color:#15131a;border-color:#fff}
+@media(max-width:560px){.present-ai{left:14px;bottom:16px;padding:9px 14px;font-size:.85rem}}
