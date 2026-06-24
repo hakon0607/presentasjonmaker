@@ -25,7 +25,7 @@ function colorOf(c, fallback) {
   const direct = rgbOf(c)
   if (direct) return direct
   const s = String(c || '')
-  const hit = s.match(/rgba?\([^)]+\)|#?[0-9a-f]{6}|#?[0-9a-f]{3}\b/i)
+  const hit = s.match(/rgba?\([^)]+\)|#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/i)
   if (hit) { const r = rgbOf(hit[0]); if (r) return r }
   return fallback || [0, 0, 0]
 }
@@ -36,6 +36,24 @@ function noHash(c) {
   return rgb.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('').toUpperCase()
 }
 function hexRgb(c) { return colorOf(c, [0, 0, 0]) }
+
+// Mørkt slør som ett jevnt gradient-bilde (lyst øverst -> mørkt nederst) – ingen striper.
+let _scrimUrl = null
+function scrimDataUrl() {
+  if (_scrimUrl) return _scrimUrl
+  try {
+    const c = document.createElement('canvas')
+    c.width = 8; c.height = 256
+    const ctx = c.getContext('2d')
+    const g = ctx.createLinearGradient(0, 0, 0, 256)
+    g.addColorStop(0, 'rgba(15,14,12,0.10)')
+    g.addColorStop(0.55, 'rgba(15,14,12,0.42)')
+    g.addColorStop(1, 'rgba(15,14,12,0.80)')
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 8, 256)
+    _scrimUrl = c.toDataURL('image/png')
+  } catch (_e) { _scrimUrl = null }
+  return _scrimUrl
+}
 
 async function buildPptx(deck) {
   const pptx = new PptxGenJS()
@@ -117,16 +135,14 @@ export function exportPdf(deck) {
         try { if (op < 1) { g = new pdf.GState({ opacity: op }); pdf.saveGraphicsState(); pdf.setGState(g) } } catch (_e) { g = null }
         const isRing = !el.fill || el.fill === 'transparent'
         if (isGradient(el.fill) || el.overlay) {
-          // mørkt slør tegnet som vertikal gradient (lyst øverst -> mørkt nederst),
-          // så fotoet vises og hvit tekst er lesbar – ikke et flatt svart lag.
-          const bands = 18
-          for (let b = 0; b < bands; b++) {
-            const t = bands > 1 ? b / (bands - 1) : 1
-            const op = 0.1 + t * 0.62
+          // mørkt slør som ett jevnt gradient-bilde – ingen synlige striper
+          const url = scrimDataUrl()
+          let ok = false
+          if (url) { try { pdf.addImage(url, 'PNG', x, y, w, h); ok = true } catch (_e) { ok = false } }
+          if (!ok) {
             let gb = null
-            try { gb = new pdf.GState({ opacity: op }); pdf.saveGraphicsState(); pdf.setGState(gb) } catch (_e) { gb = null }
-            pdf.setFillColor(15, 14, 12)
-            pdf.rect(x, y + (h * b) / bands, w, h / bands + 0.4, 'F')
+            try { gb = new pdf.GState({ opacity: 0.5 }); pdf.saveGraphicsState(); pdf.setGState(gb) } catch (_e) { gb = null }
+            pdf.setFillColor(15, 14, 12); pdf.rect(x, y, w, h, 'F')
             if (gb) { try { pdf.restoreGraphicsState() } catch (_e) { /* ignore */ } }
           }
         } else if (isRing && el.stroke) {
