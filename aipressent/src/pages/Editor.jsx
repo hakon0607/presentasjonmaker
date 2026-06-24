@@ -754,178 +754,25 @@ export default function Editor() {
   )
 }
 
-// Opplesnings-tekst for et lysbilde. kilde: 'manus' (bruk notater, ellers skjerm) eller 'screen'.
-function speechText(slide, source) {
-  if (!slide) return ''
-  const clean = (t) => String(t || '').replace(/[•·▪►–-]\s*/g, '').replace(/\s*\n\s*/g, '. ').replace(/\s+/g, ' ').trim()
-  const screen = () => (slide.elements || [])
-    .filter((e) => e.type === 'text' && e.text && String(e.text).trim())
-    .slice()
-    .sort((a, b) => (a.y || 0) - (b.y || 0))
-    .map((e) => clean(e.text))
-    .filter((t) => t && !/^(presentasjon|oversikt|takk)$/i.test(t.trim()))
-    .join('. ')
-  if (source === 'screen') return screen()
-  if (slide.notes && slide.notes.trim()) return clean(slide.notes)   // 'manus' (standard)
-  return screen()
-}
-
-// Gjenkjenn språk (norsk som standard – bytter bare ved tydelig annet språk).
-function detectLang(text) {
-  const t = ' ' + String(text || '').toLowerCase() + ' '
-  const cnt = (...ws) => ws.reduce((n, w) => n + (t.split(' ' + w + ' ').length - 1), 0)
-  const s = {
-    nb: cnt('og', 'er', 'på', 'ikke', 'jeg', 'det', 'som', 'en', 'å', 'for', 'med', 'de', 'har', 'til', 'kan', 'vi') + (/[æø]/.test(t) ? 4 : 0),
-    en: cnt('the', 'and', 'is', 'of', 'to', 'in', 'that', 'for', 'with', 'are', 'this', 'you', 'it', 'on'),
-    sv: cnt('och', 'är', 'på', 'inte', 'jag', 'det', 'som', 'att', 'för', 'med', 'har', 'vi') + (/ö/.test(t) ? 3 : 0),
-    da: cnt('og', 'er', 'på', 'ikke', 'jeg', 'det', 'som', 'at', 'for', 'med', 'har'),
-    de: cnt('und', 'der', 'die', 'das', 'ist', 'nicht', 'ich', 'mit', 'für', 'den', 'ein', 'sie'),
-    es: cnt('y', 'el', 'la', 'de', 'que', 'en', 'los', 'un', 'por', 'con', 'para', 'una'),
-    fr: cnt('et', 'le', 'la', 'les', 'des', 'est', 'que', 'pour', 'dans', 'avec', 'un', 'une'),
-  }
-  let best = 'nb', bestN = s.nb
-  for (const k in s) if (s[k] > bestN) { best = k; bestN = s[k] }
-  if (best !== 'nb' && bestN - s.nb < 2) best = 'nb'   // bias mot norsk ved tvil
-  return best
-}
-
-function pickVoice(lang) {
-  const vs = (window.speechSynthesis && window.speechSynthesis.getVoices()) || []
-  const pre = ({ nb: ['nb', 'no'], en: ['en'], sv: ['sv'], da: ['da'], de: ['de'], es: ['es'], fr: ['fr'] }[lang]) || ['nb', 'no']
-  for (const p of pre) { const v = vs.find((v) => (v.lang || '').toLowerCase().startsWith(p)); if (v) return v }
-  return vs.find((v) => v.default) || vs[0] || null
-}
-
 function Present({ deck, start, onClose }) {
   const [i, setI] = useState(start || 0)
   const [showNotes, setShowNotes] = useState(false)
-  const [playing, setPlaying] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [prep, setPrep] = useState({ done: 0, total: 0 })
-  const [source, setSource] = useState('manus')   // 'manus' | 'screen'
-  const audioRef = useRef(null)
-  const dataRef = useRef(null)                     // {idx: dataUrl|null} ved nevral, ellers null
-  const cancelRef = useRef(false)
-  const canSpeak = typeof window !== 'undefined' && ('speechSynthesis' in window)
-
-  useEffect(() => {
-    if (!canSpeak) return
-    const s = window.speechSynthesis
-    const warm = () => s.getVoices()
-    warm(); s.addEventListener?.('voiceschanged', warm)
-    return () => s.removeEventListener?.('voiceschanged', warm)
-  }, [canSpeak])
-
-  function stopAll() {
-    cancelRef.current = true
-    try { window.speechSynthesis.cancel() } catch (_e) {}
-    if (audioRef.current) { try { audioRef.current.pause() } catch (_e) {} audioRef.current = null }
-  }
-  function stopPresent() { stopAll(); setPlaying(false); setLoading(false) }
-  useEffect(() => () => stopAll(), [])
-
-  function browserSpeak(text, onend) {
-    if (!canSpeak || !text) { setTimeout(onend, 600); return }
-    try {
-      const synth = window.speechSynthesis; synth.cancel()
-      const u = new SpeechSynthesisUtterance(text)
-      const lang = detectLang(text); const v = pickVoice(lang); if (v) u.voice = v
-      u.lang = (v && v.lang) || (lang === 'nb' ? 'nb-NO' : lang === 'en' ? 'en-US' : lang)
-      u.rate = 1; u.pitch = 1; u.onend = onend; u.onerror = onend
-      setTimeout(() => synth.speak(u), 120)
-    } catch (_e) { setTimeout(onend, 600) }
-  }
-
-  async function fetchTts(text) {
-    if (!text) return null
-    try {
-      const { data } = await supabase.functions.invoke('smart-task', { body: { mode: 'tts', text, voice: 'nova' } })
-      if (data && data.audio) return 'data:' + (data.mime || 'audio/mpeg') + ';base64,' + data.audio
-    } catch (_e) { /* faller tilbake */ }
-    return null
-  }
-
-  // spill side idx (og gå videre når ferdig)
-  function playFrom(idx) {
-    if (cancelRef.current) return
-    setI(idx)
-    const last = deck.slides.length - 1
-    const advance = () => { if (cancelRef.current) return; if (idx >= last) { setPlaying(false); return } playFrom(idx + 1) }
-    const text = speechText(deck.slides[idx], source)
-    if (!text) { setTimeout(advance, 700); return }
-    const url = dataRef.current ? dataRef.current[idx] : undefined
-    if (url) {
-      const a = new Audio(url); audioRef.current = a
-      a.onended = advance; a.onerror = () => browserSpeak(text, advance)
-      a.play().catch(() => browserSpeak(text, advance))
-    } else {
-      browserSpeak(text, advance)   // nettleser-reserve (eller browser-modus)
-    }
-  }
-
-  // last ALT før start, så det ikke blir pauser mellom sidene
-  async function startPresent() {
-    stopAll(); cancelRef.current = false
-    const from = i
-    const order = []; for (let k = from; k < deck.slides.length; k++) order.push(k)
-    const texts = {}; for (const k of order) texts[k] = speechText(deck.slides[k], source)
-    setLoading(true); setPrep({ done: 0, total: order.length })
-
-    // sjekk om realistisk server-stemme er tilgjengelig (prøv første ikke-tomme side)
-    const firstK = order.find((k) => texts[k])
-    let neural = false; const store = {}
-    if (firstK != null) { const d = await fetchTts(texts[firstK]); if (cancelRef.current) return; if (d) { neural = true; store[firstK] = d } }
-
-    if (neural) {
-      const rest = order.filter((k) => k !== firstK && texts[k])
-      let done = 1; setPrep({ done, total: order.length })
-      let p = 0
-      const worker = async () => { while (p < rest.length) { const k = rest[p++]; const d = await fetchTts(texts[k]); if (cancelRef.current) return; store[k] = d; done++; setPrep({ done, total: order.length }) } }
-      await Promise.all(Array.from({ length: Math.min(4, rest.length) }, worker))
-      if (cancelRef.current) return
-      dataRef.current = store
-    } else {
-      dataRef.current = null   // nettleser-modus (ingen forhåndslasting nødvendig)
-    }
-    setLoading(false); setPlaying(true)
-    playFrom(from)
-  }
-
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'ArrowRight' || e.key === ' ') { stopPresent(); setI((v) => Math.min(deck.slides.length - 1, v + 1)) }
-      if (e.key === 'ArrowLeft') { stopPresent(); setI((v) => Math.max(0, v - 1)) }
+      if (e.key === 'ArrowRight' || e.key === ' ') setI((v) => Math.min(deck.slides.length - 1, v + 1))
+      if (e.key === 'ArrowLeft') setI((v) => Math.max(0, v - 1))
       if (e.key.toLowerCase() === 'n') setShowNotes((v) => !v)
       if (e.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [deck.slides.length, onClose])
-
   const s = deck.slides[i]
-  const busy = loading
   return (
-    <div className="present" onClick={() => { stopPresent(); setI((v) => Math.min(deck.slides.length - 1, v + 1)) }}>
+    <div className="present" onClick={() => setI((v) => Math.min(deck.slides.length - 1, v + 1))}>
       <button className="present-x" onClick={(e) => { e.stopPropagation(); onClose() }}>✕</button>
       <div className="present-stage"><SlideStage key={i} slide={s} animate /></div>
       {showNotes && s.notes && <div className="present-notes" onClick={(e) => e.stopPropagation()}>{s.notes}</div>}
-
-      <div className="present-ai-bar" onClick={(e) => e.stopPropagation()}>
-        {!playing && !busy && (
-          <div className="present-src" title="Hva skal leses opp?">
-            <button className={source === 'manus' ? 'on' : ''} onClick={() => setSource('manus')}>Manus</button>
-            <button className={source === 'screen' ? 'on' : ''} onClick={() => setSource('screen')}>På skjermen</button>
-          </div>
-        )}
-        <button
-          className={'present-ai' + (playing ? ' on' : '')}
-          disabled={busy}
-          onClick={() => { if (playing || busy) stopPresent(); else startPresent() }}
-        >
-          {busy ? `…  Laster opplesning ${prep.done}/${prep.total}` : playing ? '⏸  Stopp opplesning' : '🔊  La AI presentere for deg'}
-        </button>
-      </div>
-
       <div className="present-count">{i + 1} / {deck.slides.length} · trykk «N» for manus</div>
     </div>
   )
