@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { slidesFromAi, newDeck, normalizeTheme, genId, imageEl, CW, CH } from '../lib/deck'
 import { designDeck, resolveStyle, STYLE_LIST, STYLES } from '../lib/design'
 import { fetchPhoto } from '../lib/photo'
+import { fireNoTokens } from '../lib/tokenGate'
 import { Sparkles, ChevronLeft, ChevronUp, ChevronDown, Trash2, Plus, ArrowRight, ArrowLeft, X } from 'lucide-react'
 import { useProgress, ProgressBar } from './Progress'
 
@@ -124,7 +125,7 @@ export default function AiWizard({ onClose, userId, nav }) {
     if (!manuscript.trim()) { setErr('Skriv litt manus eller noen stikkord.'); return }
     setBusy(true); setErr(''); setGenLabel('Lager innhold …'); prog.start()
     try {
-      if (!tokensUnlimited && typeof tokens === 'number' && tokens < 5) throw new Error(`Du trenger 5 tokens for å lage en hel AI-presentasjon, men har ${tokens}. Du kan fortsatt lage en tom presentasjon og redigere selv – og AI-bilder er gratis. Du får påfyll i morgen.`)
+      if (!tokensUnlimited && typeof tokens === 'number' && tokens < 5) { fireNoTokens({ needed: 5, have: tokens }); setBusy(false); prog.reset(); return }
       const { data: o, error: oe } = await supabase.functions.invoke('smart-task', { body: { manuscript, title, visualStyle: '', count, textAmount } })
       refreshTokens()
       if (oe) throw oe

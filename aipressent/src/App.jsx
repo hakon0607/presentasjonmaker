@@ -9,6 +9,7 @@ import Landing from './pages/Landing'
 import Guide from './pages/Guide'
 import Profile from './pages/Profile'
 import CopyDeck from './pages/CopyDeck'
+import NoTokensModal from './components/NoTokensModal'
 
 function Protected({ children }) {
   const { user, loading } = useAuth()
@@ -21,7 +22,8 @@ function Protected({ children }) {
 export default function App() {
   return (
     <AuthProvider>
-      <div className="version-star" aria-hidden="true">★ v71</div>
+      <div className="version-star" aria-hidden="true">★ v73</div>
+      <NoTokensModal />
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/guide" element={<Guide />} />

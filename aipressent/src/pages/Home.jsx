@@ -10,6 +10,7 @@ import Tour from '../components/Tour'
 import InstallButton from '../components/InstallButton'
 import TokenBadge from '../components/TokenBadge'
 import TokenMeter from '../components/TokenMeter'
+import { cleanupOrphanImages } from '../lib/storage'
 import { Plus, Sparkles, Trash2, LogOut, Presentation, Download, HelpCircle, User, Play, Search } from 'lucide-react'
 
 export default function Home() {
@@ -49,6 +50,15 @@ export default function Home() {
     setLoading(false)
   }, [user])
   useEffect(() => { load() }, [load])
+  // Rydd foreldreløse bilder fra storage maks én gang per døgn (i bakgrunnen).
+  useEffect(() => {
+    if (!user) return
+    try {
+      const k = 'ap_lastSweep_' + user.id
+      const last = +(localStorage.getItem(k) || 0)
+      if (Date.now() - last > 86400000) { localStorage.setItem(k, String(Date.now())); cleanupOrphanImages(user.id) }
+    } catch (_e) { /* ignore */ }
+  }, [user])
 
   async function createBlank() {
     const deck = newDeck('Uten tittel', 'minimal')
@@ -61,6 +71,7 @@ export default function Home() {
     e.stopPropagation()
     if (!confirm('Slette denne presentasjonen?')) return
     await supabase.from('presentations').delete().eq('id', id)
+    cleanupOrphanImages(user.id)   // fjern bildene til den slettede (og andre foreldreløse) fra storage
     load()
   }
 
