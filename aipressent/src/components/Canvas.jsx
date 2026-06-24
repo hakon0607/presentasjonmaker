@@ -234,10 +234,14 @@ export default function Canvas({ slide, onChange, selectedId, setSelectedId, sel
           // Lite rundt ikon sentrert rett over tekstboksen
           const pillLeft = Math.max(4, Math.min(CW * scale - 40, (el.x + el.w / 2) * scale - 18))
           const pillTop = Math.max(2, el.y * scale - 42)
-          // Popover plasseres under boksen, klemt innenfor lerretet
+          // Popover: under boksen, men vend OPP hvis det ikke er plass – og hold innenfor lerretet
           const popW = 248
-          const popLeft = Math.max(6, Math.min(CW * scale - popW - 6, el.x * scale))
-          const popTop = Math.min(CH * scale - 8, (el.y + el.h) * scale + 8)
+          const popH = 232
+          const stageW = CW * scale, stageH = CH * scale
+          const popLeft = Math.max(6, Math.min(stageW - popW - 6, el.x * scale))
+          let popTop = (el.y + el.h) * scale + 8
+          if (popTop + popH > stageH - 6) popTop = el.y * scale - popH - 8
+          popTop = Math.max(6, Math.min(stageH - popH - 6, popTop))
           return (
             <>
               {!open && (
