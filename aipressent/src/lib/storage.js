@@ -24,13 +24,19 @@ export function deckImagePaths(deck) {
 }
 
 // List alle filer i brukerens mappe (paginert, så vi får med alle).
-async function listAll(userId) {
+// List alle filer under et prefiks – går rekursivt inn i mapper (per-presentasjon-mapper).
+async function listAll(prefix) {
   const all = []
   let offset = 0
-  for (let i = 0; i < 30; i++) {
-    const { data, error } = await supabase.storage.from(BUCKET).list(userId, { limit: 100, offset, sortBy: { column: 'name', order: 'asc' } })
+  for (let i = 0; i < 60; i++) {
+    const { data, error } = await supabase.storage.from(BUCKET).list(prefix, { limit: 100, offset, sortBy: { column: 'name', order: 'asc' } })
     if (error || !data || !data.length) break
-    for (const f of data) if (f && f.name && f.id !== null) all.push(`${userId}/${f.name}`)
+    for (const f of data) {
+      if (!f || !f.name) continue
+      const full = `${prefix}/${f.name}`
+      if (f.id === null || f.id === undefined) { const sub = await listAll(full); all.push(...sub) } // mappe -> inn
+      else all.push(full)                                                                            // fil
+    }
     if (data.length < 100) break
     offset += 100
   }

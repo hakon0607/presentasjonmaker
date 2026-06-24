@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { slidesFromAi, newDeck, normalizeTheme, genId, imageEl, CW, CH } from '../lib/deck'
 import { designDeck, resolveStyle, STYLE_LIST, STYLES } from '../lib/design'
 import { fetchPhoto } from '../lib/photo'
+import { folderSlug } from '../lib/slug'
 import { fireNoTokens } from '../lib/tokenGate'
 import { Sparkles, ChevronLeft, ChevronUp, ChevronDown, Trash2, Plus, ArrowRight, ArrowLeft, X } from 'lucide-react'
 import { useProgress, ProgressBar } from './Progress'
@@ -82,9 +83,10 @@ export default function AiWizard({ onClose, userId, nav }) {
   const prog = useProgress()
   const sprog = useProgress()
 
-  async function uploadImage(blob) {
+  async function uploadImage(blob, folder) {
     try {
-      const path = `${userId}/${genId()}-ai.jpg`
+      const dir = folder ? `${userId}/${folder}` : `${userId}`
+      const path = `${dir}/${genId()}-ai.jpg`
       const { error } = await supabase.storage.from('slides').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
       if (error) return null
       return supabase.storage.from('slides').getPublicUrl(path).data.publicUrl
@@ -133,7 +135,7 @@ export default function AiWizard({ onClose, userId, nav }) {
       const realTitle = title || o.title || 'Uten tittel'
       const dd = designDeck(o.slides || [], { title: realTitle, hint: visualStyle, styleId: styleOverride })
       const slides = dd.slides
-      await fillPhotos(slides, realTitle, dd.styleId, dd.style)
+      await fillPhotos(slides, realTitle, dd.styleId, dd.style, folderSlug(realTitle))
       setGenLabel('Lagrer …')
       const deck = { theme: dd.theme, title: realTitle, slides: slides.length ? slides : newDeck(realTitle, 'minimal').slides, design: dd.styleId }
       const { data, error } = await supabase.from('presentations')
@@ -175,7 +177,7 @@ export default function AiWizard({ onClose, userId, nav }) {
     staal: 'cool steel-blue photography, clean industrial tones, modern, professional',
   }
   // Henter bilde til hvert bilde-felt: AI-generert (skreddersydd + stil) → nett-foto → fargefelt.
-  async function fillPhotos(slides, topic, styleId, style) {
+  async function fillPhotos(slides, topic, styleId, style, folder) {
     const imgs = []
     slides.forEach((s) => (s.elements || []).forEach((e) => { if (e.photoQuery) imgs.push(e) }))
     if (!imgs.length) return
@@ -194,7 +196,7 @@ export default function AiWizard({ onClose, userId, nav }) {
       // 2) reserve: ekte nett-foto
       if (!b64) { try { b64 = await fetchPhoto(q, topic) } catch (_e) { /* gir opp dette */ } }
       if (b64) {
-        try { const blob = await (await fetch(b64)).blob(); const url = await uploadImage(blob); map[q.toLowerCase()] = url || b64 } catch (_e) { /* hopp */ }
+        try { const blob = await (await fetch(b64)).blob(); const url = await uploadImage(blob, folder); map[q.toLowerCase()] = url || b64 } catch (_e) { /* hopp */ }
       }
       cnt++; prog.set(Math.max(2, Math.round((cnt / uniq.length) * 100))); setGenLabel(`Lager bilder … (${cnt}/${uniq.length})`)
     }))
@@ -216,7 +218,7 @@ export default function AiWizard({ onClose, userId, nav }) {
       const realTitle = title || 'Uten tittel'
       const dd = designDeck(outline.map(toAi), { title: realTitle, hint: visualStyle, styleId: styleOverride })
       const slides = dd.slides
-      await fillPhotos(slides, realTitle, dd.styleId, dd.style)
+      await fillPhotos(slides, realTitle, dd.styleId, dd.style, folderSlug(realTitle))
       setGenLabel('Lagrer …')
       const deck = { theme: dd.theme, title: realTitle, slides: slides.length ? slides : newDeck(realTitle, 'minimal').slides, design: dd.styleId }
       const { data, error } = await supabase.from('presentations')
