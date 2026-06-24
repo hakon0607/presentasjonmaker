@@ -196,17 +196,26 @@ function twoColumn(spec, st) {
 function photoText(spec, st, flip = false) {
   const els = []
   const px = flip ? 0 : 560
-  els.push(PHOTO({ x: px, y: 0, w: 400, h: 540 }, photoQ(spec)))
   const tx = flip ? 440 : 72
   const iw = 340
-  els.push(RECT({ x: tx, y: 130, w: 392, h: 300, fill: st.card, radius: 20 }))
-  els.push(...eyebrow(spec, st, tx + 28, 158))
+  const padT = 30, padB = 28, gapTB = 14, ebH = 28
   const fs = fit(spec.title, 38, iw, 3)
-  const tH = txtH(spec.title, fs, iw, 1.04)
-  els.push(T({ x: tx + 26, y: 186, w: iw, h: tH + 8, text: spec.title || '', fontFamily: st.head, fontSize: fs, bold: true, color: st.ink, lineHeight: 1.04 }))
-  const by = Math.min(186 + tH + 16, 360)
+  const tH = txtH(spec.title, fs, iw, 1.06)
   const body = (spec.bullets || []).length ? (spec.bullets).map((b) => '· ' + b).join('\n') : (spec.subtitle || '')
-  els.push(T({ x: tx + 26, y: by, w: iw, h: 414 - by, text: body, fontFamily: st.body, fontSize: 17, color: st.soft, lineHeight: 1.5 }))
+  // krymp brødtekst-font til alt får plass i et kort på maks 486 px
+  const maxCard = 486
+  let bfs = 17
+  let bH = txtH(body, bfs, iw, 1.5)
+  let cardH = padT + ebH + tH + gapTB + bH + padB
+  while (cardH > maxCard && bfs > 11) { bfs -= 1; bH = txtH(body, bfs, iw, 1.45); cardH = padT + ebH + tH + gapTB + bH + padB }
+  cardH = Math.min(cardH, maxCard)
+  const cardY = Math.max(28, Math.round((540 - cardH) / 2))
+  els.push(PHOTO({ x: px, y: 0, w: 400, h: 540 }, photoQ(spec)))
+  els.push(RECT({ x: tx, y: cardY, w: 392, h: cardH, fill: st.card, radius: 20 }))
+  els.push(...eyebrow(spec, st, tx + 28, cardY + padT))
+  const titleY = cardY + padT + ebH
+  els.push(T({ x: tx + 26, y: titleY, w: iw, h: tH + 8, text: spec.title || '', fontFamily: st.head, fontSize: fs, bold: true, color: st.ink, lineHeight: 1.06 }))
+  els.push(T({ x: tx + 26, y: titleY + tH + gapTB, w: iw, h: bH + 6, text: body, fontFamily: st.body, fontSize: bfs, color: st.soft, lineHeight: bfs < 17 ? 1.45 : 1.5 }))
   return { background: bg(st), elements: els }
 }
 function closing(spec, st) {
@@ -274,9 +283,69 @@ function designSlide(spec, st, idx, isFirst, isLast) {
 }
 
 // ---------- offentlig: bygg helt dekk fra AI-lysbilder ----------
+// liten fargemikser (lokal, deck.mix er ikke eksportert)
+function tint(hex, target, t) {
+  const A = hex.replace('#', ''), B = target.replace('#', '')
+  const f = (s, i) => parseInt(s.slice(i, i + 2), 16)
+  const r = Math.round(f(A, 0) + (f(B, 0) - f(A, 0)) * t)
+  const g = Math.round(f(A, 2) + (f(B, 2) - f(A, 2)) * t)
+  const b = Math.round(f(A, 4) + (f(B, 4) - f(A, 4)) * t)
+  return '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join('')
+}
+// fargeord (norsk/engelsk) -> hex. Compounds først.
+const COLOR_WORDS = [
+  ['mørkeblå', '#1e3a8a'], ['morkebla', '#1e3a8a'], ['lyseblå', '#5b9bd5'], ['lysebla', '#5b9bd5'],
+  ['blå', '#2563eb'], ['bla ', '#2563eb'], ['blue', '#2563eb'], ['navy', '#1e3a8a'],
+  ['rød', '#d23b3b'], ['rod', '#d23b3b'], ['red', '#d23b3b'],
+  ['grønn', '#2e9e5b'], ['gronn', '#2e9e5b'], ['green', '#2e9e5b'],
+  ['turkis', '#13a9a0'], ['teal', '#13a9a0'],
+  ['gul', '#e0b400'], ['yellow', '#e0b400'], ['gull', '#c9a227'], ['gold', '#c9a227'],
+  ['oransje', '#e07b39'], ['orange', '#e07b39'],
+  ['lilla', '#7c3aed'], ['fiolett', '#7c3aed'], ['purple', '#7c3aed'],
+  ['rosa', '#e07ba6'], ['pink', '#e07ba6'],
+  ['brun', '#8a5a3b'], ['brown', '#8a5a3b'], ['beige', '#cdb9a0'],
+  ['svart', '#121212'], ['black', '#121212'],
+  ['hvit', '#ffffff'], ['white', '#ffffff'],
+  ['grå', '#8a8a8a'], ['graa', '#8a8a8a'], ['gray', '#8a8a8a'], ['grey', '#8a8a8a'],
+]
+function parseColors(hint) {
+  const h = ' ' + String(hint || '').toLowerCase() + ' '
+  const out = []; const seen = new Set()
+  for (const [w, hex] of COLOR_WORDS) {
+    if (h.includes(w) && !seen.has(hex)) { out.push(hex); seen.add(hex) }
+  }
+  return out
+}
+// bygg en egendefinert palett ut fra fargeord i teksten (ellers null)
+function customStyle(hint) {
+  const cols = parseColors(hint)
+  if (!cols.length) return null
+  const h = String(hint || '').toLowerCase()
+  const wantDark = /(mørk|mork|dark|natt)/.test(h)
+  const hasWhite = cols.includes('#ffffff')
+  const hasBlack = cols.includes('#121212')
+  const acc = cols.find((c) => c !== '#ffffff' && c !== '#121212' && c !== '#8a8a8a') || cols[0]
+  const dark = wantDark || (hasBlack && !hasWhite)
+  if (dark) {
+    return { id: 'egendefinert', bg: '#13151a', ink: '#f4f6fb', soft: '#aeb6c4', acc, card: tint('#13151a', acc, 0.16), head: 'Space Grotesk', body: 'Inter', dark: true }
+  }
+  return { id: 'egendefinert', bg: '#ffffff', ink: '#16181d', soft: '#5c6270', acc, card: tint('#ffffff', acc, 0.10), head: 'Playfair Display', body: 'Inter', dark: false }
+}
+// finn riktig stil: manuelt valg > egendefinerte farger > emne/stikkord
+export function resolveStyle(title = '', hint = '', overrideId = null) {
+  if (overrideId && STYLES[overrideId]) return { id: overrideId, style: STYLES[overrideId], name: PRETTY[overrideId] || overrideId }
+  const custom = customStyle(hint)
+  if (custom) return { id: 'egendefinert', style: custom, name: 'Egendefinert' }
+  const id = pickStyle(title, hint)
+  return { id, style: STYLES[id], name: PRETTY[id] || id }
+}
+function themeFromStyle(st, id) {
+  return { name: id, bg: st.bg, title: st.ink, text: st.soft, accent: st.acc, fontHead: st.head, fontBody: st.body, style: 'corners' }
+}
+
 export function designDeck(aiSlides, opts = {}) {
-  const styleId = opts.styleId && STYLES[opts.styleId] ? opts.styleId : pickStyle(opts.title || '', opts.hint || '')
-  const st = STYLES[styleId]
+  const r = resolveStyle(opts.title || '', opts.hint || '', opts.styleId)
+  const styleId = r.id, st = r.style
   const list = (aiSlides && aiSlides.length) ? aiSlides : [{ layout: 'cover', title: opts.title || 'Uten tittel' }]
   const slides = list.map((spec, i) => {
     const built = designSlide(spec || {}, st, i, i === 0, i === list.length - 1)
@@ -284,7 +353,7 @@ export function designDeck(aiSlides, opts = {}) {
     const elements = built.elements.map((e) => (e.type === 'text' ? fitTextBox(e) : e))
     return { id: genId(), background: built.background, elements, notes: spec.notes || '', anim: { transition: 'fade' }, layout: spec.layout || 'bullets', style: styleId }
   })
-  return { styleId, style: st, slides }
+  return { styleId, style: st, styleName: r.name, theme: themeFromStyle(st, styleId), slides }
 }
 
 // Pene navn + liste for forhåndsvisning av stiler

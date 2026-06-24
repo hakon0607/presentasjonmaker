@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { slidesFromAi, newDeck, normalizeTheme, genId, imageEl, CW, CH } from '../lib/deck'
-import { designDeck, themeOfStyle } from '../lib/design'
+import { designDeck, resolveStyle, STYLE_LIST, STYLES } from '../lib/design'
 import { fetchPhoto } from '../lib/photo'
 import { Sparkles, ChevronLeft, ChevronUp, ChevronDown, Trash2, Plus, ArrowRight, ArrowLeft, X } from 'lucide-react'
 import { useProgress, ProgressBar } from './Progress'
@@ -63,6 +63,8 @@ export default function AiWizard({ onClose, userId, nav }) {
   const { tokens, tokensUnlimited, refreshTokens } = useAuth()
   const [step, setStep] = useState('input')
   const [subStep, setSubStep] = useState(0)            // 0=overskrift 1=manus 2=visuelt
+  const [styleOverride, setStyleOverride] = useState(null)
+  const [manualOpen, setManualOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   // steg 1
@@ -128,11 +130,11 @@ export default function AiWizard({ onClose, userId, nav }) {
       if (oe) throw oe
       if (o?.error) throw new Error(o.error)
       const realTitle = title || o.title || 'Uten tittel'
-      const dd = designDeck(o.slides || [], { title: realTitle, hint: visualStyle })
+      const dd = designDeck(o.slides || [], { title: realTitle, hint: visualStyle, styleId: styleOverride })
       const slides = dd.slides
       await fillPhotos(slides, realTitle, dd.styleId, dd.style)
       setGenLabel('Lagrer …')
-      const deck = { theme: themeOfStyle(dd.styleId), title: realTitle, slides: slides.length ? slides : newDeck(realTitle, 'minimal').slides, design: dd.styleId }
+      const deck = { theme: dd.theme, title: realTitle, slides: slides.length ? slides : newDeck(realTitle, 'minimal').slides, design: dd.styleId }
       const { data, error } = await supabase.from('presentations')
         .insert({ owner_id: userId, title: deck.title, theme: dd.styleId, data: deck }).select('id').single()
       if (error) throw error
@@ -191,11 +193,11 @@ export default function AiWizard({ onClose, userId, nav }) {
     setBusy(true); setErr(''); setGenLabel('Bygger lysbilder …'); prog.start()
     try {
       const realTitle = title || 'Uten tittel'
-      const dd = designDeck(outline.map(toAi), { title: realTitle, hint: visualStyle })
+      const dd = designDeck(outline.map(toAi), { title: realTitle, hint: visualStyle, styleId: styleOverride })
       const slides = dd.slides
       await fillPhotos(slides, realTitle, dd.styleId, dd.style)
       setGenLabel('Lagrer …')
-      const deck = { theme: themeOfStyle(dd.styleId), title: realTitle, slides: slides.length ? slides : newDeck(realTitle, 'minimal').slides, design: dd.styleId }
+      const deck = { theme: dd.theme, title: realTitle, slides: slides.length ? slides : newDeck(realTitle, 'minimal').slides, design: dd.styleId }
       const { data, error } = await supabase.from('presentations')
         .insert({ owner_id: userId, title: deck.title, theme: dd.styleId, data: deck }).select('id').single()
       if (error) throw error
@@ -222,6 +224,14 @@ export default function AiWizard({ onClose, userId, nav }) {
   function fxBack() { if (subStep > 0) { setErr(''); setSubStep(subStep - 1) } }
   const setCountSafe = (n) => setCount(Math.max(3, Math.min(20, n || 0)))
   const COUNT_QUICK = [5, 7, 10, 12, 15]
+  // hvilken stil/palett blir valgt akkurat nå
+  const resolved = resolveStyle(title, visualStyle, styleOverride)
+  const pal = resolved.style
+  function regenerateStyle() {
+    const ids = STYLE_LIST.map((s) => s.id)
+    const cur = ids.indexOf(resolved.id)
+    setStyleOverride(ids[(cur + 1) % ids.length])
+  }
 
   if (step === 'input') {
     return (
@@ -270,10 +280,36 @@ export default function AiWizard({ onClose, userId, nav }) {
               </div>
             )}
             {subStep === 4 && (
-              <input className="ai-fx-input" autoFocus value={visualStyle} spellCheck lang="nb"
-                onChange={(e) => setVisualStyle(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') fxNext() }}
-                placeholder="«mørkt og stilig», «pastell», «botanisk», «tech», «minimal gråtone» … (valgfritt)" />
+              <>
+                <input className="ai-fx-input" autoFocus value={visualStyle} spellCheck lang="nb"
+                  onChange={(e) => { setStyleOverride(null); setVisualStyle(e.target.value) }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') fxNext() }}
+                  placeholder="«hvit og blå», «mørkt og stilig», «botanisk», «tech» … (valgfritt)" />
+                <div className="ai-fx-palette">
+                  <div className="ai-fx-swatches" title={resolved.name}>
+                    {[pal.bg, pal.card, pal.acc, pal.ink].map((c, i) => (
+                      <span key={i} className="ai-fx-sw" style={{ background: c }} />
+                    ))}
+                  </div>
+                  <div className="ai-fx-palinfo">
+                    <span className="ai-fx-palname">{resolved.name}</span>
+                    <div className="ai-fx-palbtns">
+                      <button type="button" className="ai-fx-palbtn" onClick={regenerateStyle}><ArrowRight size={14} /> Generer på nytt</button>
+                      <button type="button" className={'ai-fx-palbtn' + (manualOpen ? ' on' : '')} onClick={() => setManualOpen((v) => !v)}>Skift manuelt</button>
+                    </div>
+                  </div>
+                </div>
+                {manualOpen && (
+                  <div className="ai-fx-stylelist">
+                    {STYLE_LIST.map((s) => (
+                      <button key={s.id} type="button" className={'ai-fx-stylechip' + (resolved.id === s.id ? ' on' : '')} onClick={() => setStyleOverride(s.id)}>
+                        <span className="ai-fx-stylechip-sw" style={{ background: STYLES[s.id].acc }} />
+                        {s.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
 
             {err && <p className="err" style={{ marginTop: 12 }}>{err}</p>}

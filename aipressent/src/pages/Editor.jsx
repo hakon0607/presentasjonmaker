@@ -677,11 +677,6 @@ export default function Editor() {
                   </button>
                 )}
 
-                <button className="ai-tool" onClick={() => setTplPickerOpen(true)}>
-                  <span className="ai-tool-ic">🧩</span>
-                  <span><b>Maler</b><small>Bytt hele stilen – teksten beholdes</small></span>
-                </button>
-
                 <button className="ai-tool" onClick={() => setReviewOpen(true)}>
                   <span className="ai-tool-ic">✅</span>
                   <span><b>Sjekk kvalitet</b><small>Få vennlige tips</small></span>

@@ -792,3 +792,19 @@ button{font-family:inherit}
 .ai-fx-stepbtn:disabled{opacity:.35;cursor:not-allowed;}
 .ai-fx-countnum{font-size:54px;font-weight:800;color:#15131a;min-width:78px;text-align:center;font-family:'Sora','Inter',sans-serif;letter-spacing:-1px;}
 .ai-fx-quick{display:flex;gap:8px;}
+
+/* Visuelt-steg: fargepalett + valg */
+.ai-fx-palette{display:flex;align-items:center;gap:14px;margin-top:18px;}
+.ai-fx-swatches{display:flex;border-radius:12px;overflow:hidden;box-shadow:0 4px 14px -6px rgba(40,10,60,.3);border:1px solid #ececf1;flex:0 0 auto;}
+.ai-fx-sw{width:38px;height:46px;}
+.ai-fx-palinfo{display:flex;flex-direction:column;gap:7px;}
+.ai-fx-palname{font-size:16px;font-weight:700;color:#15131a;}
+.ai-fx-palbtns{display:flex;gap:8px;flex-wrap:wrap;}
+.ai-fx-palbtn{display:inline-flex;align-items:center;gap:5px;border:1.5px solid #e3e3ea;background:#fff;cursor:pointer;border-radius:10px;padding:7px 12px;font-size:13px;font-weight:600;color:#46484f;font-family:inherit;transition:all .14s;}
+.ai-fx-palbtn:hover{border-color:#cdbdf0;color:#15131a;}
+.ai-fx-palbtn.on{border-color:#7c3aed;color:#7c3aed;background:rgba(124,58,237,.06);}
+.ai-fx-stylelist{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
+.ai-fx-stylechip{display:inline-flex;align-items:center;gap:8px;border:1.5px solid #e3e3ea;background:#fff;cursor:pointer;border-radius:999px;padding:7px 14px 7px 8px;font-size:13.5px;font-weight:600;color:#46484f;font-family:inherit;transition:all .14s;}
+.ai-fx-stylechip:hover{border-color:#cdbdf0;}
+.ai-fx-stylechip.on{border-color:#7c3aed;color:#15131a;background:rgba(124,58,237,.06);}
+.ai-fx-stylechip-sw{width:18px;height:18px;border-radius:50%;border:1px solid rgba(0,0,0,.08);}
