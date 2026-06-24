@@ -297,17 +297,92 @@ function parseStats(spec) {
   return out
 }
 
+// ---------- nye oppsett: tidslinje + sammenligning ----------
+function timeline(spec, st) {
+  const els = []
+  els.push(...eyebrow(spec, st, 72, 84))
+  els.push(T({ x: 72, y: 116, w: 816, h: 56, text: spec.title || '', fontFamily: st.head, fontSize: 40, bold: true, color: st.ink }))
+  const items = (spec.bullets || []).slice(0, 5)
+  const n = items.length || 1
+  const top = 210, bottom = 498
+  const rowH = Math.floor((bottom - top) / n)
+  const railX = 112
+  if (n > 1) els.push(RECT({ x: railX - 2, y: top + 11, w: 4, h: rowH * (n - 1), fill: tint(st.acc, st.bg, 0.45), radius: 2 }))
+  items.forEach((b, i) => {
+    const ry = top + i * rowH
+    const s = String(b)
+    const ci = s.indexOf(':')
+    const head = ci > 0 && ci <= 32 ? s.slice(0, ci).trim() : ''
+    const body = head ? s.slice(ci + 1).trim() : s
+    els.push(CIRC({ x: railX - 11, y: ry, w: 22, h: 22, fill: st.acc }))
+    if (head) {
+      els.push(T({ x: railX + 34, y: ry - 5, w: 736, h: 28, text: head, fontFamily: st.head, fontSize: 21, bold: true, color: st.ink }))
+      els.push(T({ x: railX + 34, y: ry + 24, w: 736, h: rowH - 30, text: body, fontFamily: st.body, fontSize: 16, color: st.soft, lineHeight: 1.35 }))
+    } else {
+      els.push(T({ x: railX + 34, y: ry - 2, w: 736, h: rowH - 8, text: body, fontFamily: st.body, fontSize: 18, color: st.ink, lineHeight: 1.35 }))
+    }
+  })
+  return { background: bg(st), elements: els }
+}
+function comparison(spec, st) {
+  const els = []
+  els.push(...eyebrow(spec, st, 72, 84))
+  els.push(T({ x: 72, y: 116, w: 816, h: 56, text: spec.title || '', fontFamily: st.head, fontSize: 40, bold: true, color: st.ink }))
+  let cols = (spec.columns || []).slice(0, 2)
+  if (cols.length < 2) {
+    const bl = spec.bullets || []
+    const half = Math.ceil(bl.length / 2) || 1
+    cols = [{ heading: 'Fordeler', bullets: bl.slice(0, half) }, { heading: 'Ulemper', bullets: bl.slice(half) }]
+  }
+  const gap = 60, w = Math.floor((816 - gap) / 2)
+  const colY = 212, colH = 272
+  cols.forEach((c, i) => {
+    const x = 72 + i * (w + gap)
+    const accent = i === 0 ? st.acc : tint(st.ink, st.acc, 0.45)
+    els.push(RECT({ x, y: colY, w, h: colH, fill: st.card, radius: 20 }))
+    els.push(RECT({ x: x + 26, y: colY + 28, w: 38, h: 5, fill: accent, radius: 3 }))
+    els.push(T({ x: x + 26, y: colY + 46, w: w - 52, h: 34, text: c.heading || (i === 0 ? 'A' : 'B'), fontFamily: st.head, fontSize: 24, bold: true, color: accent }))
+    els.push(T({ x: x + 26, y: colY + 92, w: w - 52, h: colH - 112, text: (c.bullets || []).map((b) => '· ' + b).join('\n'), fontFamily: st.body, fontSize: 16, color: st.soft, lineHeight: 1.45 }))
+  })
+  const vx = 72 + w + gap / 2, vy = colY + colH / 2
+  els.push(CIRC({ x: vx - 27, y: vy - 27, w: 54, h: 54, fill: st.acc }))
+  els.push(T({ x: vx - 27, y: vy - 13, w: 54, h: 28, text: 'VS', fontFamily: st.head, fontSize: 19, bold: true, color: st.dark ? '#15110e' : '#fff', align: 'center' }))
+  return { background: bg(st), elements: els }
+}
+// gjenkjenn innhold som passer de nye oppsettene
+function looksTimeline(spec) {
+  const bl = (spec.bullets || [])
+  if (bl.length < 2) return false
+  const hits = bl.filter((b) => /(\b\d{4}\b|\d{2,4}-tallet|^\s*steg\b|^\s*trinn\b|^\s*fase\b|^\s*\d{1,2}\s*[:.)])/i.test(String(b))).length
+  if (hits >= 2) return true
+  const t = (spec.title || '').toLowerCase()
+  return /tidslinje|historie|utvikling|gjennom tiden|milepæl|kronologi/.test(t) && bl.length >= 3
+}
+function looksComparison(spec) {
+  const t = (spec.title || '').toLowerCase()
+  if (/\bvs\b|versus|sammenlign|fordeler og ulemper|før og nå|pro og kontra/.test(t)) return true
+  if ((spec.columns || []).length === 2) {
+    const heads = (spec.columns || []).map((c) => (c.heading || '').toLowerCase()).join(' ')
+    if (/fordel|ulemp|før|nå|pro\b|kontra|positiv|negativ/.test(heads)) return true
+  }
+  return false
+}
+
 // ---------- velg layout pr lysbilde (variasjon) ----------
 function designSlide(spec, st, idx, isFirst, isLast) {
   const L = spec.layout || 'bullets'
-  if (isFirst || L === 'cover') return (idx % 2 === 0 ? coverSplit : coverSplit)(spec, st) // forside alltid split-foto
+  if (isFirst || L === 'cover') return coverSplit(spec, st)
   if (isLast && L !== 'twoColumn') return closing(spec, st)
   if (L === 'section') return section(spec, st)
+  if (L === 'timeline') return timeline(spec, st)
+  if (L === 'comparison') return comparison(spec, st)
   if (L === 'statement') return (parseStats(spec).length >= 2 && /\d/.test((spec.bullets || []).join(''))) ? statBig(spec, st) : quote(spec, st)
-  if (L === 'twoColumn') return twoColumn(spec, st)
+  if (L === 'twoColumn') return looksComparison(spec) ? comparison(spec, st) : twoColumn(spec, st)
   if (L === 'imageFull') return quote(spec.statement ? spec : { ...spec, statement: spec.title }, st)
   if (L === 'imageText') return photoText(spec, st, idx % 2 === 1)
-  // bullets: vekslende stiler for variasjon
+  // bullets: gjenkjenn tidslinje/sammenligning, ellers vekslende stiler
+  if (looksTimeline(spec)) return timeline(spec, st)
+  if (looksComparison(spec)) return comparison(spec, st)
   const bl = (spec.bullets || [])
   if (bl.length && bl.length <= 3 && bl.every((b) => String(b).length < 90)) return iconCards(spec, st)
   return photoText(spec, st, idx % 2 === 1)
