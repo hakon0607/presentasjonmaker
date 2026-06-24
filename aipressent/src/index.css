@@ -47,6 +47,7 @@ button{font-family:inherit}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px}
 .proj{background:none;border:none;padding:0;cursor:pointer;text-align:left}
 .proj-thumb{aspect-ratio:16/9;border-radius:12px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;padding:14px;font-weight:700;text-align:center;overflow:hidden;transition:transform .12s}
+.proj-thumb.live{padding:0;display:block;background:#fff;position:relative}
 .proj:hover .proj-thumb{transform:translateY(-3px);box-shadow:var(--shadow)}
 .proj-foot{display:flex;align-items:center;justify-content:space-between;margin-top:8px;gap:8px}
 .proj-name{font-weight:600;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

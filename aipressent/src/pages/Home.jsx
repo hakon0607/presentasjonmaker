@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { newDeck, THEMES } from '../lib/deck'
 import { exportPptx } from '../lib/export'
 import AiWizard from '../components/AiWizard'
+import SlideStage from '../components/SlideStage'
 import Tour from '../components/Tour'
 import InstallButton from '../components/InstallButton'
 import TokenBadge from '../components/TokenBadge'
@@ -43,7 +44,7 @@ export default function Home() {
   const load = useCallback(async () => {
     setLoading(true)
     if (!user) { setItems([]); setLoading(false); return }
-    const { data } = await supabase.from('presentations').select('id, title, updated_at, t:data->theme').eq('owner_id', user.id).order('updated_at', { ascending: false })
+    const { data } = await supabase.from('presentations').select('id, title, updated_at, cover:data->slides->0, t:data->theme').eq('owner_id', user.id).order('updated_at', { ascending: false })
     setItems(data ?? [])
     setLoading(false)
   }, [user])
@@ -117,9 +118,11 @@ export default function Home() {
               const th = (typeof p.t === 'string' ? THEMES[p.t] : p.t) || THEMES.minimal
               return (
                 <button key={p.id} className="proj" onClick={() => nav('/p/' + p.id)}>
-                  <div className="proj-thumb" style={{ background: th.bg, color: th.title, fontFamily: th.fontHead }}>
-                    <span>{p.title || 'Uten tittel'}</span>
-                  </div>
+                  {p.cover && p.cover.elements
+                    ? <div className="proj-thumb live"><SlideStage slide={p.cover} /></div>
+                    : <div className="proj-thumb" style={{ background: th.bg, color: th.title, fontFamily: th.fontHead }}>
+                        <span>{p.title || 'Uten tittel'}</span>
+                      </div>}
                   <div className="proj-foot">
                     <div className="proj-name">{p.title || 'Uten tittel'}</div>
                     <span className="proj-dl" onClick={(e) => downloadProj(p.id, e)} title="Last ned som PowerPoint"><Download size={15} /></span>
