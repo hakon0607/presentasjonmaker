@@ -778,3 +778,17 @@ button{font-family:inherit}
 @keyframes aiFxSpin{to{transform:rotate(360deg)}}
 .ai-fx-foothint{margin:14px 0 0;text-align:center;font-size:13px;color:rgba(255,255,255,.8);font-weight:500;}
 @media(max-width:560px){.ai-fx-preview{flex-direction:column}.ai-fx-side{width:auto;flex:none;flex-direction:row;align-items:center;justify-content:space-between}}
+
+/* Steg: tekstmengde-valg */
+.ai-fx-choices{display:flex;gap:12px;margin-top:6px;}
+.ai-fx-choice{flex:1;border:2px solid #ececf1;background:#fff;cursor:pointer;border-radius:16px;padding:18px 12px;font-size:16px;font-weight:700;color:#46484f;font-family:inherit;transition:all .14s;}
+.ai-fx-choice:hover{border-color:#cdbdf0;}
+.ai-fx-choice.on{border-color:#7c3aed;background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(194,100,198,.08));color:#15131a;box-shadow:0 6px 18px -8px rgba(124,58,237,.5);}
+/* Steg: antall sider */
+.ai-fx-count{display:flex;flex-direction:column;align-items:center;gap:18px;margin-top:8px;}
+.ai-fx-stepper{display:flex;align-items:center;gap:22px;}
+.ai-fx-stepbtn{width:48px;height:48px;border-radius:50%;border:2px solid #ececf1;background:#fff;font-size:26px;font-weight:600;color:#15131a;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:all .14s;}
+.ai-fx-stepbtn:hover:not(:disabled){border-color:#7c3aed;color:#7c3aed;}
+.ai-fx-stepbtn:disabled{opacity:.35;cursor:not-allowed;}
+.ai-fx-countnum{font-size:54px;font-weight:800;color:#15131a;min-width:78px;text-align:center;font-family:'Sora','Inter',sans-serif;letter-spacing:-1px;}
+.ai-fx-quick{display:flex;gap:8px;}

@@ -58,15 +58,27 @@ function chip(text, x, y, bg, fg, style) {
     T({ x: x + 16, y: y + 7, w: w - 32, h: 22, text: text.toUpperCase(), fontFamily: 'Inter', fontSize: 13, color: fg, bold: true, letterSpacing: 1.5 }),
   ]
 }
-// enkel tittel-tilpasning (krymper paa lange titler)
+// tittel-tilpasning: krymper på lange titler OG sørger for at det lengste ORDET
+// får plass på én linje (så ingen ord kuttes midt i / brekker stygt).
 function fit(text, base, w, maxLines = 2) {
-  const perLine = Math.max(6, Math.floor(w / (base * 0.56)))
-  const lines = Math.max(1, Math.ceil((text || '').length / perLine))
-  if (lines <= maxLines) return base
-  return Math.max(Math.round(base * (maxLines / lines) * 1.06), Math.round(base * 0.55))
+  const s = String(text || '')
+  const per = Math.max(4, Math.floor(w / (base * 0.55)))
+  const totalLines = s.split('\n').reduce((n, ln) => n + Math.max(1, Math.ceil(ln.length / per)), 0)
+  let size = base
+  if (totalLines > maxLines) size = Math.max(Math.round(base * (maxLines / totalLines) * 1.04), Math.round(base * 0.5))
+  // lengste ord må få plass i bredden (konservativ tegnbredde 0.62)
+  const longest = s.split(/\s+/).reduce((m, x) => Math.max(m, x.length), 0)
+  if (longest > 0) {
+    const cap = Math.floor(w / (longest * 0.62))
+    if (size > cap) size = cap
+  }
+  return Math.max(size, 12)
 }
-// antall linjer + hoyde for en tekst -> brukes til aa stable elementer uten overlapp
-function lineCount(text, fs, w) { const per = Math.max(4, Math.floor(w / (fs * 0.54))); return Math.max(1, Math.ceil(String(text || '').length / per)) }
+// antall linjer + høyde (respekterer linjeskift, litt konservativ for å unngå overlapp)
+function lineCount(text, fs, w) {
+  const per = Math.max(4, Math.floor(w / (fs * 0.58)))
+  return String(text || '').split('\n').reduce((n, ln) => n + Math.max(1, Math.ceil(ln.length / per)), 0)
+}
 function txtH(text, fs, w, lh = 1.04) { return Math.round(lineCount(text, fs, w) * fs * lh) }
 const photoQ = (spec) => (spec.image && spec.image.caption) || spec.photo || spec.figure || spec.title || spec.statement || ''
 
