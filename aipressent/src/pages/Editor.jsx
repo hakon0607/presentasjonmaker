@@ -9,7 +9,6 @@ import { importToGoogleSlides, googleConfigured, loadGis } from '../lib/gslides'
 import Canvas from '../components/Canvas'
 import SlideStage from '../components/SlideStage'
 import TokenBadge from '../components/TokenBadge'
-import SourcesModal from '../components/SourcesModal'
 import { folderSlug } from '../lib/slug'
 
 import Toolbar from '../components/Toolbar'
@@ -34,7 +33,6 @@ export default function Editor() {
   const notesProg = useProgress()
   const [tourOpen, setTourOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
-  const [sourcesOpen, setSourcesOpen] = useState(false)
   const [animBusy, setAnimBusy] = useState(false)
   const [sp, setSp] = useSearchParams()
   useEffect(() => {
@@ -570,7 +568,6 @@ export default function Editor() {
           <button className={'chip' + (saved === 'saved' ? ' ok' : '')} onClick={flush}><Save size={15} /> {saveLabel}</button>
           <TokenBadge />
           <button className="chip" data-tour="share" onClick={() => setShareOpen(true)}><Share2 size={15} /> Del</button>
-          <button className="chip" onClick={() => setSourcesOpen(true)} title="Kilder & faktasjekk"><CheckCircle2 size={15} /> Kilder</button>
           <button className="chip" data-tour="present" onClick={() => { commitEdits(); setTimeout(() => setPresent(true), 0) }}><Play size={15} /> Presenter</button>
           <div className="menu-wrap" data-tour="export">
             <button className="chip primary" onClick={() => setExportOpen((o) => !o)}><Download size={15} /> Eksporter</button>
@@ -738,7 +735,6 @@ export default function Editor() {
       )}
       {shareMsg && <div className="toast">{shareMsg}</div>}
       {shareOpen && <ShareModal id={id} title={deck.title} onClose={() => setShareOpen(false)} />}
-      {sourcesOpen && <SourcesModal deck={deck} onClose={() => setSourcesOpen(false)} />}
       {designOpen && <DesignModal deck={deck} onApply={applyDesign} onClose={() => setDesignOpen(false)} />}
       {fontOpen && <FontMenu deck={deck} onApply={setFonts} onClose={() => setFontOpen(false)} />}
       {tourOpen && <Tour onClose={() => setTourOpen(false)} steps={[
