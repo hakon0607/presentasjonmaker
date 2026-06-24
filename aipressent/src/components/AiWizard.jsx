@@ -237,8 +237,8 @@ export default function AiWizard({ onClose, userId, nav }) {
   if (step === 'input') {
     return (
       <div className="ai-fx" onClick={busy ? undefined : onClose}>
+        {!busy && <button className="ai-fx-close" onClick={(e) => { e.stopPropagation(); onClose() }} aria-label="Lukk"><X size={20} /></button>}
         <div className="ai-fx-inner" onClick={(e) => e.stopPropagation()}>
-          {!busy && <button className="ai-fx-close" onClick={onClose} aria-label="Lukk"><X size={20} /></button>}
           <h1 className="ai-fx-title">Lag din neste presentasjon</h1>
           <p className="ai-fx-sub">Overskrift → Manus → Tekst → Sider → Stil</p>
           <div className="ai-fx-dots">
