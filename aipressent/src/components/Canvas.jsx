@@ -158,6 +158,13 @@ export default function Canvas({ slide, onChange, selectedId, setSelectedId, sel
           const lockCls = el.locked ? ' locked' : ''
 
           if (el.type === 'shape') {
+            // «Belegg» (mørkt slør over bilde) er låst til designet og slipper klikk
+            // gjennom til bildet under – så dobbeltklikk bytter bildet som vanlig.
+            if (el.overlay) {
+              return <div key={el.id} className="el" style={{ ...box, pointerEvents: 'none' }}>
+                <ShapeInner el={el} W={el.w * scale} H={el.h * scale} />
+              </div>
+            }
             return <div key={el.id} className={'el' + (sel ? ' sel' : '') + lockCls} style={box}
               onPointerDown={(e) => start(e, el, 'move')}>
               <ShapeInner el={el} W={el.w * scale} H={el.h * scale} />{grips(el)}

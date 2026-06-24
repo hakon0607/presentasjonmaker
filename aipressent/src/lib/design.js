@@ -49,7 +49,7 @@ const RECT = (p) => ({ ...shapeEl({ kind: 'rect', radius: 0, ...p }), decor: tru
 const CIRC = (p) => ({ ...shapeEl({ kind: 'circle', ...p }), decor: true })
 const ICON = (id, color, x, y, w) => ({ ...imageEl({ x, y, w, h: w, src: ICONIFY(id, color), fit: 'contain', caption: '' }), decor: true })
 const PHOTO = (p, q) => ({ ...imageEl({ src: '', fit: 'cover', caption: q || '', ...p }), photoSlot: true, photoQuery: q || '' })
-const SCRIM = (css, p = {}) => ({ ...shapeEl({ kind: 'rect', x: 0, y: 0, w: CW, h: CH, fill: css, radius: 0, ...p }), decor: true })
+const SCRIM = (css, p = {}) => ({ ...shapeEl({ kind: 'rect', x: 0, y: 0, w: CW, h: CH, fill: css, radius: 0, ...p }), decor: true, overlay: true, locked: true })
 
 function chip(text, x, y, bg, fg, style) {
   const w = Math.min(360, 60 + text.length * 11)

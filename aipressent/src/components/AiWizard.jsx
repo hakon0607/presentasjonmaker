@@ -74,8 +74,6 @@ export default function AiWizard({ onClose, userId, nav }) {
   // steg 2
   const [outline, setOutline] = useState([])
   const [theme, setTheme] = useState(normalizeTheme(null))
-  const [tpl, setTpl] = useState(null)          // valgt ferdig mal (valgfritt)
-  const [tplOpen, setTplOpen] = useState(false)
   const [styleBusy, setStyleBusy] = useState(false)
   const [genLabel, setGenLabel] = useState('')
   const prog = useProgress()
@@ -208,11 +206,11 @@ export default function AiWizard({ onClose, userId, nav }) {
 
   // ---- fremtidig, stegvis inndata (5 steg) ----
   const FXQ = [
-    { q: 'Hva skal presentasjonen handle om?', hint: 'Gi den en overskrift' },
-    { q: 'Skriv litt manus eller noen stikkord', hint: 'AI tolker og bygger ut resten' },
+    { q: 'Hva skal overskriften være?', hint: 'Tittelen på presentasjonen' },
+    { q: 'Hva skal den handle om?', hint: 'Skriv stikkord eller manus – AI bygger ut resten' },
     { q: 'Hvor mye tekst på hver side?', hint: 'Velg mengde' },
-    { q: 'Hvor mange sider?', hint: '3–20 lysbilder' },
-    { q: 'Hvordan skal det se ut?', hint: 'Beskriv stilen – valgfritt' },
+    { q: 'Hvor mange sider?', hint: 'Antall lysbilder (3–20)' },
+    { q: 'Hvordan skal det se ut?', hint: 'Beskriv stilen med egne ord – valgfritt' },
   ]
   const LAST = FXQ.length - 1
   const canNext = subStep === 0 ? !!title.trim() : subStep === 1 ? !!manuscript.trim() : true
@@ -243,12 +241,12 @@ export default function AiWizard({ onClose, userId, nav }) {
               <input className="ai-fx-input" autoFocus value={title} spellCheck lang="nb"
                 onChange={(e) => setTitle(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') fxNext() }}
-                placeholder="F.eks. Hvordan ny teknologi endrer hverdagen" />
+                placeholder="Skriv overskriften her – f.eks. «2. verdenskrig»" />
             )}
             {subStep === 1 && (
               <textarea className="ai-fx-area" rows={4} autoFocus value={manuscript} spellCheck lang="nb"
                 onChange={(e) => setManuscript(e.target.value)}
-                placeholder="Stikkord eller helt manus – f.eks. «historie, viktige årstall, konsekvenser i dag»" />
+                placeholder="Skriv stikkord eller manus – f.eks. «årsaker, viktige hendelser, landene som deltok, hvordan den endte»" />
             )}
             {subStep === 2 && (
               <div className="ai-fx-choices">

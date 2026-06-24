@@ -10,15 +10,6 @@ import Canvas from '../components/Canvas'
 import SlideStage from '../components/SlideStage'
 import TokenBadge from '../components/TokenBadge'
 
-const TEMPLATES = [
-  { name: 'Forside', s: { layout: 'cover', title: 'Tittel', subtitle: 'Undertittel', icon: '📌' } },
-  { name: 'Kapittel', s: { layout: 'section', title: 'Kapittel', icon: '🌟' } },
-  { name: 'Punktliste', s: { layout: 'bullets', title: 'Tittel', bullets: ['Første punkt', 'Andre punkt', 'Tredje punkt'], icon: '✅' } },
-  { name: 'Stor setning', s: { layout: 'statement', statement: 'En viktig setning her', subtitle: '' } },
-  { name: 'Bilde + tekst', s: { layout: 'imageText', title: 'Tittel', bullets: ['Punkt 1', 'Punkt 2', 'Punkt 3'], image: { caption: 'Bilde her' } } },
-  { name: 'Stort bilde', s: { layout: 'imageFull', title: 'Tittel', image: { caption: 'Stort bilde her' } } },
-  { name: 'To kolonner', s: { layout: 'twoColumn', title: 'Tittel', columns: [{ heading: 'Venstre', bullets: ['Punkt', 'Punkt'] }, { heading: 'Høyre', bullets: ['Punkt', 'Punkt'] }], icon: '⚖️' } },
-]
 import Toolbar from '../components/Toolbar'
 import AnimPanel from '../components/AnimPanel'
 import { useProgress, ProgressBar } from '../components/Progress'
@@ -55,7 +46,6 @@ export default function Editor() {
   const [imgChoice, setImgChoice] = useState(null)
   const [grid, setGrid] = useState(false)
   const [zoom, setZoom] = useState(1)
-  const [tplOpen, setTplOpen] = useState(false)
   const [animOpen, setAnimOpen] = useState(false)
   const [notesLen, setNotesLen] = useState('medium')
   const [notesOpen, setNotesOpen] = useState(false)
@@ -395,11 +385,6 @@ export default function Editor() {
   function groupSel() { const gid = genId(); setSlide({ ...slide, elements: slide.elements.map((e) => (multiSel.includes(e.id) ? { ...e, groupId: gid } : e)) }) }
   function ungroupSel() { setSlide({ ...slide, elements: slide.elements.map((e) => (multiSel.includes(e.id) ? { ...e, groupId: undefined } : e)) }) }
   function deleteMulti() { if (!multiSel.length) return; setSlide({ ...slide, elements: slide.elements.filter((e) => !multiSel.includes(e.id)) }); setSelId(null); setMultiSel([]) }
-  function addTemplate(tpl) {
-    const built = slidesFromAi([tpl], deck.theme)[0]; if (!built) return
-    const slides = [...deck.slides]; slides.splice(idx + 1, 0, built)
-    apply({ ...deck, slides }); setIdx(idx + 1); setSelId(null); setMultiSel([]); setTplOpen(false)
-  }
   function setAnim(patch) { setSlide({ ...slide, anim: { ...(slide.anim || {}), ...patch } }) }
   function setBg(color) { setSlide({ ...slide, background: color }) }
   function setNotes(t) { setSlide({ ...slide, notes: t }) }
@@ -635,7 +620,6 @@ export default function Editor() {
             )
           })}
           <button className="rail-add" onClick={addSlide}><Plus size={16} /> Lysbilde</button>
-          <button className="rail-add ghost" onClick={() => setTplOpen(true)}><FileText size={15} /> Nytt oppsett</button>
           <div className="rail-resizer" onPointerDown={startRailResize} title="Dra for å endre bredde" />
         </aside>
 
@@ -729,18 +713,6 @@ export default function Editor() {
       {present && <Present deck={deck} start={idx} onClose={() => setPresent(false)} />}
       {aiSlideOpen && <AiSlideModal slide={slide} onClose={() => setAiSlideOpen(false)} onApply={(s) => { applyAiSlide(s); setAiSlideOpen(false) }} />}
       {reviewOpen && <ReviewModal deck={deck} onClose={() => setReviewOpen(false)} />}
-      {tplOpen && (
-        <div className="modal-bg" onClick={() => setTplOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2><FileText size={20} /> Velg et oppsett</h2>
-            <p className="muted">Legg til et nytt lysbilde med ferdig oppsett. Du fyller inn ditt eget innhold etterpå.</p>
-            <div className="tpl-grid">
-              {TEMPLATES.map((t) => <button key={t.name} className="tpl-btn" onClick={() => addTemplate(t.s)}>{t.name}</button>)}
-            </div>
-            <div className="modal-foot"><button className="btn ghost" onClick={() => setTplOpen(false)}>Avbryt</button></div>
-          </div>
-        </div>
-      )}
       {animOpen && <AnimPanel slide={slide} onChange={setSlide} selectedId={selId} onClose={() => setAnimOpen(false)} />}
 
       {aiImgEl && <AiImageModal el={aiImgEl} onClose={() => setAiImgEl(null)} onGen={genImage} />}
