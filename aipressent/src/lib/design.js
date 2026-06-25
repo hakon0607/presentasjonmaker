@@ -552,6 +552,18 @@ function designSlide(spec, st, idx, isFirst, isLast, varied = true) {
     if (looksNumbered(spec)) return numberedList(spec, st)
     if (looksKpi(spec)) return kpiRow(spec, st)
     if (looksMindmap(spec)) return mindMap(spec, st)
+    // ingen spesiell match: veksle aktivt mellom trygge oppsett for ekte variasjon
+    const bl0 = (spec.bullets || [])
+    const short = bl0.every((b) => String(b).length < 70)
+    if (bl0.length >= 4 && bl0.length <= 5) {
+      // veksle nummerert liste / foto+tekst
+      return (idx % 2 === 0) ? numberedList(spec, st) : photoText(spec, st, idx % 2 === 1)
+    }
+    if (bl0.length && bl0.length <= 3 && short) {
+      // veksle ikon-kort / foto+tekst
+      return (idx % 2 === 0) ? iconCards(spec, st) : photoText(spec, st, idx % 2 === 1)
+    }
+    return photoText(spec, st, idx % 2 === 1)
   }
   const bl = (spec.bullets || [])
   if (bl.length && bl.length <= 3 && bl.every((b) => String(b).length < 90)) return iconCards(spec, st)
