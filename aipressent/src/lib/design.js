@@ -289,8 +289,9 @@ function parseStats(spec) {
   const out = []
   for (const b of (spec.bullets || spec.stats || [])) {
     const s = String(b)
-    const m = s.match(/([\d.,]+\s?(?:%|k|K|M|mrd|kr|\+|x|°)?)/)
-    if (m) out.push({ big: m[1].trim(), lab: s.replace(m[1], '').replace(/^[\s:–-]+/, '').trim() || 'tall' })
+    // fang hele tallområder («7-9») som ett tall, ikke bare det første tallet
+    const m = s.match(/(\d[\d.,]*(?:\s*[-–]\s*\d[\d.,]*)?\s?(?:%|k|K|M|mrd|kr|\+|x|°)?)/)
+    if (m) out.push({ big: m[1].replace(/\s*[-–]\s*/, '–').trim(), lab: s.replace(m[1], '').replace(/^[\s:–-]+/, '').trim() || 'tall' })
     else out.push({ big: s.slice(0, 6), lab: '' })
   }
   if (!out.length) return [{ big: '100%', lab: 'eksempel' }, { big: '3×', lab: 'mer' }, { big: '#1', lab: 'beste' }]
