@@ -552,15 +552,20 @@ function designSlide(spec, st, idx, isFirst, isLast, varied = true) {
     if (looksNumbered(spec)) return numberedList(spec, st)
     if (looksKpi(spec)) return kpiRow(spec, st)
     if (looksMindmap(spec)) return mindMap(spec, st)
-    // ingen spesiell match: veksle aktivt mellom trygge oppsett for ekte variasjon
+    // ingen spesiell match: syklus gjennom flere trygge oppsett for ekte variasjon
     const bl0 = (spec.bullets || [])
     const short = bl0.every((b) => String(b).length < 70)
-    if (bl0.length >= 4 && bl0.length <= 5) {
-      // veksle nummerert liste / foto+tekst
-      return (idx % 2 === 0) ? numberedList(spec, st) : photoText(spec, st, idx % 2 === 1)
+    const veryShort = bl0.every((b) => String(b).length < 38)
+    if (bl0.length >= 4 && bl0.length <= 6) {
+      // 4-6 punkter: roter foto+tekst → nummerert → ikon/tankekart → foto+tekst …
+      const pick = idx % 4
+      if (pick === 1 && bl0.length <= 5) return numberedList(spec, st)
+      if (pick === 2) return (bl0.length <= 6 && veryShort) ? mindMap(spec, st) : numberedList(spec, st)
+      if (pick === 3 && bl0.length <= 4) return iconCards(spec, st)
+      return photoText(spec, st, idx % 2 === 1)
     }
     if (bl0.length && bl0.length <= 3 && short) {
-      // veksle ikon-kort / foto+tekst
+      // 1-3 korte: veksle ikon-kort / foto+tekst
       return (idx % 2 === 0) ? iconCards(spec, st) : photoText(spec, st, idx % 2 === 1)
     }
     return photoText(spec, st, idx % 2 === 1)
