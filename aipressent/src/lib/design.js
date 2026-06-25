@@ -472,6 +472,23 @@ function factBox(spec, st) {
   els.push(T({ x: cx + 40, y: cy + 82, w: cardW - 80, h: fH + 12, text: fact, fontFamily: st.head, fontSize: fs0, bold: true, color: st.ink, lineHeight: 1.4 }))
   return { background: bg(st), elements: els }
 }
+function splitBullets(spec, st) {
+  const els = []
+  els.push(...eyebrow(spec, st, 72, 84))
+  els.push(T({ x: 72, y: 116, w: 816, h: 64, text: spec.title || '', fontFamily: st.head, fontSize: 44, bold: true, color: st.ink }))
+  const bl = (spec.bullets || []).slice(0, 6)
+  const half = Math.ceil(bl.length / 2)
+  const groups = [bl.slice(0, half), bl.slice(half)]
+  const gap = 28, w = Math.floor((816 - gap) / 2)
+  groups.forEach((arr, i) => {
+    if (!arr.length) return
+    const x = 72 + i * (w + gap)
+    els.push(RECT({ x, y: 224, w, h: 252, fill: st.card, radius: 20 }))
+    els.push(RECT({ x: x + 26, y: 248, w: 40, h: 5, fill: st.acc, radius: 3 }))
+    els.push(T({ x: x + 26, y: 268, w: w - 52, h: 192, text: arr.map((b) => '· ' + String(b).replace(/^[·•\-\s]+/, '')).join('\n'), fontFamily: st.body, fontSize: 18, color: st.soft, lineHeight: 1.5 }))
+  })
+  return { background: bg(st), elements: els }
+}
 // gjenkjenn innhold som passer de nye oppsettene
 function looksTimeline(spec) {
   const bl = (spec.bullets || [])
@@ -552,20 +569,21 @@ function designSlide(spec, st, idx, isFirst, isLast, varied = true) {
     if (looksNumbered(spec)) return numberedList(spec, st)
     if (looksKpi(spec)) return kpiRow(spec, st)
     if (looksMindmap(spec)) return mindMap(spec, st)
-    // ingen spesiell match: syklus gjennom flere trygge oppsett for ekte variasjon
+    // ingen spesiell match: ekte syklus gjennom flere trygge oppsett (aldri samme på rad)
     const bl0 = (spec.bullets || [])
     const short = bl0.every((b) => String(b).length < 70)
     const veryShort = bl0.every((b) => String(b).length < 38)
     if (bl0.length >= 4 && bl0.length <= 6) {
-      // 4-6 punkter: roter foto+tekst → nummerert → ikon/tankekart → foto+tekst …
-      const pick = idx % 4
-      if (pick === 1 && bl0.length <= 5) return numberedList(spec, st)
-      if (pick === 2) return (bl0.length <= 6 && veryShort) ? mindMap(spec, st) : numberedList(spec, st)
-      if (pick === 3 && bl0.length <= 4) return iconCards(spec, st)
+      const pool = ['photo', 'split']
+      if (bl0.length <= 5) pool.push('numbered')
+      if (veryShort) pool.push('mind')
+      const choice = pool[idx % pool.length]
+      if (choice === 'numbered') return numberedList(spec, st)
+      if (choice === 'split') return splitBullets(spec, st)
+      if (choice === 'mind') return mindMap(spec, st)
       return photoText(spec, st, idx % 2 === 1)
     }
     if (bl0.length && bl0.length <= 3 && short) {
-      // 1-3 korte: veksle ikon-kort / foto+tekst
       return (idx % 2 === 0) ? iconCards(spec, st) : photoText(spec, st, idx % 2 === 1)
     }
     return photoText(spec, st, idx % 2 === 1)
