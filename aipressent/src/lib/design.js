@@ -106,6 +106,12 @@ function lineCount(text, fs, w) {
   return String(text || '').split('\n').reduce((n, ln) => n + Math.max(1, Math.ceil(ln.length / per)), 0)
 }
 function txtH(text, fs, w, lh = 1.04) { return Math.round(lineCount(text, fs, w) * fs * lh) }
+// krymp skriftstørrelsen til teksten får plass i en boks (w x maxH). Hindrer overflyt/overlapp.
+function fitBody(text, w, maxH, base = 18, lh = 1.45, min = 11) {
+  let fs = base
+  while (fs > min && txtH(text, fs, w, lh) > maxH) fs -= 1
+  return fs
+}
 const photoQ = (spec) => (spec.image && spec.image.caption) || spec.photo || spec.figure || spec.title || spec.statement || ''
 // ekte bilde-emne? (faller IKKE tilbake til tittel/setning – så f.eks. «Takk» ikke blir et foto)
 const hasPhoto = (spec) => !!((spec.image && spec.image.caption) || spec.photo || spec.figure)
@@ -302,25 +308,24 @@ function parseStats(spec) {
 function timeline(spec, st) {
   const els = []
   els.push(...eyebrow(spec, st, 72, 84))
-  els.push(T({ x: 72, y: 116, w: 816, h: 56, text: spec.title || '', fontFamily: st.head, fontSize: 40, bold: true, color: st.ink }))
+  const tfs = fit(spec.title, 40, 816, 2)
+  els.push(T({ x: 72, y: 116, w: 816, h: txtH(spec.title, tfs, 816, 1.05) + 6, text: spec.title || '', fontFamily: st.head, fontSize: tfs, bold: true, color: st.ink, lineHeight: 1.05 }))
   const items = (spec.bullets || []).slice(0, 5)
   const n = items.length || 1
-  const top = 210, bottom = 498
-  const rowH = Math.floor((bottom - top) / n)
-  const railX = 112
+  const top = 214, bottom = 498, rowH = Math.floor((bottom - top) / n)
+  const railX = 112, txX = railX + 34, txW = 742
   if (n > 1) els.push(RECT({ x: railX - 2, y: top + 11, w: 4, h: rowH * (n - 1), fill: tint(st.acc, st.bg, 0.45), radius: 2 }))
   items.forEach((b, i) => {
     const ry = top + i * rowH
-    const s = String(b)
-    const ci = s.indexOf(':')
+    const s = String(b), ci = s.indexOf(':')
     const head = ci > 0 && ci <= 32 ? s.slice(0, ci).trim() : ''
     const body = head ? s.slice(ci + 1).trim() : s
     els.push(CIRC({ x: railX - 11, y: ry, w: 22, h: 22, fill: st.acc }))
     if (head) {
-      els.push(T({ x: railX + 34, y: ry - 5, w: 736, h: 28, text: head, fontFamily: st.head, fontSize: 21, bold: true, color: st.ink }))
-      els.push(T({ x: railX + 34, y: ry + 24, w: 736, h: rowH - 30, text: body, fontFamily: st.body, fontSize: 16, color: st.soft, lineHeight: 1.35 }))
+      els.push(T({ x: txX, y: ry - 5, w: txW, h: 26, text: head, fontFamily: st.head, fontSize: fit(head, 20, txW, 1), bold: true, color: st.ink }))
+      els.push(T({ x: txX, y: ry + 23, w: txW, h: rowH - 28, text: body, fontFamily: st.body, fontSize: fitBody(body, txW, rowH - 30, 16, 1.3), color: st.soft, lineHeight: 1.3 }))
     } else {
-      els.push(T({ x: railX + 34, y: ry - 2, w: 736, h: rowH - 8, text: body, fontFamily: st.body, fontSize: 18, color: st.ink, lineHeight: 1.35 }))
+      els.push(T({ x: txX, y: ry - 2, w: txW, h: rowH - 8, text: body, fontFamily: st.body, fontSize: fitBody(body, txW, rowH - 12, 18, 1.3), color: st.ink, lineHeight: 1.3 }))
     }
   })
   return { background: bg(st), elements: els }
@@ -328,22 +333,23 @@ function timeline(spec, st) {
 function comparison(spec, st) {
   const els = []
   els.push(...eyebrow(spec, st, 72, 84))
-  els.push(T({ x: 72, y: 116, w: 816, h: 56, text: spec.title || '', fontFamily: st.head, fontSize: 40, bold: true, color: st.ink }))
+  const tfs = fit(spec.title, 40, 816, 2)
+  els.push(T({ x: 72, y: 116, w: 816, h: txtH(spec.title, tfs, 816, 1.05) + 6, text: spec.title || '', fontFamily: st.head, fontSize: tfs, bold: true, color: st.ink, lineHeight: 1.05 }))
   let cols = (spec.columns || []).slice(0, 2)
   if (cols.length < 2) {
     const bl = spec.bullets || []
     const half = Math.ceil(bl.length / 2) || 1
     cols = [{ heading: 'Fordeler', bullets: bl.slice(0, half) }, { heading: 'Ulemper', bullets: bl.slice(half) }]
   }
-  const gap = 60, w = Math.floor((816 - gap) / 2)
-  const colY = 212, colH = 272
+  const gap = 60, w = Math.floor((816 - gap) / 2), colY = 214, colH = 270
   cols.forEach((c, i) => {
     const x = 72 + i * (w + gap)
     const accent = i === 0 ? st.acc : tint(st.ink, st.acc, 0.45)
+    const body = (c.bullets || []).map((b) => '· ' + String(b).replace(/^[·•\-\s]+/, '')).join('\n')
     els.push(RECT({ x, y: colY, w, h: colH, fill: st.card, radius: 20 }))
     els.push(RECT({ x: x + 26, y: colY + 28, w: 38, h: 5, fill: accent, radius: 3 }))
-    els.push(T({ x: x + 26, y: colY + 46, w: w - 52, h: 34, text: c.heading || (i === 0 ? 'A' : 'B'), fontFamily: st.head, fontSize: 24, bold: true, color: accent }))
-    els.push(T({ x: x + 26, y: colY + 92, w: w - 52, h: colH - 112, text: (c.bullets || []).map((b) => '· ' + b).join('\n'), fontFamily: st.body, fontSize: 16, color: st.soft, lineHeight: 1.45 }))
+    els.push(T({ x: x + 26, y: colY + 46, w: w - 52, h: 32, text: c.heading || (i === 0 ? 'A' : 'B'), fontFamily: st.head, fontSize: fit(c.heading || '', 24, w - 52, 1), bold: true, color: accent }))
+    els.push(T({ x: x + 26, y: colY + 90, w: w - 52, h: colH - 104, text: body, fontFamily: st.body, fontSize: fitBody(body, w - 52, colH - 104, 17, 1.45), color: st.soft, lineHeight: 1.45 }))
   })
   const vx = 72 + w + gap / 2, vy = colY + colH / 2
   els.push(CIRC({ x: vx - 27, y: vy - 27, w: 54, h: 54, fill: st.acc }))
@@ -353,20 +359,24 @@ function comparison(spec, st) {
 function processSteps(spec, st) {
   const els = []
   els.push(...eyebrow(spec, st, 72, 84))
-  els.push(T({ x: 72, y: 116, w: 816, h: 60, text: spec.title || '', fontFamily: st.head, fontSize: 42, bold: true, color: st.ink }))
+  const tfs = fit(spec.title, 42, 816, 2)
+  els.push(T({ x: 72, y: 116, w: 816, h: txtH(spec.title, tfs, 816, 1.05) + 6, text: spec.title || '', fontFamily: st.head, fontSize: tfs, bold: true, color: st.ink, lineHeight: 1.05 }))
   const items = (spec.bullets || []).slice(0, 4)
   const n = items.length || 1
   const gap = 20, w = Math.floor((816 - gap * (n - 1)) / n)
+  const cardY = 226, cardH = 244, padX = 22
   items.forEach((b, i) => {
     const x = 72 + i * (w + gap)
     const s = String(b), ci = s.indexOf(':')
-    const head = ci > 0 && ci <= 30 ? s.slice(0, ci).trim() : ''
+    const head = ci > 0 && ci <= 28 ? s.slice(0, ci).trim() : ''
     const body = head ? s.slice(ci + 1).trim() : s
-    els.push(RECT({ x, y: 226, w, h: 244, fill: st.card, radius: 18 }))
-    els.push(CIRC({ x: x + 22, y: 250, w: 46, h: 46, fill: st.acc }))
-    els.push(T({ x: x + 22, y: 261, w: 46, h: 30, text: String(i + 1), fontFamily: st.head, fontSize: 22, bold: true, color: st.dark ? '#15110e' : '#fff', align: 'center' }))
-    if (head) els.push(T({ x: x + 22, y: 312, w: w - 44, h: 30, text: head, fontFamily: st.head, fontSize: 18, bold: true, color: st.ink }))
-    els.push(T({ x: x + 22, y: head ? 344 : 314, w: w - 44, h: 116, text: body, fontFamily: st.body, fontSize: 15, color: st.soft, lineHeight: 1.4 }))
+    const tw = w - padX * 2
+    els.push(RECT({ x, y: cardY, w, h: cardH, fill: st.card, radius: 18 }))
+    els.push(CIRC({ x: x + padX, y: 250, w: 46, h: 46, fill: st.acc }))
+    els.push(T({ x: x + padX, y: 261, w: 46, h: 30, text: String(i + 1), fontFamily: st.head, fontSize: 22, bold: true, color: st.dark ? '#15110e' : '#fff', align: 'center' }))
+    let bodyY = 314
+    if (head) { els.push(T({ x: x + padX, y: 312, w: tw, h: 28, text: head, fontFamily: st.head, fontSize: fit(head, 18, tw, 1), bold: true, color: st.ink })); bodyY = 344 }
+    els.push(T({ x: x + padX, y: bodyY, w: tw, h: cardY + cardH - bodyY - 16, text: body, fontFamily: st.body, fontSize: fitBody(body, tw, cardY + cardH - bodyY - 18, 15, 1.35), color: st.soft, lineHeight: 1.35 }))
     if (i < n - 1) els.push(T({ x: x + w - 2, y: 318, w: gap + 4, h: 40, text: '→', fontFamily: st.head, fontSize: 24, bold: true, color: st.acc, align: 'center' }))
   })
   return { background: bg(st), elements: els }
@@ -374,10 +384,12 @@ function processSteps(spec, st) {
 function numberedList(spec, st) {
   const els = []
   els.push(...eyebrow(spec, st, 72, 84))
-  els.push(T({ x: 72, y: 116, w: 816, h: 60, text: spec.title || '', fontFamily: st.head, fontSize: 42, bold: true, color: st.ink }))
+  const tfs = fit(spec.title, 42, 816, 2)
+  els.push(T({ x: 72, y: 116, w: 816, h: txtH(spec.title, tfs, 816, 1.05) + 6, text: spec.title || '', fontFamily: st.head, fontSize: tfs, bold: true, color: st.ink, lineHeight: 1.05 }))
   const items = (spec.bullets || []).slice(0, 5)
   const n = items.length || 1
-  const top = 208, bottom = 500, rowH = Math.floor((bottom - top) / n)
+  const top = 210, bottom = 500, rowH = Math.floor((bottom - top) / n)
+  const txX = 180, txW = 700
   items.forEach((b, i) => {
     const ry = top + i * rowH
     const s = String(b), ci = s.indexOf(':')
@@ -385,10 +397,10 @@ function numberedList(spec, st) {
     const body = head ? s.slice(ci + 1).trim() : s
     els.push(T({ x: 72, y: ry - 8, w: 96, h: 64, text: String(i + 1).padStart(2, '0'), fontFamily: st.head, fontSize: 46, bold: true, color: tint(st.acc, st.bg, 0.32) }))
     if (head) {
-      els.push(T({ x: 180, y: ry, w: 700, h: 30, text: head, fontFamily: st.head, fontSize: 21, bold: true, color: st.ink }))
-      els.push(T({ x: 180, y: ry + 28, w: 700, h: rowH - 32, text: body, fontFamily: st.body, fontSize: 16, color: st.soft, lineHeight: 1.35 }))
+      els.push(T({ x: txX, y: ry, w: txW, h: 28, text: head, fontFamily: st.head, fontSize: fit(head, 21, txW, 1), bold: true, color: st.ink }))
+      els.push(T({ x: txX, y: ry + 28, w: txW, h: rowH - 32, text: body, fontFamily: st.body, fontSize: fitBody(body, txW, rowH - 34, 16, 1.3), color: st.soft, lineHeight: 1.3 }))
     } else {
-      els.push(T({ x: 180, y: ry + 4, w: 700, h: rowH - 10, text: body, fontFamily: st.body, fontSize: 19, color: st.ink, lineHeight: 1.3 }))
+      els.push(T({ x: txX, y: ry + 4, w: txW, h: rowH - 10, text: body, fontFamily: st.body, fontSize: fitBody(body, txW, rowH - 12, 19, 1.3), color: st.ink, lineHeight: 1.3 }))
     }
   })
   return { background: bg(st), elements: els }
@@ -396,30 +408,33 @@ function numberedList(spec, st) {
 function kpiRow(spec, st) {
   const els = []
   els.push(...eyebrow(spec, st, 72, 84))
-  els.push(T({ x: 72, y: 116, w: 816, h: 64, text: spec.title || '', fontFamily: st.head, fontSize: 44, bold: true, color: st.ink }))
+  const tfs = fit(spec.title, 44, 816, 2)
+  els.push(T({ x: 72, y: 116, w: 816, h: txtH(spec.title, tfs, 816, 1.05) + 6, text: spec.title || '', fontFamily: st.head, fontSize: tfs, bold: true, color: st.ink, lineHeight: 1.05 }))
   const stats = parseStats(spec).slice(0, 4)
   const n = stats.length || 1
   const gap = 22, w = Math.floor((816 - gap * (n - 1)) / n)
   stats.forEach((s, i) => {
     const x = 72 + i * (w + gap)
     els.push(RECT({ x, y: 234, w, h: 218, fill: st.card, radius: 20 }))
-    els.push(T({ x: x + 14, y: 270, w: w - 28, h: 80, text: s.big, fontFamily: st.head, fontSize: 52, bold: true, color: st.acc, lineHeight: 1, align: 'center' }))
-    els.push(T({ x: x + 14, y: 360, w: w - 28, h: 78, text: s.lab, fontFamily: st.body, fontSize: 16, color: st.soft, lineHeight: 1.3, align: 'center' }))
+    els.push(T({ x: x + 12, y: 276, w: w - 24, h: 76, text: s.big, fontFamily: st.head, fontSize: fit(s.big, 52, w - 24, 1), bold: true, color: st.acc, lineHeight: 1, align: 'center' }))
+    els.push(T({ x: x + 14, y: 362, w: w - 28, h: 76, text: s.lab, fontFamily: st.body, fontSize: fitBody(s.lab, w - 28, 76, 16, 1.3), color: st.soft, lineHeight: 1.3, align: 'center' }))
   })
   return { background: bg(st), elements: els }
 }
 function checklist(spec, st) {
   const els = []
   els.push(...eyebrow(spec, st, 72, 84))
-  els.push(T({ x: 72, y: 116, w: 816, h: 64, text: spec.title || '', fontFamily: st.head, fontSize: 44, bold: true, color: st.ink }))
+  const tfs = fit(spec.title, 44, 816, 2)
+  els.push(T({ x: 72, y: 116, w: 816, h: txtH(spec.title, tfs, 816, 1.05) + 6, text: spec.title || '', fontFamily: st.head, fontSize: tfs, bold: true, color: st.ink, lineHeight: 1.05 }))
   const items = (spec.bullets || []).slice(0, 6)
   const n = items.length || 1
   const top = 214, bottom = 498, rowH = Math.min(62, Math.floor((bottom - top) / n))
   items.forEach((b, i) => {
     const ry = top + i * rowH
+    const txt = String(b).replace(/^[·•\-\s]+/, '')
     els.push(CIRC({ x: 72, y: ry, w: 30, h: 30, fill: '#1faf6b' }))
     els.push(ICON('ph:check-bold', '#ffffff', 78, ry + 6, 18))
-    els.push(T({ x: 122, y: ry + 2, w: 740, h: rowH - 6, text: String(b).replace(/^[·•\-\s]+/, ''), fontFamily: st.body, fontSize: 19, color: st.ink, lineHeight: 1.3 }))
+    els.push(T({ x: 122, y: ry + 2, w: 740, h: rowH - 6, text: txt, fontFamily: st.body, fontSize: fitBody(txt, 740, rowH - 8, 19, 1.25), color: st.ink, lineHeight: 1.25 }))
   })
   return { background: bg(st), elements: els }
 }
@@ -434,11 +449,11 @@ function quotePortrait(spec, st) {
     els.push(T({ x: imgX, y: imgY + 56, w: imgD, h: 90, text: '“', fontFamily: st.head, fontSize: 100, bold: true, color: st.acc, align: 'center', lineHeight: 1 }))
   }
   const tx = imgX + imgD + 52, tw = 888 - tx
-  const fs = fit(q, 34, tw, 5)
+  const fs = fit(q, 34, tw, 6)
   const qH = txtH(q, fs, tw, 1.2)
-  const qy = Math.max(150, Math.round(268 - qH / 2))
+  const qy = Math.max(140, Math.round(268 - qH / 2))
   els.push(T({ x: tx, y: qy, w: tw, h: qH + 12, text: '“' + q + '”', fontFamily: st.head, fontSize: fs, italic: true, bold: true, color: st.ink, lineHeight: 1.2 }))
-  if (spec.subtitle) els.push(T({ x: tx, y: qy + qH + 20, w: tw, h: 28, text: '— ' + spec.subtitle, fontFamily: 'Inter', fontSize: 15, color: st.acc, bold: true, letterSpacing: 1 }))
+  if (spec.subtitle) els.push(T({ x: tx, y: Math.min(qy + qH + 20, 500), w: tw, h: 28, text: '— ' + spec.subtitle, fontFamily: 'Inter', fontSize: 15, color: st.acc, bold: true, letterSpacing: 1 }))
   return { background: bg(st), elements: els }
 }
 function mindMap(spec, st) {
@@ -446,15 +461,16 @@ function mindMap(spec, st) {
   els.push(...eyebrow(spec, st, 72, 84))
   const items = (spec.bullets || []).slice(0, 6)
   const slots = [[60, 150], [690, 150], [36, 300], [714, 300], [60, 446], [690, 446]]
-  const bw = 206, bh = 56
-  const cx = 480, cy = 312, cR = 88
+  const bw = 206, bh = 58
+  const cx = 480, cy = 312, cR = 90
   items.forEach((b, i) => {
     const [sx, sy] = slots[i]
+    const txt = String(b).replace(/^[·•\-\s]+/, '')
     els.push(RECT({ x: sx, y: sy, w: bw, h: bh, fill: st.card, radius: 14 }))
-    els.push(T({ x: sx + 16, y: sy + 9, w: bw - 32, h: bh - 14, text: String(b).replace(/^[·•\-\s]+/, ''), fontFamily: st.body, fontSize: 15, color: st.ink, lineHeight: 1.25 }))
+    els.push(T({ x: sx + 16, y: sy + 9, w: bw - 32, h: bh - 16, text: txt, fontFamily: st.body, fontSize: fitBody(txt, bw - 32, bh - 18, 15, 1.2), color: st.ink, lineHeight: 1.2 }))
   })
   els.push(CIRC({ x: cx - cR, y: cy - cR, w: cR * 2, h: cR * 2, fill: st.acc }))
-  els.push(T({ x: cx - cR + 12, y: cy - 28, w: cR * 2 - 24, h: 60, text: spec.title || '', fontFamily: st.head, fontSize: 19, bold: true, color: st.dark ? '#15110e' : '#fff', align: 'center', lineHeight: 1.05 }))
+  els.push(T({ x: cx - cR + 14, y: cy - 30, w: cR * 2 - 28, h: 64, text: spec.title || '', fontFamily: st.head, fontSize: fit(spec.title, 19, cR * 2 - 28, 3), bold: true, color: st.dark ? '#15110e' : '#fff', align: 'center', lineHeight: 1.05 }))
   return { background: bg(st), elements: els }
 }
 function factBox(spec, st) {
@@ -462,30 +478,34 @@ function factBox(spec, st) {
   const fact = (spec.bullets && spec.bullets[0]) || spec.statement || spec.subtitle || spec.title || ''
   els.push(CIRC({ x: -90, y: -90, w: 280, h: 280, fill: st.acc, opacity: st.dark ? 0.18 : 0.12 }))
   els.push(CIRC({ x: 770, y: 350, w: 300, h: 300, fill: st.acc, opacity: st.dark ? 0.18 : 0.12 }))
-  const cardW = 660
-  const fs0 = fit(fact, 30, cardW - 80, 6)
-  const fH = txtH(fact, fs0, cardW - 80, 1.4)
-  const cardH = Math.min(360, 150 + fH)
+  const cardW = 660, innerW = cardW - 80
+  const fs0 = fit(fact, 30, innerW, 6)
+  const fH = txtH(fact, fs0, innerW, 1.4)
+  const cardH = Math.min(380, 150 + fH)
   const cx = Math.round((960 - cardW) / 2), cy = Math.round((540 - cardH) / 2)
   els.push(RECT({ x: cx, y: cy, w: cardW, h: cardH, fill: st.card, radius: 24 }))
   els.push(...chip(spec.eyebrow || 'Visste du at?', cx + 40, cy + 34, st.acc, st.dark ? '#15110e' : '#fff'))
-  els.push(T({ x: cx + 40, y: cy + 82, w: cardW - 80, h: fH + 12, text: fact, fontFamily: st.head, fontSize: fs0, bold: true, color: st.ink, lineHeight: 1.4 }))
+  els.push(T({ x: cx + 40, y: cy + 82, w: innerW, h: cardH - 102, text: fact, fontFamily: st.head, fontSize: fs0, bold: true, color: st.ink, lineHeight: 1.4 }))
   return { background: bg(st), elements: els }
 }
 function splitBullets(spec, st) {
   const els = []
   els.push(...eyebrow(spec, st, 72, 84))
-  els.push(T({ x: 72, y: 116, w: 816, h: 64, text: spec.title || '', fontFamily: st.head, fontSize: 44, bold: true, color: st.ink }))
+  const tfs = fit(spec.title, 44, 816, 2)
+  els.push(T({ x: 72, y: 116, w: 816, h: txtH(spec.title, tfs, 816, 1.05) + 6, text: spec.title || '', fontFamily: st.head, fontSize: tfs, bold: true, color: st.ink, lineHeight: 1.05 }))
   const bl = (spec.bullets || []).slice(0, 6)
   const half = Math.ceil(bl.length / 2)
   const groups = [bl.slice(0, half), bl.slice(half)]
-  const gap = 28, w = Math.floor((816 - gap) / 2)
+  const gap = 28, w = Math.floor((816 - gap) / 2), colY = 224, colH = 252
+  // felles skriftstørrelse for begge kort (minste som passer)
+  const bodies = groups.map((arr) => arr.map((b) => '· ' + String(b).replace(/^[·•\-\s]+/, '')).join('\n'))
+  const bfs = Math.min(...bodies.filter((t) => t).map((t) => fitBody(t, w - 52, colH - 48, 18, 1.5)))
   groups.forEach((arr, i) => {
     if (!arr.length) return
     const x = 72 + i * (w + gap)
-    els.push(RECT({ x, y: 224, w, h: 252, fill: st.card, radius: 20 }))
-    els.push(RECT({ x: x + 26, y: 248, w: 40, h: 5, fill: st.acc, radius: 3 }))
-    els.push(T({ x: x + 26, y: 268, w: w - 52, h: 192, text: arr.map((b) => '· ' + String(b).replace(/^[·•\-\s]+/, '')).join('\n'), fontFamily: st.body, fontSize: 18, color: st.soft, lineHeight: 1.5 }))
+    els.push(RECT({ x, y: colY, w, h: colH, fill: st.card, radius: 20 }))
+    els.push(RECT({ x: x + 26, y: colY + 24, w: 40, h: 5, fill: st.acc, radius: 3 }))
+    els.push(T({ x: x + 26, y: colY + 44, w: w - 52, h: colH - 60, text: bodies[i], fontFamily: st.body, fontSize: bfs, color: st.soft, lineHeight: 1.5 }))
   })
   return { background: bg(st), elements: els }
 }
