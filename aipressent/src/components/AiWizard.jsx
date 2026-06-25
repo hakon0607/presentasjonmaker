@@ -66,6 +66,7 @@ export default function AiWizard({ onClose, userId, nav }) {
   const [step, setStep] = useState('input')
   const [subStep, setSubStep] = useState(0)            // 0=overskrift 1=manus 2=visuelt
   const [styleOverride, setStyleOverride] = useState(null)
+  const [varied, setVaried] = useState(true)            // Variert (nye oppsett) vs Enkel (klassisk v78)
   const [manualOpen, setManualOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -133,7 +134,7 @@ export default function AiWizard({ onClose, userId, nav }) {
       if (oe) throw oe
       if (o?.error) throw new Error(o.error)
       const realTitle = title || o.title || 'Uten tittel'
-      const dd = designDeck(o.slides || [], { title: realTitle, hint: visualStyle, styleId: styleOverride })
+      const dd = designDeck(o.slides || [], { title: realTitle, hint: visualStyle, styleId: styleOverride, varied })
       const slides = dd.slides
       await fillPhotos(slides, realTitle, dd.styleId, dd.style, folderSlug(realTitle))
       setGenLabel('Lagrer …')
@@ -216,7 +217,7 @@ export default function AiWizard({ onClose, userId, nav }) {
     setBusy(true); setErr(''); setGenLabel('Bygger lysbilder …'); prog.start()
     try {
       const realTitle = title || 'Uten tittel'
-      const dd = designDeck(outline.map(toAi), { title: realTitle, hint: visualStyle, styleId: styleOverride })
+      const dd = designDeck(outline.map(toAi), { title: realTitle, hint: visualStyle, styleId: styleOverride, varied })
       const slides = dd.slides
       await fillPhotos(slides, realTitle, dd.styleId, dd.style, folderSlug(realTitle))
       setGenLabel('Lagrer …')
@@ -332,6 +333,18 @@ export default function AiWizard({ onClose, userId, nav }) {
                     ))}
                   </div>
                 )}
+                <div className="ai-fx-variety">
+                  <div className="ai-fx-varlabel">Oppsett på sidene</div>
+                  <div className="ai-fx-palbtns">
+                    <button type="button" className={'ai-fx-palbtn' + (varied ? ' on' : '')} onClick={() => setVaried(true)}>Variert</button>
+                    <button type="button" className={'ai-fx-palbtn' + (!varied ? ' on' : '')} onClick={() => setVaried(false)}>Enkel</button>
+                  </div>
+                  <div className="ai-fx-varhint">
+                    {varied
+                      ? 'Bruker flere oppsett der det passer: tidslinje, sammenligning, steg, tall, sjekkliste m.m.'
+                      : 'Klassisk og rolig: mest foto, tekst og punktlister.'}
+                  </div>
+                </div>
               </>
             )}
 

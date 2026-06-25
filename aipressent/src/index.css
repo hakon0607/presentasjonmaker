@@ -830,3 +830,8 @@ button{font-family:inherit}
 .nt-refill-foot b{color:var(--ink)}
 .nt-ok{width:100%;margin-top:20px;justify-content:center}
 
+
+/* ---------- Variert/Enkel-valg i veiviser ---------- */
+.ai-fx-variety{margin-top:16px}
+.ai-fx-varlabel{font-size:.8rem;font-weight:800;letter-spacing:.04em;opacity:.7;margin-bottom:7px}
+.ai-fx-varhint{font-size:.74rem;opacity:.6;margin-top:7px;line-height:1.4}

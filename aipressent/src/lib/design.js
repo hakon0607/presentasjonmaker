@@ -519,35 +519,39 @@ function looksPortrait(spec) {
 }
 
 // ---------- velg layout pr lysbilde (variasjon) ----------
-function designSlide(spec, st, idx, isFirst, isLast) {
+function designSlide(spec, st, idx, isFirst, isLast, varied = true) {
   const L = spec.layout || 'bullets'
   if (isFirst || L === 'cover') return coverSplit(spec, st)
   if (isLast && L !== 'twoColumn') return closing(spec, st)
   if (L === 'section') return section(spec, st)
-  if (L === 'timeline') return timeline(spec, st)
-  if (L === 'comparison') return comparison(spec, st)
-  if (L === 'process') return processSteps(spec, st)
-  if (L === 'numbered') return numberedList(spec, st)
-  if (L === 'kpi') return kpiRow(spec, st)
-  if (L === 'checklist') return checklist(spec, st)
-  if (L === 'mindmap') return mindMap(spec, st)
-  if (L === 'fact') return factBox(spec, st)
+  if (varied) {
+    if (L === 'timeline') return timeline(spec, st)
+    if (L === 'comparison') return comparison(spec, st)
+    if (L === 'process') return processSteps(spec, st)
+    if (L === 'numbered') return numberedList(spec, st)
+    if (L === 'kpi') return kpiRow(spec, st)
+    if (L === 'checklist') return checklist(spec, st)
+    if (L === 'mindmap') return mindMap(spec, st)
+    if (L === 'fact') return factBox(spec, st)
+  }
   if (L === 'statement') {
-    if (looksPortrait(spec)) return quotePortrait(spec, st)
+    if (varied && looksPortrait(spec)) return quotePortrait(spec, st)
     return (parseStats(spec).length >= 2 && /\d/.test((spec.bullets || []).join(''))) ? statBig(spec, st) : quote(spec, st)
   }
-  if (L === 'twoColumn') return looksComparison(spec) ? comparison(spec, st) : twoColumn(spec, st)
-  if (L === 'imageFull') return looksPortrait(spec) ? quotePortrait(spec, st) : quote(spec.statement ? spec : { ...spec, statement: spec.title }, st)
+  if (L === 'twoColumn') return (varied && looksComparison(spec)) ? comparison(spec, st) : twoColumn(spec, st)
+  if (L === 'imageFull') return (varied && looksPortrait(spec)) ? quotePortrait(spec, st) : quote(spec.statement ? spec : { ...spec, statement: spec.title }, st)
   if (L === 'imageText') return photoText(spec, st, idx % 2 === 1)
-  // bullets: gjenkjenn spesialtilfeller, ellers vekslende stiler
-  if (looksTimeline(spec)) return timeline(spec, st)
-  if (looksComparison(spec)) return comparison(spec, st)
-  if (looksProcess(spec)) return processSteps(spec, st)
-  if (looksFact(spec)) return factBox(spec, st)
-  if (looksChecklist(spec)) return checklist(spec, st)
-  if (looksNumbered(spec)) return numberedList(spec, st)
-  if (looksKpi(spec)) return kpiRow(spec, st)
-  if (looksMindmap(spec)) return mindMap(spec, st)
+  // bullets: i variert modus gjenkjenner vi spesialtilfeller; ellers klassisk (som v78)
+  if (varied) {
+    if (looksTimeline(spec)) return timeline(spec, st)
+    if (looksComparison(spec)) return comparison(spec, st)
+    if (looksProcess(spec)) return processSteps(spec, st)
+    if (looksFact(spec)) return factBox(spec, st)
+    if (looksChecklist(spec)) return checklist(spec, st)
+    if (looksNumbered(spec)) return numberedList(spec, st)
+    if (looksKpi(spec)) return kpiRow(spec, st)
+    if (looksMindmap(spec)) return mindMap(spec, st)
+  }
   const bl = (spec.bullets || [])
   if (bl.length && bl.length <= 3 && bl.every((b) => String(b).length < 90)) return iconCards(spec, st)
   return photoText(spec, st, idx % 2 === 1)
@@ -618,8 +622,9 @@ export function designDeck(aiSlides, opts = {}) {
   const r = resolveStyle(opts.title || '', opts.hint || '', opts.styleId)
   const styleId = r.id, st = r.style
   const list = (aiSlides && aiSlides.length) ? aiSlides : [{ layout: 'cover', title: opts.title || 'Uten tittel' }]
+  const varied = opts.varied !== false   // standard: variert
   const slides = list.map((spec, i) => {
-    const built = designSlide(spec || {}, st, i, i === 0, i === list.length - 1)
+    const built = designSlide(spec || {}, st, i, i === 0, i === list.length - 1, varied)
     // lim hver tekstboks tett rundt teksten (måles i nettleseren)
     const elements = built.elements.map((e) => (e.type === 'text' ? fitTextBox({ ...e, text: cleanText(e.text) }) : e))
     return { id: genId(), background: built.background, elements, notes: spec.notes || '', anim: { transition: 'fade' }, layout: spec.layout || 'bullets', style: styleId }
