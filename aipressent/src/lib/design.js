@@ -109,7 +109,7 @@ function txtH(text, fs, w, lh = 1.04) { return Math.round(lineCount(text, fs, w)
 // krymp skriftstørrelsen til teksten får plass i en boks (w x maxH). Hindrer overflyt/overlapp.
 function fitBody(text, w, maxH, base = 18, lh = 1.45, min = 11) {
   let fs = base
-  while (fs > min && txtH(text, fs, w, lh) > maxH) fs -= 1
+  while (fs > min && txtH(text, fs, w, lh) > maxH * 0.94) fs -= 1   // 6% margin mot målefeil
   return fs
 }
 const photoQ = (spec) => (spec.image && spec.image.caption) || spec.photo || spec.figure || spec.title || spec.statement || ''
@@ -557,7 +557,7 @@ function looksPortrait(spec) {
 }
 
 // ---------- velg layout pr lysbilde (variasjon) ----------
-function designSlide(spec, st, idx, isFirst, isLast, varied = true) {
+function designSlide(spec, st, idx, isFirst, isLast, varied = true, rot = null) {
   const L = spec.layout || 'bullets'
   if (isFirst || L === 'cover') return coverSplit(spec, st)
   if (isLast && L !== 'twoColumn') return closing(spec, st)
@@ -589,22 +589,24 @@ function designSlide(spec, st, idx, isFirst, isLast, varied = true) {
     if (looksNumbered(spec)) return numberedList(spec, st)
     if (looksKpi(spec)) return kpiRow(spec, st)
     if (looksMindmap(spec)) return mindMap(spec, st)
-    // ingen spesiell match: ekte syklus gjennom flere trygge oppsett (aldri samme på rad)
+    // ingen spesiell match: jevn rotasjon (teller på tvers av dekket), kun maler som passer innholdet
     const bl0 = (spec.bullets || [])
-    const short = bl0.every((b) => String(b).length < 70)
-    const veryShort = bl0.every((b) => String(b).length < 38)
-    if (bl0.length >= 4 && bl0.length <= 6) {
-      const pool = ['photo', 'split']
-      if (bl0.length <= 5) pool.push('numbered')
-      if (veryShort) pool.push('mind')
-      const choice = pool[idx % pool.length]
+    const allShort = bl0.length > 0 && bl0.every((b) => String(b).length < 58)
+    const vShort = bl0.length > 0 && bl0.every((b) => String(b).length < 34)
+    if (bl0.length >= 4) {
+      const opts = ['photo', 'split']                                  // begge takler lange punkter
+      if (bl0.length <= 5 && allShort) opts.push('numbered')
+      if (bl0.length <= 6 && vShort) opts.push('mind')
+      const k = rot ? rot.n++ : idx
+      const choice = opts[k % opts.length]
       if (choice === 'numbered') return numberedList(spec, st)
-      if (choice === 'split') return splitBullets(spec, st)
       if (choice === 'mind') return mindMap(spec, st)
+      if (choice === 'split') return splitBullets(spec, st)
       return photoText(spec, st, idx % 2 === 1)
     }
-    if (bl0.length && bl0.length <= 3 && short) {
-      return (idx % 2 === 0) ? iconCards(spec, st) : photoText(spec, st, idx % 2 === 1)
+    if (bl0.length && bl0.length <= 3 && allShort) {
+      const k = rot ? rot.n++ : idx
+      return (k % 2 === 0) ? iconCards(spec, st) : photoText(spec, st, idx % 2 === 1)
     }
     return photoText(spec, st, idx % 2 === 1)
   }
@@ -679,8 +681,9 @@ export function designDeck(aiSlides, opts = {}) {
   const styleId = r.id, st = r.style
   const list = (aiSlides && aiSlides.length) ? aiSlides : [{ layout: 'cover', title: opts.title || 'Uten tittel' }]
   const varied = opts.varied !== false   // standard: variert
+  const rot = { n: 0 }                    // jevn rotasjons-teller pa tvers av dekket
   const slides = list.map((spec, i) => {
-    const built = designSlide(spec || {}, st, i, i === 0, i === list.length - 1, varied)
+    const built = designSlide(spec || {}, st, i, i === 0, i === list.length - 1, varied, rot)
     // lim hver tekstboks tett rundt teksten (måles i nettleseren)
     const elements = built.elements.map((e) => (e.type === 'text' ? fitTextBox({ ...e, text: cleanText(e.text) }) : e))
     return { id: genId(), background: built.background, elements, notes: spec.notes || '', anim: { transition: 'fade' }, layout: spec.layout || 'bullets', style: styleId }
