@@ -349,6 +349,128 @@ function comparison(spec, st) {
   els.push(T({ x: vx - 27, y: vy - 13, w: 54, h: 28, text: 'VS', fontFamily: st.head, fontSize: 19, bold: true, color: st.dark ? '#15110e' : '#fff', align: 'center' }))
   return { background: bg(st), elements: els }
 }
+function processSteps(spec, st) {
+  const els = []
+  els.push(...eyebrow(spec, st, 72, 84))
+  els.push(T({ x: 72, y: 116, w: 816, h: 60, text: spec.title || '', fontFamily: st.head, fontSize: 42, bold: true, color: st.ink }))
+  const items = (spec.bullets || []).slice(0, 4)
+  const n = items.length || 1
+  const gap = 20, w = Math.floor((816 - gap * (n - 1)) / n)
+  items.forEach((b, i) => {
+    const x = 72 + i * (w + gap)
+    const s = String(b), ci = s.indexOf(':')
+    const head = ci > 0 && ci <= 30 ? s.slice(0, ci).trim() : ''
+    const body = head ? s.slice(ci + 1).trim() : s
+    els.push(RECT({ x, y: 226, w, h: 244, fill: st.card, radius: 18 }))
+    els.push(CIRC({ x: x + 22, y: 250, w: 46, h: 46, fill: st.acc }))
+    els.push(T({ x: x + 22, y: 261, w: 46, h: 30, text: String(i + 1), fontFamily: st.head, fontSize: 22, bold: true, color: st.dark ? '#15110e' : '#fff', align: 'center' }))
+    if (head) els.push(T({ x: x + 22, y: 312, w: w - 44, h: 30, text: head, fontFamily: st.head, fontSize: 18, bold: true, color: st.ink }))
+    els.push(T({ x: x + 22, y: head ? 344 : 314, w: w - 44, h: 116, text: body, fontFamily: st.body, fontSize: 15, color: st.soft, lineHeight: 1.4 }))
+    if (i < n - 1) els.push(T({ x: x + w - 2, y: 318, w: gap + 4, h: 40, text: '→', fontFamily: st.head, fontSize: 24, bold: true, color: st.acc, align: 'center' }))
+  })
+  return { background: bg(st), elements: els }
+}
+function numberedList(spec, st) {
+  const els = []
+  els.push(...eyebrow(spec, st, 72, 84))
+  els.push(T({ x: 72, y: 116, w: 816, h: 60, text: spec.title || '', fontFamily: st.head, fontSize: 42, bold: true, color: st.ink }))
+  const items = (spec.bullets || []).slice(0, 5)
+  const n = items.length || 1
+  const top = 208, bottom = 500, rowH = Math.floor((bottom - top) / n)
+  items.forEach((b, i) => {
+    const ry = top + i * rowH
+    const s = String(b), ci = s.indexOf(':')
+    const head = ci > 0 && ci <= 30 ? s.slice(0, ci).trim() : ''
+    const body = head ? s.slice(ci + 1).trim() : s
+    els.push(T({ x: 72, y: ry - 8, w: 96, h: 64, text: String(i + 1).padStart(2, '0'), fontFamily: st.head, fontSize: 46, bold: true, color: tint(st.acc, st.bg, 0.32) }))
+    if (head) {
+      els.push(T({ x: 180, y: ry, w: 700, h: 30, text: head, fontFamily: st.head, fontSize: 21, bold: true, color: st.ink }))
+      els.push(T({ x: 180, y: ry + 28, w: 700, h: rowH - 32, text: body, fontFamily: st.body, fontSize: 16, color: st.soft, lineHeight: 1.35 }))
+    } else {
+      els.push(T({ x: 180, y: ry + 4, w: 700, h: rowH - 10, text: body, fontFamily: st.body, fontSize: 19, color: st.ink, lineHeight: 1.3 }))
+    }
+  })
+  return { background: bg(st), elements: els }
+}
+function kpiRow(spec, st) {
+  const els = []
+  els.push(...eyebrow(spec, st, 72, 84))
+  els.push(T({ x: 72, y: 116, w: 816, h: 64, text: spec.title || '', fontFamily: st.head, fontSize: 44, bold: true, color: st.ink }))
+  const stats = parseStats(spec).slice(0, 4)
+  const n = stats.length || 1
+  const gap = 22, w = Math.floor((816 - gap * (n - 1)) / n)
+  stats.forEach((s, i) => {
+    const x = 72 + i * (w + gap)
+    els.push(RECT({ x, y: 234, w, h: 218, fill: st.card, radius: 20 }))
+    els.push(T({ x: x + 14, y: 270, w: w - 28, h: 80, text: s.big, fontFamily: st.head, fontSize: 52, bold: true, color: st.acc, lineHeight: 1, align: 'center' }))
+    els.push(T({ x: x + 14, y: 360, w: w - 28, h: 78, text: s.lab, fontFamily: st.body, fontSize: 16, color: st.soft, lineHeight: 1.3, align: 'center' }))
+  })
+  return { background: bg(st), elements: els }
+}
+function checklist(spec, st) {
+  const els = []
+  els.push(...eyebrow(spec, st, 72, 84))
+  els.push(T({ x: 72, y: 116, w: 816, h: 64, text: spec.title || '', fontFamily: st.head, fontSize: 44, bold: true, color: st.ink }))
+  const items = (spec.bullets || []).slice(0, 6)
+  const n = items.length || 1
+  const top = 214, bottom = 498, rowH = Math.min(62, Math.floor((bottom - top) / n))
+  items.forEach((b, i) => {
+    const ry = top + i * rowH
+    els.push(CIRC({ x: 72, y: ry, w: 30, h: 30, fill: '#1faf6b' }))
+    els.push(ICON('ph:check-bold', '#ffffff', 78, ry + 6, 18))
+    els.push(T({ x: 122, y: ry + 2, w: 740, h: rowH - 6, text: String(b).replace(/^[·•\-\s]+/, ''), fontFamily: st.body, fontSize: 19, color: st.ink, lineHeight: 1.3 }))
+  })
+  return { background: bg(st), elements: els }
+}
+function quotePortrait(spec, st) {
+  const els = []
+  const q = spec.statement || spec.title || ''
+  const imgX = 96, imgY = 168, imgD = 204
+  if (hasPhoto(spec) || spec.image) {
+    els.push(PHOTO({ x: imgX, y: imgY, w: imgD, h: imgD, radius: imgD / 2 }, photoQ(spec)))
+  } else {
+    els.push(CIRC({ x: imgX, y: imgY, w: imgD, h: imgD, fill: tint(st.acc, st.bg, 0.5) }))
+    els.push(T({ x: imgX, y: imgY + 56, w: imgD, h: 90, text: '“', fontFamily: st.head, fontSize: 100, bold: true, color: st.acc, align: 'center', lineHeight: 1 }))
+  }
+  const tx = imgX + imgD + 52, tw = 888 - tx
+  const fs = fit(q, 34, tw, 5)
+  const qH = txtH(q, fs, tw, 1.2)
+  const qy = Math.max(150, Math.round(268 - qH / 2))
+  els.push(T({ x: tx, y: qy, w: tw, h: qH + 12, text: '“' + q + '”', fontFamily: st.head, fontSize: fs, italic: true, bold: true, color: st.ink, lineHeight: 1.2 }))
+  if (spec.subtitle) els.push(T({ x: tx, y: qy + qH + 20, w: tw, h: 28, text: '— ' + spec.subtitle, fontFamily: 'Inter', fontSize: 15, color: st.acc, bold: true, letterSpacing: 1 }))
+  return { background: bg(st), elements: els }
+}
+function mindMap(spec, st) {
+  const els = []
+  els.push(...eyebrow(spec, st, 72, 84))
+  const items = (spec.bullets || []).slice(0, 6)
+  const slots = [[60, 150], [690, 150], [36, 300], [714, 300], [60, 446], [690, 446]]
+  const bw = 206, bh = 56
+  const cx = 480, cy = 312, cR = 88
+  items.forEach((b, i) => {
+    const [sx, sy] = slots[i]
+    els.push(RECT({ x: sx, y: sy, w: bw, h: bh, fill: st.card, radius: 14 }))
+    els.push(T({ x: sx + 16, y: sy + 9, w: bw - 32, h: bh - 14, text: String(b).replace(/^[·•\-\s]+/, ''), fontFamily: st.body, fontSize: 15, color: st.ink, lineHeight: 1.25 }))
+  })
+  els.push(CIRC({ x: cx - cR, y: cy - cR, w: cR * 2, h: cR * 2, fill: st.acc }))
+  els.push(T({ x: cx - cR + 12, y: cy - 28, w: cR * 2 - 24, h: 60, text: spec.title || '', fontFamily: st.head, fontSize: 19, bold: true, color: st.dark ? '#15110e' : '#fff', align: 'center', lineHeight: 1.05 }))
+  return { background: bg(st), elements: els }
+}
+function factBox(spec, st) {
+  const els = []
+  const fact = (spec.bullets && spec.bullets[0]) || spec.statement || spec.subtitle || spec.title || ''
+  els.push(CIRC({ x: -90, y: -90, w: 280, h: 280, fill: st.acc, opacity: st.dark ? 0.18 : 0.12 }))
+  els.push(CIRC({ x: 770, y: 350, w: 300, h: 300, fill: st.acc, opacity: st.dark ? 0.18 : 0.12 }))
+  const cardW = 660
+  const fs0 = fit(fact, 30, cardW - 80, 6)
+  const fH = txtH(fact, fs0, cardW - 80, 1.4)
+  const cardH = Math.min(360, 150 + fH)
+  const cx = Math.round((960 - cardW) / 2), cy = Math.round((540 - cardH) / 2)
+  els.push(RECT({ x: cx, y: cy, w: cardW, h: cardH, fill: st.card, radius: 24 }))
+  els.push(...chip(spec.eyebrow || 'Visste du at?', cx + 40, cy + 34, st.acc, st.dark ? '#15110e' : '#fff'))
+  els.push(T({ x: cx + 40, y: cy + 82, w: cardW - 80, h: fH + 12, text: fact, fontFamily: st.head, fontSize: fs0, bold: true, color: st.ink, lineHeight: 1.4 }))
+  return { background: bg(st), elements: els }
+}
 // gjenkjenn innhold som passer de nye oppsettene
 function looksTimeline(spec) {
   const bl = (spec.bullets || [])
@@ -367,6 +489,34 @@ function looksComparison(spec) {
   }
   return false
 }
+function looksProcess(spec) {
+  const t = (spec.title || '').toLowerCase()
+  if (/\bslik\b|fremgangsmåte|oppskrift|prosess|trinn for trinn|steg for steg|hvordan (lage|gjøre|komme)/.test(t)) return true
+  const bl = spec.bullets || []
+  return bl.length >= 2 && bl.length <= 4 && bl.filter((b) => /^\s*(steg|trinn)\s*\d/i.test(String(b))).length >= 2
+}
+function looksNumbered(spec) {
+  return /\b\d+\s+(grunner|tips|måter|ting|råd|punkter|fordeler|grep|tegn|vaner|trinn|prinsipper|nøkler|kjennetegn)\b|topp\s*\d+/i.test(spec.title || '')
+}
+function looksKpi(spec) {
+  const bl = spec.bullets || []
+  if (bl.length < 3 || bl.length > 4) return false
+  return bl.every((b) => /\d/.test(String(b)) && String(b).length < 44)
+}
+function looksChecklist(spec) {
+  return /sjekkliste|dette får du|hva du får|fordelene|fordeler med|inkludert|fordeler:|huskeliste/i.test(spec.title || '')
+}
+function looksFact(spec) {
+  return /visste du|kuriosa|fun fact|fakta:/i.test(spec.title || '')
+}
+function looksMindmap(spec) {
+  const bl = spec.bullets || []
+  return /oversikt over|komponenter|elementer|aspekter|deler av|kategorier|temaer|grener|hovedområder/i.test(spec.title || '') && bl.length >= 3 && bl.length <= 6
+}
+function looksPortrait(spec) {
+  const isQuote = spec.layout === 'statement' || spec.layout === 'imageFull' || !!spec.statement
+  return isQuote && spec.subtitle && /^[A-ZÆØÅ]/.test(String(spec.subtitle)) && String(spec.subtitle).length < 40
+}
 
 // ---------- velg layout pr lysbilde (variasjon) ----------
 function designSlide(spec, st, idx, isFirst, isLast) {
@@ -376,13 +526,28 @@ function designSlide(spec, st, idx, isFirst, isLast) {
   if (L === 'section') return section(spec, st)
   if (L === 'timeline') return timeline(spec, st)
   if (L === 'comparison') return comparison(spec, st)
-  if (L === 'statement') return (parseStats(spec).length >= 2 && /\d/.test((spec.bullets || []).join(''))) ? statBig(spec, st) : quote(spec, st)
+  if (L === 'process') return processSteps(spec, st)
+  if (L === 'numbered') return numberedList(spec, st)
+  if (L === 'kpi') return kpiRow(spec, st)
+  if (L === 'checklist') return checklist(spec, st)
+  if (L === 'mindmap') return mindMap(spec, st)
+  if (L === 'fact') return factBox(spec, st)
+  if (L === 'statement') {
+    if (looksPortrait(spec)) return quotePortrait(spec, st)
+    return (parseStats(spec).length >= 2 && /\d/.test((spec.bullets || []).join(''))) ? statBig(spec, st) : quote(spec, st)
+  }
   if (L === 'twoColumn') return looksComparison(spec) ? comparison(spec, st) : twoColumn(spec, st)
-  if (L === 'imageFull') return quote(spec.statement ? spec : { ...spec, statement: spec.title }, st)
+  if (L === 'imageFull') return looksPortrait(spec) ? quotePortrait(spec, st) : quote(spec.statement ? spec : { ...spec, statement: spec.title }, st)
   if (L === 'imageText') return photoText(spec, st, idx % 2 === 1)
-  // bullets: gjenkjenn tidslinje/sammenligning, ellers vekslende stiler
+  // bullets: gjenkjenn spesialtilfeller, ellers vekslende stiler
   if (looksTimeline(spec)) return timeline(spec, st)
   if (looksComparison(spec)) return comparison(spec, st)
+  if (looksProcess(spec)) return processSteps(spec, st)
+  if (looksFact(spec)) return factBox(spec, st)
+  if (looksChecklist(spec)) return checklist(spec, st)
+  if (looksNumbered(spec)) return numberedList(spec, st)
+  if (looksKpi(spec)) return kpiRow(spec, st)
+  if (looksMindmap(spec)) return mindMap(spec, st)
   const bl = (spec.bullets || [])
   if (bl.length && bl.length <= 3 && bl.every((b) => String(b).length < 90)) return iconCards(spec, st)
   return photoText(spec, st, idx % 2 === 1)
