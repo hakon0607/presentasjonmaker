@@ -22,7 +22,7 @@ function Protected({ children }) {
 export default function App() {
   return (
     <AuthProvider>
-      <div className="version-star" aria-hidden="true">★ v90</div>
+      <div className="version-star" aria-hidden="true">★ v91</div>
       <NoTokensModal />
       <Routes>
         <Route path="/" element={<Landing />} />

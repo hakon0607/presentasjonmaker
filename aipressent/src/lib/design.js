@@ -559,55 +559,62 @@ function looksPortrait(spec) {
 // ---------- velg layout pr lysbilde (variasjon) ----------
 function designSlide(spec, st, idx, isFirst, isLast, varied = true, rot = null) {
   const L = spec.layout || 'bullets'
+  const mark = (name) => { if (rot) rot.used[name] = (rot.used[name] || 0) + 1; return true }
+  // velg malen som er brukt minst i dekket (gir flest mulig ulike sider)
+  const pickLeast = (opts) => {
+    if (!rot || !opts.length) return opts[0]
+    let best = opts[0], bestC = Infinity
+    for (const o of opts) { const c = rot.used[o] || 0; if (c < bestC) { bestC = c; best = o } }
+    rot.used[best] = (rot.used[best] || 0) + 1
+    return best
+  }
   if (isFirst || L === 'cover') return coverSplit(spec, st)
   if (isLast && L !== 'twoColumn') return closing(spec, st)
   if (L === 'section') return section(spec, st)
   if (varied) {
-    if (L === 'timeline') return timeline(spec, st)
-    if (L === 'comparison') return comparison(spec, st)
-    if (L === 'process') return processSteps(spec, st)
-    if (L === 'numbered') return numberedList(spec, st)
-    if (L === 'kpi') return kpiRow(spec, st)
-    if (L === 'checklist') return checklist(spec, st)
-    if (L === 'mindmap') return mindMap(spec, st)
-    if (L === 'fact') return factBox(spec, st)
+    if (L === 'timeline' && mark('timeline')) return timeline(spec, st)
+    if (L === 'comparison' && mark('comparison')) return comparison(spec, st)
+    if (L === 'process' && mark('process')) return processSteps(spec, st)
+    if (L === 'numbered' && mark('numbered')) return numberedList(spec, st)
+    if (L === 'kpi' && mark('kpi')) return kpiRow(spec, st)
+    if (L === 'checklist' && mark('checklist')) return checklist(spec, st)
+    if (L === 'mindmap' && mark('mind')) return mindMap(spec, st)
+    if (L === 'fact' && mark('fact')) return factBox(spec, st)
   }
   if (L === 'statement') {
-    if (varied && looksPortrait(spec)) return quotePortrait(spec, st)
+    if (varied && looksPortrait(spec) && mark('portrait')) return quotePortrait(spec, st)
     return (parseStats(spec).length >= 2 && /\d/.test((spec.bullets || []).join(''))) ? statBig(spec, st) : quote(spec, st)
   }
-  if (L === 'twoColumn') return (varied && looksComparison(spec)) ? comparison(spec, st) : twoColumn(spec, st)
-  if (L === 'imageFull') return (varied && looksPortrait(spec)) ? quotePortrait(spec, st) : quote(spec.statement ? spec : { ...spec, statement: spec.title }, st)
+  if (L === 'twoColumn') return (varied && looksComparison(spec) && mark('comparison')) ? comparison(spec, st) : twoColumn(spec, st)
+  if (L === 'imageFull') return (varied && looksPortrait(spec) && mark('portrait')) ? quotePortrait(spec, st) : quote(spec.statement ? spec : { ...spec, statement: spec.title }, st)
   if (L === 'imageText') return photoText(spec, st, idx % 2 === 1)
-  // bullets: i variert modus gjenkjenner vi spesialtilfeller; ellers klassisk (som v78)
+  // bullets
   if (varied) {
-    if (looksTimeline(spec)) return timeline(spec, st)
-    if (looksComparison(spec)) return comparison(spec, st)
-    if (looksProcess(spec)) return processSteps(spec, st)
-    if (looksFact(spec)) return factBox(spec, st)
-    if (looksChecklist(spec)) return checklist(spec, st)
-    if (looksNumbered(spec)) return numberedList(spec, st)
-    if (looksKpi(spec)) return kpiRow(spec, st)
-    if (looksMindmap(spec)) return mindMap(spec, st)
-    // ingen spesiell match: jevn rotasjon (teller på tvers av dekket), kun maler som passer innholdet
+    // 1) sterke innholds-signaler (semantisk riktige maler) vinner alltid
+    if (looksTimeline(spec) && mark('timeline')) return timeline(spec, st)
+    if (looksComparison(spec) && mark('comparison')) return comparison(spec, st)
+    if (looksProcess(spec) && mark('process')) return processSteps(spec, st)
+    if (looksFact(spec) && mark('fact')) return factBox(spec, st)
+    if (looksChecklist(spec) && mark('checklist')) return checklist(spec, st)
+    if (looksNumbered(spec) && mark('numbered')) return numberedList(spec, st)
+    if (looksKpi(spec) && mark('kpi')) return kpiRow(spec, st)
+    if (looksMindmap(spec) && mark('mind')) return mindMap(spec, st)
+    // 2) ellers: fordel over ALLE nøytrale maler som passer innholdet (maksimer variasjon)
     const bl0 = (spec.bullets || [])
     const allShort = bl0.length > 0 && bl0.every((b) => String(b).length < 58)
     const vShort = bl0.length > 0 && bl0.every((b) => String(b).length < 34)
-    if (bl0.length >= 4) {
-      const opts = ['photo', 'split']                                  // begge takler lange punkter
-      if (bl0.length <= 5 && allShort) opts.push('numbered')
-      if (bl0.length <= 6 && vShort) opts.push('mind')
-      const k = rot ? rot.n++ : idx
-      const choice = opts[k % opts.length]
-      if (choice === 'numbered') return numberedList(spec, st)
-      if (choice === 'mind') return mindMap(spec, st)
-      if (choice === 'split') return splitBullets(spec, st)
-      return photoText(spec, st, idx % 2 === 1)
-    }
-    if (bl0.length && bl0.length <= 3 && allShort) {
-      const k = rot ? rot.n++ : idx
-      return (k % 2 === 0) ? iconCards(spec, st) : photoText(spec, st, idx % 2 === 1)
-    }
+    const opts = ['photo']
+    if (bl0.length >= 4) opts.push('split')
+    if (bl0.length >= 3 && bl0.length <= 5) opts.push('numbered')          // tall foran punkter (nøytralt)
+    if (bl0.length >= 3 && bl0.length <= 5 && allShort) opts.push('timeline') // loddrett liste med akse
+    if (bl0.length >= 3 && bl0.length <= 6 && vShort) opts.push('mind')    // nav med bobler
+    if (bl0.length >= 1 && bl0.length <= 3 && allShort) opts.push('icons') // ikon-kort
+    const choice = pickLeast(opts)
+    if (choice === 'split') return splitBullets(spec, st)
+    if (choice === 'numbered') return numberedList(spec, st)
+    if (choice === 'timeline') return timeline(spec, st)
+    if (choice === 'mind') return mindMap(spec, st)
+    if (choice === 'icons') return iconCards(spec, st)
     return photoText(spec, st, idx % 2 === 1)
   }
   const bl = (spec.bullets || [])
@@ -681,7 +688,7 @@ export function designDeck(aiSlides, opts = {}) {
   const styleId = r.id, st = r.style
   const list = (aiSlides && aiSlides.length) ? aiSlides : [{ layout: 'cover', title: opts.title || 'Uten tittel' }]
   const varied = opts.varied !== false   // standard: variert
-  const rot = { n: 0 }                    // jevn rotasjons-teller pa tvers av dekket
+  const rot = { n: 0, used: {} }          // sporer hvilke maler som er brukt (maksimer variasjon)
   const slides = list.map((spec, i) => {
     const built = designSlide(spec || {}, st, i, i === 0, i === list.length - 1, varied, rot)
     // lim hver tekstboks tett rundt teksten (måles i nettleseren)
