@@ -784,6 +784,7 @@ function Present({ deck, start, onClose, aiMode = false }) {
   const [playing, setPlaying] = useState(false)
   const [loading, setLoading] = useState(false)
   const [prep, setPrep] = useState({ done: 0, total: 0 })
+  const [estMin, setEstMin] = useState(0)
   const audioRef = useRef(null)
   const dataRef = useRef(null)
   const cancelRef = useRef(false)
@@ -835,6 +836,8 @@ function Present({ deck, start, onClose, aiMode = false }) {
     stopAll(); cancelRef.current = false
     const order = []; for (let k = from; k < deck.slides.length; k++) order.push(k)
     const texts = {}; for (const k of order) texts[k] = speechText(deck.slides[k])
+    const words = Object.values(texts).join(' ').split(/\s+/).filter(Boolean).length
+    setEstMin(Math.max(1, Math.round(words / 145)))   // ~145 ord/min med nevral stemme
     setLoading(true); setPrep({ done: 0, total: order.length })
     const firstK = order.find((k) => texts[k])
     let neural = false; const store = {}
@@ -868,12 +871,22 @@ function Present({ deck, start, onClose, aiMode = false }) {
       <button className="present-x" onClick={(e) => { e.stopPropagation(); onClose() }}>✕</button>
       <div className="present-stage"><SlideStage key={i} slide={s} animate /></div>
       {showNotes && s.notes && <div className="present-notes" onClick={(e) => e.stopPropagation()}>{s.notes}</div>}
-      <button
-        className={'present-ai' + (playing ? ' on' : '')}
-        onClick={(e) => { e.stopPropagation(); if (playing || loading) stopPresent(); else startPresent(i) }}
-      >
-        {loading ? `…  Laster opplesning ${prep.done}/${prep.total}` : playing ? '⏸  Stopp AI' : '🔊  La AI presentere'}
-      </button>
+      {loading ? (
+        <div className="present-prep" onClick={(e) => e.stopPropagation()}>
+          <div className="present-prep-top">
+            <span>🔊 Laster opplesning…</span>
+            <span>{prep.total ? Math.round((prep.done / prep.total) * 100) : 0}%{estMin ? ` · ~${estMin} min` : ''}</span>
+          </div>
+          <div className="present-prep-bar"><i style={{ width: (prep.total ? Math.round((prep.done / prep.total) * 100) : 0) + '%' }} /></div>
+        </div>
+      ) : (
+        <button
+          className={'present-ai' + (playing ? ' on' : '')}
+          onClick={(e) => { e.stopPropagation(); if (playing) stopPresent(); else startPresent(i) }}
+        >
+          {playing ? '⏸  Stopp AI' : '🔊  La AI presentere'}
+        </button>
+      )}
       <div className="present-count">{i + 1} / {deck.slides.length} · trykk «N» for manus</div>
     </div>
   )

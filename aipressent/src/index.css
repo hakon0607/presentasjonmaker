@@ -841,3 +841,11 @@ button{font-family:inherit}
 .present-ai:hover{background:rgba(255,255,255,.22);transform:translateY(-1px)}
 .present-ai.on{background:#fff;color:#15131a;border-color:#fff}
 @media(max-width:560px){.present-ai{left:14px;bottom:16px;padding:9px 14px;font-size:.85rem}}
+
+/* ---------- Opplesning: lastebar med prosent + minutter ---------- */
+.present-prep{position:absolute;left:24px;bottom:22px;z-index:5;width:280px;max-width:60vw;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);border-radius:16px;padding:12px 16px;color:#fff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.present-prep-top{display:flex;justify-content:space-between;align-items:center;font-size:.85rem;font-weight:700;margin-bottom:9px;gap:10px}
+.present-prep-top span:last-child{opacity:.85;white-space:nowrap}
+.present-prep-bar{height:8px;border-radius:980px;background:rgba(255,255,255,.22);overflow:hidden}
+.present-prep-bar>i{display:block;height:100%;border-radius:980px;background:#fff;transition:width .25s ease}
+@media(max-width:560px){.present-prep{left:14px;bottom:16px;width:240px}}
