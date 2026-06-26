@@ -26,6 +26,8 @@ export default function Editor() {
   const [selId, setSelId] = useState(null)
   const [editId, setEditId] = useState(null)
   const [present, setPresent] = useState(false)
+  const [presentMenu, setPresentMenu] = useState(false)
+  const [aiPresent, setAiPresent] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
   const [saved, setSaved] = useState('saved')   // saved | dirty | saving
@@ -568,7 +570,16 @@ export default function Editor() {
           <button className={'chip' + (saved === 'saved' ? ' ok' : '')} onClick={flush}><Save size={15} /> {saveLabel}</button>
           <TokenBadge />
           <button className="chip" data-tour="share" onClick={() => setShareOpen(true)}><Share2 size={15} /> Del</button>
-          <button className="chip" data-tour="present" onClick={() => { commitEdits(); setTimeout(() => setPresent(true), 0) }}><Play size={15} /> Presenter</button>
+          <div className="menu-wrap" data-tour="present">
+            <button className="chip" onClick={() => setPresentMenu((o) => !o)}><Play size={15} /> Presenter</button>
+            {presentMenu && (
+              <div className="menu" onMouseLeave={() => setPresentMenu(false)}>
+                <button onClick={() => { setPresentMenu(false); commitEdits(); setAiPresent(false); setTimeout(() => setPresent(true), 0) }}>▶  Bare presenter</button>
+                <button onClick={() => { setPresentMenu(false); commitEdits(); setAiPresent(true); setTimeout(() => setPresent(true), 0) }}>🔊  Presenter med AI</button>
+                <div className="menu-note">«Presenter med AI» leser opp manuset med ekte stemme og blar automatisk.</div>
+              </div>
+            )}
+          </div>
           <div className="menu-wrap" data-tour="export">
             <button className="chip primary" onClick={() => setExportOpen((o) => !o)}><Download size={15} /> Eksporter</button>
             {exportOpen && (
@@ -706,7 +717,7 @@ export default function Editor() {
         )}
       </div>
 
-      {present && <Present deck={deck} start={idx} onClose={() => setPresent(false)} />}
+      {present && <Present deck={deck} start={idx} aiMode={aiPresent} onClose={() => setPresent(false)} />}
       {aiSlideOpen && <AiSlideModal slide={slide} onClose={() => setAiSlideOpen(false)} onApply={(s) => { applyAiSlide(s); setAiSlideOpen(false) }} />}
       {reviewOpen && <ReviewModal deck={deck} onClose={() => setReviewOpen(false)} />}
       {animOpen && <AnimPanel slide={slide} onChange={setSlide} selectedId={selId} onClose={() => setAnimOpen(false)} />}
@@ -754,25 +765,115 @@ export default function Editor() {
   )
 }
 
-function Present({ deck, start, onClose }) {
+// Opplesnings-tekst for et lysbilde: bruk manus hvis det finnes, ellers tittel + tekst.
+function speechText(slide) {
+  if (!slide) return ''
+  const clean = (t) => String(t || '').replace(/[•·▪►–-]\s*/g, '').replace(/\s*\n\s*/g, '. ').replace(/\s+/g, ' ').trim()
+  if (slide.notes && slide.notes.trim()) return clean(slide.notes)
+  return (slide.elements || [])
+    .filter((e) => e.type === 'text' && e.text && String(e.text).trim())
+    .slice().sort((a, b) => (a.y || 0) - (b.y || 0))
+    .map((e) => clean(e.text))
+    .filter((t) => t && !/^(presentasjon|oversikt|takk)$/i.test(t.trim()))
+    .join('. ')
+}
+
+function Present({ deck, start, onClose, aiMode = false }) {
   const [i, setI] = useState(start || 0)
   const [showNotes, setShowNotes] = useState(false)
+  const [playing, setPlaying] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [prep, setPrep] = useState({ done: 0, total: 0 })
+  const audioRef = useRef(null)
+  const dataRef = useRef(null)
+  const cancelRef = useRef(false)
+  const canSpeak = typeof window !== 'undefined' && ('speechSynthesis' in window)
+
+  function stopAll() {
+    cancelRef.current = true
+    try { window.speechSynthesis.cancel() } catch (_e) {}
+    if (audioRef.current) { try { audioRef.current.pause() } catch (_e) {} audioRef.current = null }
+  }
+  function stopPresent() { stopAll(); setPlaying(false); setLoading(false) }
+  useEffect(() => () => stopAll(), [])
+
+  function browserSpeak(text, onend) {
+    if (!canSpeak || !text) { setTimeout(onend, 500); return }
+    try {
+      const synth = window.speechSynthesis; synth.cancel()
+      const u = new SpeechSynthesisUtterance(text)
+      const vs = synth.getVoices() || []
+      const v = vs.find((x) => /(^nb)|(^no)|norsk|norweg/i.test((x.lang || '') + ' ' + (x.name || ''))) || vs.find((x) => x.default) || vs[0]
+      if (v) u.voice = v
+      u.lang = (v && v.lang) || 'nb-NO'; u.onend = onend; u.onerror = onend
+      setTimeout(() => synth.speak(u), 120)
+    } catch (_e) { setTimeout(onend, 500) }
+  }
+  async function fetchTts(text) {
+    if (!text) return null
+    try {
+      const { data } = await supabase.functions.invoke('smart-task', { body: { mode: 'tts', text, voice: 'nova' } })
+      if (data && data.audio) return 'data:' + (data.mime || 'audio/mpeg') + ';base64,' + data.audio
+    } catch (_e) { /* faller tilbake */ }
+    return null
+  }
+  function playFrom(idx) {
+    if (cancelRef.current) return
+    setI(idx)
+    const last = deck.slides.length - 1
+    const advance = () => { if (cancelRef.current) return; if (idx >= last) { setPlaying(false); return } playFrom(idx + 1) }
+    const text = speechText(deck.slides[idx])
+    if (!text) { setTimeout(advance, 700); return }
+    const url = dataRef.current ? dataRef.current[idx] : undefined
+    if (url) {
+      const a = new Audio(url); audioRef.current = a
+      a.onended = advance; a.onerror = () => browserSpeak(text, advance)
+      a.play().catch(() => browserSpeak(text, advance))
+    } else { browserSpeak(text, advance) }
+  }
+  async function startPresent(from) {
+    stopAll(); cancelRef.current = false
+    const order = []; for (let k = from; k < deck.slides.length; k++) order.push(k)
+    const texts = {}; for (const k of order) texts[k] = speechText(deck.slides[k])
+    setLoading(true); setPrep({ done: 0, total: order.length })
+    const firstK = order.find((k) => texts[k])
+    let neural = false; const store = {}
+    if (firstK != null) { const d = await fetchTts(texts[firstK]); if (cancelRef.current) return; if (d) { neural = true; store[firstK] = d } }
+    if (neural) {
+      const rest = order.filter((k) => k !== firstK && texts[k]); let done = 1; setPrep({ done, total: order.length }); let p = 0
+      const worker = async () => { while (p < rest.length) { const k = rest[p++]; const d = await fetchTts(texts[k]); if (cancelRef.current) return; store[k] = d; done++; setPrep({ done, total: order.length }) } }
+      await Promise.all(Array.from({ length: Math.min(4, rest.length) }, worker))
+      if (cancelRef.current) return
+      dataRef.current = store
+    } else { dataRef.current = null }
+    setLoading(false); setPlaying(true); playFrom(from)
+  }
+
+  useEffect(() => { if (aiMode) startPresent(start || 0) /* eslint-disable-next-line */ }, [])
+
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'ArrowRight' || e.key === ' ') setI((v) => Math.min(deck.slides.length - 1, v + 1))
-      if (e.key === 'ArrowLeft') setI((v) => Math.max(0, v - 1))
+      if (e.key === 'ArrowRight' || e.key === ' ') { stopPresent(); setI((v) => Math.min(deck.slides.length - 1, v + 1)) }
+      if (e.key === 'ArrowLeft') { stopPresent(); setI((v) => Math.max(0, v - 1)) }
       if (e.key.toLowerCase() === 'n') setShowNotes((v) => !v)
       if (e.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [deck.slides.length, onClose])
+
   const s = deck.slides[i]
   return (
-    <div className="present" onClick={() => setI((v) => Math.min(deck.slides.length - 1, v + 1))}>
+    <div className="present" onClick={() => { stopPresent(); setI((v) => Math.min(deck.slides.length - 1, v + 1)) }}>
       <button className="present-x" onClick={(e) => { e.stopPropagation(); onClose() }}>✕</button>
       <div className="present-stage"><SlideStage key={i} slide={s} animate /></div>
       {showNotes && s.notes && <div className="present-notes" onClick={(e) => e.stopPropagation()}>{s.notes}</div>}
+      <button
+        className={'present-ai' + (playing ? ' on' : '')}
+        onClick={(e) => { e.stopPropagation(); if (playing || loading) stopPresent(); else startPresent(i) }}
+      >
+        {loading ? `…  Laster opplesning ${prep.done}/${prep.total}` : playing ? '⏸  Stopp AI' : '🔊  La AI presentere'}
+      </button>
       <div className="present-count">{i + 1} / {deck.slides.length} · trykk «N» for manus</div>
     </div>
   )
