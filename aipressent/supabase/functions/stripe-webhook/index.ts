@@ -67,6 +67,7 @@ Deno.serve(async (req) => {
           sub_status: obj.status,
           sub_interval: plan?.interval ?? null,
           sub_period_end: obj.current_period_end ? new Date(obj.current_period_end * 1000).toISOString() : null,
+          sub_cancel_at_period_end: !!obj.cancel_at_period_end,
           plan: active && plan ? plan.tier : 'gratis',
           tokens_daily: active && plan ? plan.tokens_daily : gratis,
         }

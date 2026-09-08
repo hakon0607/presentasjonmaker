@@ -13,6 +13,7 @@ alter table public.profiles add column if not exists stripe_subscription_id text
 alter table public.profiles add column if not exists sub_status text;            -- active | trialing | past_due | canceled | null
 alter table public.profiles add column if not exists sub_interval text;          -- month | year
 alter table public.profiles add column if not exists sub_period_end timestamptz; -- når inneværende periode slutter
+alter table public.profiles add column if not exists sub_cancel_at_period_end boolean not null default false; -- sagt opp, avsluttes ved periodeslutt
 
 -- 2) plans: kvoter + Stripe price-id-er (du limer inn price-id-ene fra Stripe) --
 create table if not exists public.plans (

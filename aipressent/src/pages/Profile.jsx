@@ -17,9 +17,8 @@ export default function Profile() {
 
   async function loadSub() {
     if (!user) return
-    const { data } = await supabase.from('profiles').select('plan,sub_status,sub_interval,sub_period_end,stripe_subscription_id').eq('id', user.id).single()
-    // cancel_at_period_end vet vi ikke lokalt; utled: hvis status active men vi nettopp sa opp, viser vi "Avsluttes". Hentes egt fra Stripe, men vi holder det enkelt.
-    setSub(data)
+    const { data } = await supabase.from('profiles').select('plan,sub_status,sub_interval,sub_period_end,sub_cancel_at_period_end,stripe_subscription_id').eq('id', user.id).single()
+    if (data) setSub({ ...data, cancel_at_period_end: !!data.sub_cancel_at_period_end })
   }
 
   async function manage(action) {
@@ -30,7 +29,14 @@ export default function Profile() {
       if (data?.error) throw new Error(data.error)
       setSubMsg(action === 'cancel' ? 'Abonnementet avsluttes ved periodeslutt. Du beholder tilgangen til da.' : 'Abonnementet er gjenopptatt. 🎉')
       setSub((s) => ({ ...s, cancel_at_period_end: action === 'cancel' }))
-    } catch (e) { setSubMsg(String(e.message || e)) }
+    } catch (e) {
+      const msg = String(e.message || e)
+      // hvis det alt er sagt opp, vis rolig beskjed i stedet for Stripe-feil
+      if (/canceled subscription can only|already canceled|no such subscription/i.test(msg)) {
+        setSubMsg('Abonnementet er allerede sagt opp – det avsluttes ved periodeslutt.')
+        setSub((s) => ({ ...s, cancel_at_period_end: true }))
+      } else setSubMsg(msg)
+    }
     setSubBusy(false)
   }
 
