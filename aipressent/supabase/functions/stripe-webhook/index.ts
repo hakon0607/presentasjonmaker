@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
       const plan = price ? await planForPrice(price) : null
       if (uid) {
         const active = obj.status === 'active' || obj.status === 'trialing'
-        await patchProfile(uid, {
+        const body: Record<string, unknown> = {
           stripe_customer_id: String(obj.customer),
           stripe_subscription_id: obj.id,
           sub_status: obj.status,
@@ -68,7 +68,10 @@ Deno.serve(async (req) => {
           sub_period_end: obj.current_period_end ? new Date(obj.current_period_end * 1000).toISOString() : null,
           plan: active && plan ? plan.tier : 'gratis',
           tokens_daily: active && plan ? plan.tokens_daily : await gratisTokens(),
-        })
+        }
+        // fyll opp tokens til den nye kvoten MED EN GANG (ikke vent til neste dag)
+        if (active && plan) { body.tokens = plan.tokens_daily; body.tokens_day = null }
+        await patchProfile(uid, body)
       }
     }
     if (ev.type === 'customer.subscription.deleted') {

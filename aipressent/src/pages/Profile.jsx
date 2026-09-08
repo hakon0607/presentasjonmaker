@@ -11,8 +11,31 @@ export default function Profile() {
   const [count, setCount] = useState(null)
   const [cleaning, setCleaning] = useState(false)
   const [cleanMsg, setCleanMsg] = useState('')
+  const [sub, setSub] = useState(null)
+  const [subBusy, setSubBusy] = useState(false)
+  const [subMsg, setSubMsg] = useState('')
   const name = user?.user_metadata?.display_name || (user?.email || '').split('@')[0] || 'Bruker'
   const initial = name.charAt(0).toUpperCase()
+  const planName = tokensUnlimited ? 'Pro' : (plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : 'Gratis')
+
+  async function loadSub() {
+    if (!user) return
+    const { data } = await supabase.from('profiles').select('plan,sub_status,sub_interval,sub_period_end,stripe_subscription_id').eq('id', user.id).single()
+    // cancel_at_period_end vet vi ikke lokalt; utled: hvis status active men vi nettopp sa opp, viser vi "Avsluttes". Hentes egt fra Stripe, men vi holder det enkelt.
+    setSub(data)
+  }
+
+  async function manage(action) {
+    setSubBusy(true); setSubMsg('')
+    try {
+      const { data, error } = await supabase.functions.invoke('stripe-checkout', { body: { action } })
+      if (error) { let m = error.message; try { const b = await error.context.json(); if (b?.error) m = b.error } catch (_e) {} throw new Error(m) }
+      if (data?.error) throw new Error(data.error)
+      setSubMsg(action === 'cancel' ? 'Abonnementet avsluttes ved periodeslutt. Du beholder tilgangen til da.' : 'Abonnementet er gjenopptatt. 🎉')
+      setSub((s) => ({ ...s, cancel_at_period_end: action === 'cancel' }))
+    } catch (e) { setSubMsg(String(e.message || e)) }
+    setSubBusy(false)
+  }
 
   useEffect(() => {
     let on = true
@@ -21,6 +44,7 @@ export default function Profile() {
         .then(({ count }) => { if (on) setCount(count ?? 0) })
     }
     refreshTokens()
+    loadSub()
     return () => { on = false }
   }, [])
 
@@ -55,10 +79,32 @@ export default function Profile() {
       </div>
 
       <div className="profile-card">
-        <h3 style={{ marginTop: 0 }}><Sparkles size={18} /> Abonnement</h3>
-        <p style={{ color: 'var(--muted)', marginTop: 4 }}>Vil du ha flere tokens hver dag? Se pakkene og oppgrader – eller endre abonnementet ditt.</p>
-        <button className="btn primary" onClick={() => nav('/priser')}>Se priser</button>
-        {isAdmin && <button className="btn ghost" style={{ marginLeft: 10 }} onClick={() => nav('/admin')}>Åpne admin</button>}
+        <div className="sub-head">
+          <h3 style={{ margin: 0 }}><Sparkles size={18} /> Abonnement</h3>
+          <span className={'sub-pill sub-' + (plan || 'gratis')}>{planName}</span>
+        </div>
+        {sub && (sub.sub_status === 'active' || sub.sub_status === 'trialing') ? (
+          <>
+            <div className="sub-rows">
+              <div><span>Tokens/dag</span><b>{tokensCap}</b></div>
+              <div><span>Betaling</span><b>{sub.sub_interval === 'year' ? 'Årlig' : 'Månedlig'}</b></div>
+              <div><span>{sub.cancel_at_period_end ? 'Avsluttes' : 'Fornyes'}</span><b>{sub.sub_period_end ? new Date(sub.sub_period_end).toLocaleDateString('no-NO') : '–'}</b></div>
+            </div>
+            {subMsg && <div className="sub-msg">{subMsg}</div>}
+            <div className="sub-actions">
+              <button className="btn ghost" onClick={() => nav('/priser')}>Bytt pakke</button>
+              {sub.cancel_at_period_end
+                ? <button className="btn" disabled={subBusy} onClick={() => manage('resume')}>Gjenoppta</button>
+                : <button className="btn danger" disabled={subBusy} onClick={() => manage('cancel')}>{subBusy ? 'Sender…' : 'Si opp'}</button>}
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="sub-sub">Få flere tokens hver dag.</p>
+            <button className="btn primary" onClick={() => nav('/priser')}>Se pakker</button>
+          </>
+        )}
+        {isAdmin && <button className="btn ghost" style={{ marginTop: 10 }} onClick={() => nav('/admin')}>Åpne admin</button>}
       </div>
 
       <div className="profile-card">

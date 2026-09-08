@@ -32,8 +32,12 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => { const u = data.session?.user ?? null; setUser(u); refreshTokens(u); setLoading(false) })
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => { const u = session?.user ?? null; setUser(u); refreshTokens(u) })
+    let cleaned = false
+    const maybeClean = (u) => {
+      if (u && !cleaned) { cleaned = true; import('../lib/storage').then((m) => m.cleanupOrphanImages(u.id)).catch(() => {}) }
+    }
+    supabase.auth.getSession().then(({ data }) => { const u = data.session?.user ?? null; setUser(u); refreshTokens(u); maybeClean(u); setLoading(false) })
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => { const u = session?.user ?? null; setUser(u); refreshTokens(u); maybeClean(u) })
     return () => sub.subscription.unsubscribe()
   }, [])
 

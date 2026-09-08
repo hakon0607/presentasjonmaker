@@ -37,10 +37,22 @@ Deno.serve(async (req) => {
     const user = await ures.json().catch(() => null)
     if (!user?.id) return json({ error: 'Ikke innlogget' }, 401)
 
-    const { tier, interval, origin } = await req.json()
+    const bodyIn = await req.json().catch(() => ({}))
+    const h = { apikey: SRV, Authorization: `Bearer ${SRV}` }
+
+    // --- Selvbetjent: si opp / gjenoppta eget abonnement ---
+    if (bodyIn.action === 'cancel' || bodyIn.action === 'resume') {
+      const prof = (await (await fetch(`${URL}/rest/v1/profiles?id=eq.${user.id}&select=stripe_subscription_id`, { headers: h })).json())?.[0]
+      const subId = prof?.stripe_subscription_id
+      if (!subId) return json({ error: 'Fant ingen aktivt abonnement' }, 400)
+      await stripe(`subscriptions/${subId}`, { cancel_at_period_end: bodyIn.action === 'cancel' ? 'true' : 'false' }, SECRET)
+      return json({ ok: true })
+    }
+
+    // --- Standard: start ny checkout ---
+    const { tier, interval, origin } = bodyIn
     if (!['pluss', 'pro'].includes(tier) || !['month', 'year'].includes(interval)) return json({ error: 'Ugyldig valg' }, 400)
 
-    const h = { apikey: SRV, Authorization: `Bearer ${SRV}` }
     const plan = (await (await fetch(`${URL}/rest/v1/plans?tier=eq.${tier}&select=price_month_id,price_year_id`, { headers: h })).json())?.[0]
     const price = interval === 'year' ? plan?.price_year_id : plan?.price_month_id
     if (!price) return json({ error: `Mangler Stripe-pris for ${tier}/${interval}. Legg price-id i plans-tabellen.` }, 400)
@@ -53,6 +65,7 @@ Deno.serve(async (req) => {
       mode: 'subscription',
       'line_items[0][price]': price,
       'line_items[0][quantity]': '1',
+      'managed_payments[enabled]': 'false',
       customer,
       customer_email: customer ? undefined : (user.email || prof?.email || undefined),
       client_reference_id: user.id,

@@ -14,7 +14,7 @@ import { cleanupOrphanImages } from '../lib/storage'
 import { Plus, Sparkles, Trash2, LogOut, Presentation, Download, HelpCircle, User, Play, Search } from 'lucide-react'
 
 export default function Home() {
-  const { user, signOut, aiEnabled, tokens, tokensUnlimited, tokensCap } = useAuth()
+  const { user, signOut, aiEnabled, tokens, tokensUnlimited, tokensCap, plan } = useAuth()
   const nav = useNavigate()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -81,6 +81,9 @@ export default function Home() {
         <Link className="logo-row" to="/"><span className="logo-mark">◆</span> AiPresent</Link>
         <div className="home-top-right">
           <TokenBadge />
+          {plan === 'pluss' || plan === 'pro' || tokensUnlimited
+            ? <button className="chip plan-chip" onClick={() => nav('/profil')}><Sparkles size={15} /> {tokensUnlimited ? 'Pro' : plan.charAt(0).toUpperCase() + plan.slice(1)}</button>
+            : <button className="chip upgrade-chip" onClick={() => nav('/priser')}><Sparkles size={15} /> Oppgrader</button>}
           <InstallButton className="chip" />
           <button className="chip" onClick={() => nav('/profil')}><User size={16} /> Profil</button>
           <button className="chip" onClick={() => setTourOpen(true)}><HelpCircle size={16} /> Se hvordan</button>

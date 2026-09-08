@@ -895,3 +895,20 @@ button{font-family:inherit}
 .admin-mini{border:1px solid #d8d3ea;background:#fff;border-radius:9px;padding:6px 10px;font-size:.78rem;font-weight:700;cursor:pointer;margin-right:6px}
 .admin-mini.danger{border-color:#f0b5c4;color:#b02a4a}
 .admin-foot{margin-top:24px;color:#8b88a0;font-size:.85rem}
+
+/* ---------- Abonnement på profil + oppgrader-pille ---------- */
+.upgrade-chip{background:linear-gradient(135deg,#5b3df0,#9b4dff)!important;color:#fff!important;border:none!important;font-weight:800}
+.plan-chip{background:#efeaff!important;color:#6d3df5!important;border:none!important;font-weight:800}
+.sub-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.sub-pill{font-size:.78rem;font-weight:800;padding:5px 12px;border-radius:980px}
+.sub-gratis{background:#f1eefb;color:#6b6880}
+.sub-pluss{background:#efeaff;color:#6d3df5}
+.sub-pro{background:linear-gradient(135deg,#5b3df0,#9b4dff);color:#fff}
+.sub-sub{color:var(--muted);margin:6px 0 14px}
+.sub-rows{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0}
+.sub-rows>div{background:#faf9ff;border:1px solid #ece9f5;border-radius:12px;padding:12px}
+.sub-rows span{display:block;font-size:.75rem;color:var(--muted);font-weight:600;margin-bottom:3px}
+.sub-rows b{font-size:1.15rem}
+.sub-actions{display:flex;gap:10px;flex-wrap:wrap}
+.sub-msg{background:#eaf6ff;color:#0b5aa2;padding:10px 14px;border-radius:12px;margin:6px 0 12px;font-weight:600;font-size:.9rem}
+.btn.danger{background:#fdebf0;color:#b02a4a;border:1px solid #f0b5c4}
