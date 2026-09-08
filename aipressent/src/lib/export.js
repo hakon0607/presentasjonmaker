@@ -55,7 +55,7 @@ function scrimDataUrl() {
   return _scrimUrl
 }
 
-async function buildPptx(deck) {
+async function buildPptx(deck, watermark = false) {
   const pptx = new PptxGenJS()
   pptx.defineLayout({ name: 'AP', width: IN_W, height: IN_H })
   pptx.layout = 'AP'
@@ -105,21 +105,24 @@ async function buildPptx(deck) {
         }
       }
     }
+    if (watermark) {
+      s.addText('AiPresent', { x: 0, y: IN_H / 2 - 0.7, w: IN_W, h: 1.4, align: 'center', valign: 'middle', fontSize: 60, bold: true, color: 'FFFFFF', transparency: 72, fontFace: 'Arial' })
+    }
   }
   return pptx
 }
 
-export async function exportPptx(deck) {
-  const pptx = await buildPptx(deck)
+export async function exportPptx(deck, watermark = false) {
+  const pptx = await buildPptx(deck, watermark)
   await pptx.writeFile({ fileName: (deck.title || 'presentasjon') + '.pptx' })
 }
 
-export async function pptxBlob(deck) {
-  const pptx = await buildPptx(deck)
+export async function pptxBlob(deck, watermark = false) {
+  const pptx = await buildPptx(deck, watermark)
   return pptx.write({ outputType: 'blob' })
 }
 
-export function exportPdf(deck) {
+export function exportPdf(deck, watermark = false) {
   const mmW = IN_W * 25.4, mmH = IN_H * 25.4
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [mmW, mmH] })
   const mx = mmW / CW, my = mmH / CH
@@ -201,6 +204,12 @@ export function exportPdf(deck) {
         const ax = el.align === 'center' ? x + w / 2 : el.align === 'right' ? x + w : x
         lines.forEach((ln) => { pdf.text(ln, ax, ty, { align: el.align || 'left' }); ty += lh })
       }
+    }
+    if (watermark) {
+      let g; try { g = new pdf.GState({ opacity: 0.28 }); pdf.saveGraphicsState(); pdf.setGState(g) } catch (_e) { g = null }
+      pdf.setTextColor(255, 255, 255); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(66)
+      try { pdf.text('AiPresent', mmW / 2, mmH / 2, { align: 'center', baseline: 'middle' }) } catch (_e) { pdf.text('AiPresent', mmW / 2, mmH / 2, { align: 'center' }) }
+      if (g) { try { pdf.restoreGraphicsState() } catch (_e) { /* ignore */ } }
     }
   })
   pdf.save((deck.title || 'presentasjon') + '.pdf')

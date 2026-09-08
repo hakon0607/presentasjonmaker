@@ -12,6 +12,7 @@ import CopyDeck from './pages/CopyDeck'
 import Pricing from './pages/Pricing'
 import Admin from './pages/Admin'
 import NoTokensModal from './components/NoTokensModal'
+import UpgradeModal from './components/UpgradeModal'
 
 function Protected({ children }) {
   const { user, loading } = useAuth()
@@ -24,8 +25,9 @@ function Protected({ children }) {
 export default function App() {
   return (
     <AuthProvider>
-      <div className="version-star" aria-hidden="true">★ v111</div>
+      <div className="version-star" aria-hidden="true">★ v112</div>
       <NoTokensModal />
+      <UpgradeModal />
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/guide" element={<Guide />} />

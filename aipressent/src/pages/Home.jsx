@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { newDeck, THEMES } from '../lib/deck'
 import { exportPptx } from '../lib/export'
 import AiWizard from '../components/AiWizard'
+import { canCreatePresentation } from '../lib/limits'
 import SlideStage from '../components/SlideStage'
 import Tour from '../components/Tour'
 import InstallButton from '../components/InstallButton'
@@ -60,7 +61,13 @@ export default function Home() {
     } catch (_e) { /* ignore */ }
   }, [user])
 
+  async function openAi() {
+    if (!(await canCreatePresentation(user.id, plan, tokensUnlimited))) return
+    setAiOpen(true)
+  }
+
   async function createBlank() {
+    if (!(await canCreatePresentation(user.id, plan, tokensUnlimited))) return
     const deck = newDeck('Uten tittel', 'minimal')
     const { data, error } = await supabase.from('presentations')
       .insert({ owner_id: user.id, title: deck.title, theme: deck.theme?.name || 'Minimal', data: deck }).select('id').single()
@@ -110,7 +117,7 @@ export default function Home() {
           <h1>Dine presentasjoner</h1>
           <div className="home-actions">
             <button className="btn ghost" data-tour="new" onClick={createBlank}><Plus size={18} /> Ny presentasjon</button>
-            {aiEnabled && <button className="btn primary" data-tour="ai" onClick={() => setAiOpen(true)}><Sparkles size={18} /> Lag med AI</button>}
+            {aiEnabled && <button className="btn primary" data-tour="ai" onClick={openAi}><Sparkles size={18} /> Lag med AI</button>}
           </div>
         </div>
         <TokenMeter />
@@ -123,7 +130,7 @@ export default function Home() {
             <Presentation size={42} />
             <p>Ingen presentasjoner ennå.</p>
             {aiEnabled
-              ? <button className="btn primary" onClick={() => setAiOpen(true)}><Sparkles size={18} /> Lag din første med AI</button>
+              ? <button className="btn primary" onClick={openAi}><Sparkles size={18} /> Lag din første med AI</button>
               : <button className="btn primary" onClick={() => setTplOpen(true)}><Plus size={18} /> Lag din første</button>}
           </div>
         ) : (

@@ -21,6 +21,7 @@ function iconifyUrl(id, color) {
   return `https://api.iconify.design/${id}.svg?color=${encodeURIComponent(color || '#333333')}&width=400&height=400`
 }
 import { useAuth } from '../context/AuthContext'
+import { limitsFor, fireUpgrade, canCreatePresentation } from '../lib/limits'
 import { useLang } from '../i18n'
 
 const LAYOUTS = [
@@ -63,7 +64,9 @@ function toAi(e) {
 }
 
 export default function AiWizard({ onClose, userId, nav }) {
-  const { tokens, tokensUnlimited, refreshTokens } = useAuth()
+  const { tokens, tokensUnlimited, refreshTokens, plan } = useAuth()
+  const lim = limitsFor(plan, tokensUnlimited)
+  const maxCount = isFinite(lim.slides) ? lim.slides : 20
   const { lang } = useLang()
   const [step, setStep] = useState('input')
   const [subStep, setSubStep] = useState(0)            // 0=overskrift 1=manus 2=visuelt
@@ -76,7 +79,7 @@ export default function AiWizard({ onClose, userId, nav }) {
   const [title, setTitle] = useState('')
   const [manuscript, setManuscript] = useState('')
   const [visualStyle, setVisualStyle] = useState('')
-  const [count, setCount] = useState(7)
+  const [count, setCount] = useState(7)  // caps mot maxCount i setCountSafe
   const [textAmount, setTextAmount] = useState('auto')
   // steg 2
   const [outline, setOutline] = useState([])
@@ -126,6 +129,7 @@ export default function AiWizard({ onClose, userId, nav }) {
   }
 
   async function createPresentation() {
+    if (!(await canCreatePresentation(userId, plan, tokensUnlimited))) return
     if (!title.trim()) { setErr('Gi presentasjonen en tittel.'); return }
     if (!manuscript.trim()) { setErr('Skriv litt manus eller noen stikkord.'); return }
     setBusy(true); setErr(''); setGenLabel('Lager innhold …'); prog.start()
@@ -248,7 +252,11 @@ export default function AiWizard({ onClose, userId, nav }) {
     createPresentation()
   }
   function fxBack() { if (subStep > 0) { setErr(''); setSubStep(subStep - 1) } }
-  const setCountSafe = (n) => setCount(Math.max(3, Math.min(20, n || 0)))
+  const setCountSafe = (n) => {
+    const want = n || 0
+    if (want > maxCount) { fireUpgrade({ reason: 'slides' }); setCount(maxCount); return }
+    setCount(Math.max(3, Math.min(20, want)))
+  }
   const COUNT_QUICK = [5, 7, 10, 12, 15]
   // hvilken stil/palett blir valgt akkurat nå
   const resolved = resolveStyle(title, visualStyle, styleOverride)

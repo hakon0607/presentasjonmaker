@@ -7,6 +7,7 @@ import { SILHOUETTES, SIL_CATS, SCENES } from '../lib/silhouettes'
 import { exportPptx, exportPdf, pptxBlob } from '../lib/export'
 import { importToGoogleSlides, googleConfigured, loadGis } from '../lib/gslides'
 import Canvas from '../components/Canvas'
+import { limitsFor, fireUpgrade } from '../lib/limits'
 import SlideStage from '../components/SlideStage'
 import TokenBadge from '../components/TokenBadge'
 import { folderSlug } from '../lib/slug'
@@ -19,7 +20,8 @@ import { ChevronLeft, ChevronRight, Plus, Copy, Trash2, Play, Download, Sparkles
 
 export default function Editor() {
   const { id } = useParams()
-  const { user, aiEnabled, tokens, tokensUnlimited, refreshTokens } = useAuth()
+  const { user, aiEnabled, tokens, tokensUnlimited, refreshTokens, plan } = useAuth()
+  const lim = limitsFor(plan, tokensUnlimited)
   const nav = useNavigate()
   const [deck, setDeck] = useState(null)
   const [idx, setIdx] = useState(0)
@@ -461,7 +463,7 @@ export default function Editor() {
   }
   async function googleSlides() {
     if (!googleConfigured()) {
-      try { await exportPptx(deck) } catch (e) { /* nedlasting startet uansett */ }
+      try { await exportPptx(deck, lim.watermark) } catch (e) { /* nedlasting startet uansett */ }
       window.open('https://drive.google.com/drive/my-drive', '_blank')
       setShareMsg('Lastet ned .pptx ✓  Dra fila inn i Google Drive → dobbeltklikk → «Åpne med Google Slides».')
       setTimeout(() => setShareMsg(''), 10000)
@@ -472,14 +474,14 @@ export default function Editor() {
     setShareMsg('Lager Google Slides … logg inn med Google')
     try {
       commitEdits()
-      const url = await importToGoogleSlides(() => pptxBlob(deckRef.current || deck), (deckRef.current || deck).title)
+      const url = await importToGoogleSlides(() => pptxBlob(deckRef.current || deck, lim.watermark), (deckRef.current || deck).title)
       if (tab) tab.location = url; else window.open(url, '_blank')
       setShareMsg('Åpnet i Google Slides ✓')
       setTimeout(() => setShareMsg(''), 4000)
     } catch (e) {
       if (tab) { try { tab.close() } catch (_e) { /* ignore */ } }
       setShareMsg('Klarte ikke automatisk (' + (e.message || e) + '). Laster ned .pptx i stedet …')
-      try { await exportPptx(deck) } catch (_e) { /* ignore */ }
+      try { await exportPptx(deck, lim.watermark) } catch (_e) { /* ignore */ }
       setTimeout(() => setShareMsg(''), 9000)
     }
   }
@@ -521,11 +523,13 @@ export default function Editor() {
   }
 
   function addSlide() {
+    if (!tokensUnlimited && deck.slides.length >= lim.slides) { fireUpgrade({ reason: 'slides' }); return }
     const ns = blankSlide(deck.theme)
     const slides = [...deck.slides]; slides.splice(idx + 1, 0, ns)
     apply({ ...deck, slides }); setIdx(idx + 1); setSelId(null)
   }
   function dupSlide() {
+    if (!tokensUnlimited && deck.slides.length >= lim.slides) { fireUpgrade({ reason: 'slides' }); return }
     const copy = { ...slide, id: genId(), elements: slide.elements.map((e) => ({ ...e, id: genId() })) }
     const slides = [...deck.slides]; slides.splice(idx + 1, 0, copy)
     apply({ ...deck, slides }); setIdx(idx + 1)
@@ -575,7 +579,7 @@ export default function Editor() {
             {presentMenu && (
               <div className="menu" onMouseLeave={() => setPresentMenu(false)}>
                 <button onClick={() => { setPresentMenu(false); commitEdits(); setAiPresent(false); setTimeout(() => setPresent(true), 0) }}>▶  Bare presenter</button>
-                <button onClick={() => { setPresentMenu(false); commitEdits(); setAiPresent(true); setTimeout(() => setPresent(true), 0) }}>🔊  Presenter med AI</button>
+                <button onClick={() => { setPresentMenu(false); if (!lim.tts) { fireUpgrade({ reason: 'tts' }); return } commitEdits(); setAiPresent(true); setTimeout(() => setPresent(true), 0) }}>🔊  Presenter med AI</button>
                 <div className="menu-note">«Presenter med AI» leser opp manuset med ekte stemme og blar automatisk.</div>
               </div>
             )}
@@ -584,8 +588,8 @@ export default function Editor() {
             <button className="chip primary" onClick={() => setExportOpen((o) => !o)}><Download size={15} /> Eksporter</button>
             {exportOpen && (
               <div className="menu" onMouseLeave={() => setExportOpen(false)}>
-                <button onClick={() => { exportPptx(deck); setExportOpen(false) }}>PowerPoint (.pptx)</button>
-                <button onClick={() => { exportPdf(deck); setExportOpen(false) }}>PDF</button>
+                <button onClick={() => { exportPptx(deck, lim.watermark); setExportOpen(false) }}>PowerPoint (.pptx)</button>
+                <button onClick={() => { exportPdf(deck, lim.watermark); setExportOpen(false) }}>PDF</button>
                 <button onClick={() => { googleSlides(); setExportOpen(false) }}>{googleConfigured() ? 'Lag i Google Slides (automatisk) ✨' : 'Åpne i Google Slides ↗'}</button>
                 <div className="menu-note">{googleConfigured() ? 'Logg inn med Google, så lages presentasjonen automatisk i Google Slides.' : 'Google Slides: vi laster ned .pptx og åpner Google – dra fila inn, så åpnes den i Slides.'}</div>
               </div>
@@ -636,6 +640,7 @@ export default function Editor() {
         </aside>
 
         <main className="ed-stage" data-tour="canvas">
+          {lim.watermark && <div className="wm-editor">AiPresent</div>}
           <Canvas slide={slide} onChange={setSlide} selectedId={selId} setSelectedId={setSelId} selectedIds={multiSel} onSelect={selectEl} editingId={editId} setEditingId={setEditId} onReplaceImage={(el) => setImgChoice(el)} onRewrite={aiEnabled ? rewriteText : null} grid={grid} zoom={zoom} />
           <div className="zoom-ctl">
             <button onClick={() => setZoom((z) => Math.max(0.4, Math.round((z - 0.1) * 10) / 10))} title="Zoom ut">−</button>
@@ -717,7 +722,7 @@ export default function Editor() {
         )}
       </div>
 
-      {present && <Present deck={deck} start={idx} aiMode={aiPresent} onClose={() => setPresent(false)} />}
+      {present && <Present deck={deck} start={idx} aiMode={aiPresent} ttsAllowed={lim.tts} onClose={() => setPresent(false)} />}
       {aiSlideOpen && <AiSlideModal slide={slide} onClose={() => setAiSlideOpen(false)} onApply={(s) => { applyAiSlide(s); setAiSlideOpen(false) }} />}
       {reviewOpen && <ReviewModal deck={deck} onClose={() => setReviewOpen(false)} />}
       {animOpen && <AnimPanel slide={slide} onChange={setSlide} selectedId={selId} onClose={() => setAnimOpen(false)} />}
@@ -778,7 +783,7 @@ function speechText(slide) {
     .join('. ')
 }
 
-function Present({ deck, start, onClose, aiMode = false }) {
+function Present({ deck, start, onClose, aiMode = false, ttsAllowed = true }) {
   const [i, setI] = useState(start || 0)
   const [showNotes, setShowNotes] = useState(false)
   const [playing, setPlaying] = useState(false)
@@ -852,7 +857,7 @@ function Present({ deck, start, onClose, aiMode = false }) {
     setLoading(false); setPlaying(true); playFrom(from)
   }
 
-  useEffect(() => { if (aiMode) startPresent(start || 0) /* eslint-disable-next-line */ }, [])
+  useEffect(() => { if (aiMode && ttsAllowed) startPresent(start || 0) /* eslint-disable-next-line */ }, [])
 
   useEffect(() => {
     const onKey = (e) => {
@@ -871,7 +876,7 @@ function Present({ deck, start, onClose, aiMode = false }) {
       <button className="present-x" onClick={(e) => { e.stopPropagation(); onClose() }}>✕</button>
       <div className="present-stage"><SlideStage key={i} slide={s} animate /></div>
       {showNotes && s.notes && <div className="present-notes" onClick={(e) => e.stopPropagation()}>{s.notes}</div>}
-      {loading ? (
+      {!ttsAllowed ? null : loading ? (
         <div className="present-prep" onClick={(e) => e.stopPropagation()}>
           <div className="present-prep-top">
             <span>🔊 Laster opplesning…</span>

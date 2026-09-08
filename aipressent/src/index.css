@@ -1092,3 +1092,29 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,
 
 /* ---------- Pakkebytte-melding ---------- */
 .pricing-msg{max-width:560px;margin:0 auto 20px;background:rgba(0,113,227,.08);color:var(--accent);border:1px solid rgba(0,113,227,.2);padding:12px 16px;border-radius:12px;font-weight:600;text-align:center}
+
+/* ---------- Vannmerke i editor (gratis) ---------- */
+.ed-stage{position:relative}
+.wm-editor{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:30;
+  font-family:'Sora','Manrope',sans-serif;font-weight:800;color:rgba(255,255,255,.5);font-size:clamp(28px,6vw,72px);
+  letter-spacing:-.02em;text-shadow:0 2px 12px rgba(0,0,0,.18);user-select:none}
+
+/* ---------- Oppgraderings-modal ---------- */
+.up-overlay{position:fixed;inset:0;z-index:120;background:rgba(20,18,30,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px}
+.up-modal{position:relative;width:100%;max-width:640px;background:var(--panel);border-radius:22px;padding:30px 26px 22px;box-shadow:0 30px 80px rgba(0,0,0,.3)}
+.up-x{position:absolute;top:16px;right:16px;background:var(--panel-2);border:none;border-radius:10px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted)}
+.up-x:hover{background:var(--line)}
+.up-modal h2{margin:0 0 4px;font-size:1.5rem;letter-spacing:-.02em}
+.up-reason{color:var(--muted);margin:0 0 20px}
+.up-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.up-plan{border:1.5px solid var(--line);border-radius:16px;padding:16px 14px;display:flex;flex-direction:column;gap:8px}
+.up-plan.feat{border-color:var(--accent)}
+.up-plan-name{font-weight:800;font-size:1.05rem}
+.up-plan-price{color:var(--muted);font-size:.9rem}.up-plan-price b{color:var(--ink);font-size:1.5rem}
+.up-plan-perk{display:flex;gap:6px;align-items:flex-start;color:var(--muted);font-size:.8rem;font-weight:600;line-height:1.35;flex:1}
+.up-plan-perk svg{color:var(--accent);flex:0 0 auto;margin-top:2px}
+.up-plan-btn{border:none;border-radius:12px;padding:10px;font-weight:800;cursor:pointer;background:var(--accent);color:#fff}
+.up-plan-btn.ghost{background:var(--panel-2);color:var(--muted)}
+.up-plan-btn:disabled{opacity:.7;cursor:default}
+.up-later{display:block;margin:18px auto 0;background:none;border:none;color:var(--muted);font-weight:600;cursor:pointer;text-decoration:underline}
+@media(max-width:560px){.up-plans{grid-template-columns:1fr}}
