@@ -6,7 +6,7 @@ import { cleanupOrphanImages } from '../lib/storage'
 import { ChevronLeft, LogOut, Sparkles, Presentation, Coins, Plus, Trash2, HardDrive } from 'lucide-react'
 
 export default function Profile() {
-  const { user, signOut, tokens, tokensUnlimited, tokensCap, tokensFirst, refreshTokens } = useAuth()
+  const { user, signOut, tokens, tokensUnlimited, tokensCap, tokensFirst, refreshTokens, plan, isAdmin } = useAuth()
   const nav = useNavigate()
   const [count, setCount] = useState(null)
   const [cleaning, setCleaning] = useState(false)
@@ -50,8 +50,15 @@ export default function Profile() {
         <div className="profile-stats">
           <div className="profile-stat"><b>{count == null ? '–' : count}</b><span><Presentation size={13} /> Presentasjoner</span></div>
           <div className="profile-stat"><b>{tokensUnlimited ? '∞' : (tokens ?? 0)}</b><span><Coins size={13} /> Tokens igjen</span></div>
-          <div className="profile-stat"><b>{tokensUnlimited ? 'Pro' : 'Gratis'}</b><span><Sparkles size={13} /> Plan</span></div>
+          <div className="profile-stat"><b>{tokensUnlimited ? 'Pro' : (plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : 'Gratis')}</b><span><Sparkles size={13} /> Plan</span></div>
         </div>
+      </div>
+
+      <div className="profile-card">
+        <h3 style={{ marginTop: 0 }}><Sparkles size={18} /> Abonnement</h3>
+        <p style={{ color: 'var(--muted)', marginTop: 4 }}>Vil du ha flere tokens hver dag? Se pakkene og oppgrader – eller endre abonnementet ditt.</p>
+        <button className="btn primary" onClick={() => nav('/priser')}>Se priser</button>
+        {isAdmin && <button className="btn ghost" style={{ marginLeft: 10 }} onClick={() => nav('/admin')}>Åpne admin</button>}
       </div>
 
       <div className="profile-card">

@@ -8,6 +8,8 @@ export function AuthProvider({ children }) {
   const [tokensUnlimited, setTokensUnlimited] = useState(() => { try { return localStorage.getItem('ap_unlim') === '1' } catch (_e) { return false } })
   const [tokensCap, setTokensCap] = useState(3)
   const [tokensFirst, setTokensFirst] = useState(10)
+  const [plan, setPlan] = useState('gratis')
+  const [isAdmin, setIsAdmin] = useState(false)
 
   async function refreshTokens(u) {
     const usr = u ?? user
@@ -19,6 +21,8 @@ export function AuthProvider({ children }) {
         setTokens(data.unlimited ? null : (data.tokens ?? 0))
         if (data.cap) setTokensCap(data.cap)
         if (data.first) setTokensFirst(data.first)
+        setPlan(data.plan || 'gratis')
+        setIsAdmin(!!data.admin)
         try {
           localStorage.setItem('ap_unlim', data.unlimited ? '1' : '0')
           localStorage.setItem('ap_tok', data.unlimited ? '' : String(data.tokens ?? 0))
@@ -36,6 +40,6 @@ export function AuthProvider({ children }) {
   const signUp = (email, password, name) => supabase.auth.signUp({ email, password, options: { data: { display_name: name } } })
   const signIn = (email, password) => supabase.auth.signInWithPassword({ email, password })
   const signOut = () => supabase.auth.signOut()
-  return <AuthContext.Provider value={{ user, loading, aiEnabled: !!user, tokens, tokensUnlimited, tokensCap, tokensFirst, refreshTokens, signUp, signIn, signOut }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, loading, aiEnabled: !!user, tokens, tokensUnlimited, tokensCap, tokensFirst, plan, isAdmin, refreshTokens, signUp, signIn, signOut }}>{children}</AuthContext.Provider>
 }
 export const useAuth = () => useContext(AuthContext)

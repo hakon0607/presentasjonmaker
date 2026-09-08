@@ -301,7 +301,7 @@ const DAILY_CAP = 3      // daglig paafyll opp til dette
 const FIRST_GRANT = 10   // ved foerste innlogging (settes som kolonne-default i SQL)
 const COST: Record<string, number> = { generate: 5, edit: 2, slide: 1, review: 1, notes: 1, theme: 1, animate: 1, quiz: 3, rewrite: 1 }
 
-type Tok = { configured: boolean; uid?: string | null; tokens?: number; unlimited?: boolean; url?: string; srv?: string }
+type Tok = { configured: boolean; uid?: string | null; tokens?: number; unlimited?: boolean; url?: string; srv?: string; plan?: string; admin?: boolean; daily?: number }
 
 async function tokenAuth(req: Request): Promise<Tok> {
   try {
@@ -316,18 +316,19 @@ async function tokenAuth(req: Request): Promise<Tok> {
     const uid = user?.id
     if (!uid) return { configured: true, uid: null }
     const h = { apikey: srv, Authorization: `Bearer ${srv}` }
-    const pres = await fetch(`${url}/rest/v1/profiles?id=eq.${uid}&select=tokens,tokens_unlimited,tokens_day`, { headers: h })
+    const pres = await fetch(`${url}/rest/v1/profiles?id=eq.${uid}&select=tokens,tokens_unlimited,tokens_day,tokens_daily,plan,is_admin`, { headers: h })
     const rows = pres.ok ? await pres.json() : []
     const row = rows?.[0]
-    if (!row) return { configured: true, uid, tokens: FIRST_GRANT, unlimited: false, url, srv }
+    if (!row) return { configured: true, uid, tokens: FIRST_GRANT, unlimited: false, url, srv, plan: 'gratis', admin: false }
     const today = new Date().toISOString().slice(0, 10)
     let tokens = Number(row.tokens ?? FIRST_GRANT)
     const unlimited = !!row.tokens_unlimited
+    const daily = Number(row.tokens_daily ?? DAILY_CAP)   // daglig kvote etter abonnement-nivå
     if (row.tokens_day !== today) {
-      tokens = Math.max(tokens, DAILY_CAP)
+      tokens = Math.max(tokens, daily)
       await fetch(`${url}/rest/v1/profiles?id=eq.${uid}`, { method: 'PATCH', headers: { ...h, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ tokens, tokens_day: today }) })
     }
-    return { configured: true, uid, tokens, unlimited, url, srv }
+    return { configured: true, uid, tokens, unlimited, url, srv, plan: row.plan || 'gratis', admin: !!row.is_admin, daily }
   } catch (_e) { return { configured: false } }
 }
 
@@ -367,7 +368,7 @@ Deno.serve(async (req) => {
     // Token-saldo (gratis å sjekke)
     if (body.mode === 'tokens') {
       const t = await tokenAuth(req)
-      return json({ tokens: t.unlimited ? null : (t.tokens ?? FIRST_GRANT), unlimited: !!t.unlimited, cap: DAILY_CAP, first: FIRST_GRANT, cost: COST })
+      return json({ tokens: t.unlimited ? null : (t.tokens ?? FIRST_GRANT), unlimited: !!t.unlimited, cap: t.daily ?? DAILY_CAP, first: FIRST_GRANT, cost: COST, plan: t.plan ?? 'gratis', admin: !!t.admin })
     }
 
     // Pixabay – ekte foto etter søkeord. Krever PIXABAY_KEY som Secret. Gratis, ingen tokens, ingen OpenAI.

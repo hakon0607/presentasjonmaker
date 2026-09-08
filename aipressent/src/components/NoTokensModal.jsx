@@ -55,7 +55,8 @@ export default function NoTokensModal() {
           <div className="nt-refill-foot">Du får automatisk <b>{cap}</b> tokens ved midnatt.</div>
         </div>
 
-        <button className="btn primary nt-ok" onClick={close}>Skjønner</button>
+        <a className="btn primary nt-ok" href="/priser" style={{ textDecoration: 'none', textAlign: 'center' }}>Oppgrader for flere tokens</a>
+        <button className="btn nt-ok" style={{ marginTop: 8, background: 'transparent' }} onClick={close}>Vent til påfyll</button>
       </div>
     </div>
   )
