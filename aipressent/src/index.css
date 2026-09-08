@@ -1118,3 +1118,24 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,
 .up-plan-btn:disabled{opacity:.7;cursor:default}
 .up-later{display:block;margin:18px auto 0;background:none;border:none;color:var(--muted);font-weight:600;cursor:pointer;text-decoration:underline}
 @media(max-width:560px){.up-plans{grid-template-columns:1fr}}
+
+/* ---------- Oppgraderings-modal: sammenligningstabell ---------- */
+.um-modal{position:relative;width:100%;max-width:560px;background:var(--panel);border-radius:22px;padding:30px 24px 20px;box-shadow:0 30px 80px rgba(0,0,0,.3)}
+.um-modal h2{margin:0 0 4px;font-size:1.5rem;letter-spacing:-.02em}
+.um-table{margin:8px 0 20px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.um-row{display:grid;grid-template-columns:1.6fr .8fr .8fr .8fr;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);font-size:.86rem}
+.um-row:last-child{border-bottom:none}
+.um-row>span:not(.um-feat){text-align:center;font-weight:700}
+.um-feat{color:var(--ink);font-weight:600}
+.um-head{background:var(--panel-2);font-weight:800}
+.um-head>span{font-weight:800!important;color:var(--ink)}
+.um-col-feat{background:rgba(0,113,227,.06)}
+.um-head .um-col-feat{color:var(--accent)}
+.um-yes{display:inline-flex;color:var(--accent)}
+.um-no{color:var(--line-2);font-weight:700}
+.um-val{color:var(--ink);font-weight:800}
+.um-price{background:var(--panel-2);font-weight:800}
+.um-actions{display:flex;gap:10px}
+.um-btn{flex:1;border:none;border-radius:12px;padding:12px;font-weight:800;cursor:pointer;background:var(--panel-2);color:var(--accent)}
+.um-btn.pro{background:var(--accent);color:#fff}
+@media(max-width:480px){.um-row{font-size:.8rem;grid-template-columns:1.5fr .7fr .7fr .7fr;padding:9px 8px}}
