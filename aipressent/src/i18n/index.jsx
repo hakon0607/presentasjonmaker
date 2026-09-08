@@ -2,11 +2,10 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { dict } from './dict'
 
 const LangCtx = createContext(null)
-const FALLBACK = 'en'      // engelsk er standard/fallback
+const FALLBACK = 'no'
 
 function detect() {
-  try { const s = localStorage.getItem('aip_lang'); if (s && dict[s]) return s } catch (_e) {}
-  return 'en'
+  return 'no'   // appen er kun på norsk
 }
 
 export function LanguageProvider({ children }) {

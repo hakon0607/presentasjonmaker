@@ -3,7 +3,6 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useT } from '../i18n'
-import LanguageSwitcher from '../components/LanguageSwitcher'
 
 export default function Login() {
   const { signIn } = useAuth()
@@ -26,7 +25,6 @@ export default function Login() {
 
   return (
     <div className="auth-wrap">
-      <LanguageSwitcher className="lang-switch-fixed" />
       <form className="auth-card" onSubmit={submit}>
         <Link className="logo-row" to="/"><span className="logo-mark">◆</span> AiPresent</Link>
         <h1>{t('auth.login')}</h1>

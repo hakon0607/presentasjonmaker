@@ -14,20 +14,26 @@ export default function Pricing() {
   const [interval, setInterval] = useState('month')
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
+  const [msg, setMsg] = useState('')
+  const isPaid = plan === 'pluss' || plan === 'pro'
 
   useEffect(() => {
     supabase.from('plans').select('*').order('sort').then(({ data }) => setPlans(data || []))
   }, [])
 
   async function upgrade(tier) {
-    setErr('')
+    setErr(''); setMsg('')
     if (!user) { nav('/login', { state: { from: '/priser' } }); return }
     setBusy(tier)
     try {
-      const { data, error } = await supabase.functions.invoke('stripe-checkout', { body: { tier, interval, origin: window.location.origin } })
+      // Har man allerede et betalt abonnement: BYTT det (trer i kraft ved neste periode) i stedet for ny checkout
+      const action = isPaid ? 'change' : undefined
+      const { data, error } = await supabase.functions.invoke('stripe-checkout', { body: { action, tier, interval, origin: window.location.origin } })
       if (error) { let m = error.message; try { const b = await error.context.json(); if (b?.error) m = b.error } catch (_e) {} throw new Error(m) }
       if (data?.error) throw new Error(data.error)
-      if (data?.url) window.location.href = data.url
+      if (data?.url) { window.location.href = data.url; return }
+      if (data?.scheduled) { setMsg(t('pricing.changeScheduled')); setBusy('') }
+      else setBusy('')
     } catch (e) { setErr(String(e.message || e)); setBusy('') }
   }
 
@@ -50,6 +56,7 @@ export default function Pricing() {
         </div>
       </div>
       {err && <div className="pricing-err">{err}</div>}
+      {msg && <div className="pricing-msg">{msg}</div>}
       <div className="pricing-grid">
         {plans.map((p) => {
           const price = interval === 'year' ? p.price_year_nok : p.price_month_nok
@@ -65,7 +72,7 @@ export default function Pricing() {
               {p.tier === 'gratis'
                 ? <button className="pricing-btn ghost" disabled>{current ? t('pricing.yourPlan') : t('pricing.standard')}</button>
                 : <button className="pricing-btn" disabled={current || busy === p.tier} onClick={() => upgrade(p.tier)}>
-                    {current ? t('pricing.yourPlan') : busy === p.tier ? t('pricing.redirecting') : t('pricing.choose', { plan: nameOf(p.tier, p.name) })}
+                    {current ? t('pricing.yourPlan') : busy === p.tier ? t('pricing.redirecting') : (isPaid ? t('pricing.switchTo', { plan: nameOf(p.tier, p.name) }) : t('pricing.choose', { plan: nameOf(p.tier, p.name) }))}
                   </button>}
             </div>
           )

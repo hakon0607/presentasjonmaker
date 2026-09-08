@@ -13,11 +13,11 @@ function form(obj: Record<string, string | undefined>): string {
   for (const [k, v] of Object.entries(obj)) if (v !== undefined && v !== null) p.append(k, String(v))
   return p.toString()
 }
-async function stripe(path: string, body: Record<string, string | undefined>, key: string) {
+async function stripe(path: string, body: Record<string, string | undefined>, key: string, method = 'POST') {
   const r = await fetch(`https://api.stripe.com/v1/${path}`, {
-    method: 'POST',
+    method,
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: form(body),
+    body: method === 'GET' ? undefined : form(body),
   })
   const data = await r.json()
   if (!r.ok) throw new Error(data?.error?.message || `Stripe-feil (${r.status})`)
@@ -47,6 +47,31 @@ Deno.serve(async (req) => {
       if (!subId) return json({ error: 'Fant ingen aktivt abonnement' }, 400)
       await stripe(`subscriptions/${subId}`, { cancel_at_period_end: bodyIn.action === 'cancel' ? 'true' : 'false' }, SECRET)
       return json({ ok: true })
+    }
+
+    // --- Bytt pakke: endre EKSISTERENDE abonnement, trer i kraft ved neste periode ---
+    if (bodyIn.action === 'change') {
+      const { tier, interval } = bodyIn
+      if (!['pluss', 'pro'].includes(tier) || !['month', 'year'].includes(interval)) return json({ error: 'Ugyldig valg' }, 400)
+      const prof = (await (await fetch(`${URL}/rest/v1/profiles?id=eq.${user.id}&select=stripe_subscription_id`, { headers: h })).json())?.[0]
+      const subId = prof?.stripe_subscription_id
+      if (!subId) return json({ error: 'Fant ingen aktivt abonnement' }, 400)
+      // finn ny pris
+      const plan = (await (await fetch(`${URL}/rest/v1/plans?tier=eq.${tier}&select=price_month_id,price_year_id`, { headers: h })).json())?.[0]
+      const newPrice = interval === 'year' ? plan?.price_year_id : plan?.price_month_id
+      if (!newPrice) return json({ error: `Mangler Stripe-pris for ${tier}/${interval}.` }, 400)
+      // hent abonnementet for å finne gjeldende item-id
+      const sub = await stripe(`subscriptions/${subId}`, {}, SECRET, 'GET')
+      const itemId = sub?.items?.data?.[0]?.id
+      if (!itemId) return json({ error: 'Fant ikke abonnement-linjen' }, 400)
+      // bytt pris uten proration, planlagt til neste periode (ingen umiddelbar belastning)
+      await stripe(`subscriptions/${subId}`, {
+        cancel_at_period_end: 'false',
+        proration_behavior: 'none',
+        'items[0][id]': itemId,
+        'items[0][price]': newPrice,
+      }, SECRET)
+      return json({ ok: true, scheduled: true })
     }
 
     // --- Standard: start ny checkout ---

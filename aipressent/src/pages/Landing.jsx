@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import InstallButton from '../components/InstallButton'
-import LanguageSwitcher from '../components/LanguageSwitcher'
 import { useT } from '../i18n'
 import { Sparkles, Image as ImageIcon, Wand2, Play, Download, BookOpen } from 'lucide-react'
 
@@ -17,7 +16,6 @@ export default function Landing() {
         <Link className="logo-row" to="/"><span className="logo-mark">◆</span> AiPresent</Link>
         <nav className="land-links">
           <Link to="/guide">{t('landing.guide')}</Link>
-          <LanguageSwitcher />
           <InstallButton className="btn ghost sm" />
           {user ? <Link className="btn primary sm" to="/mine">{t('landing.myPresentations')}</Link>
             : <><Link to="/login">{t('landing.login')}</Link><Link className="btn primary sm" to="/signup">{t('landing.createAccount')}</Link></>}
