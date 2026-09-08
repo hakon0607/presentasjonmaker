@@ -1,7 +1,5 @@
-// Starter en Stripe Checkout-økt for et abonnement.
+// Starter en Stripe Checkout-økt for et abonnement. Bruker Stripe REST-API via fetch (Deno-vennlig).
 // Body: { tier: 'pluss'|'pro', interval: 'month'|'year', origin: 'https://din-app.no' }
-import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno'
-
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -9,16 +7,31 @@ const cors = {
 }
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'Content-Type': 'application/json' } })
 
+// enkel form-encoder for Stripe (støtter nøstede nøkler som line_items[0][price])
+function form(obj: Record<string, string | undefined>): string {
+  const p = new URLSearchParams()
+  for (const [k, v] of Object.entries(obj)) if (v !== undefined && v !== null) p.append(k, String(v))
+  return p.toString()
+}
+async function stripe(path: string, body: Record<string, string | undefined>, key: string) {
+  const r = await fetch(`https://api.stripe.com/v1/${path}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form(body),
+  })
+  const data = await r.json()
+  if (!r.ok) throw new Error(data?.error?.message || `Stripe-feil (${r.status})`)
+  return data
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
     const SECRET = Deno.env.get('STRIPE_SECRET_KEY')
     const URL = Deno.env.get('SUPABASE_URL')!
     const SRV = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    if (!SECRET) return json({ error: 'STRIPE_SECRET_KEY mangler' }, 500)
-    const stripe = new Stripe(SECRET, { apiVersion: '2024-06-20', httpClient: Stripe.createFetchHttpClient() })
+    if (!SECRET) return json({ error: 'STRIPE_SECRET_KEY mangler' }, 400)
 
-    // hvem er brukeren? (fra JWT)
     const jwt = (req.headers.get('Authorization') || '').replace('Bearer ', '')
     const ures = await fetch(`${URL}/auth/v1/user`, { headers: { apikey: SRV, Authorization: `Bearer ${jwt}` } })
     const user = await ures.json().catch(() => null)
@@ -27,32 +40,33 @@ Deno.serve(async (req) => {
     const { tier, interval, origin } = await req.json()
     if (!['pluss', 'pro'].includes(tier) || !['month', 'year'].includes(interval)) return json({ error: 'Ugyldig valg' }, 400)
 
-    // finn price-id fra plans
     const h = { apikey: SRV, Authorization: `Bearer ${SRV}` }
-    const pres = await fetch(`${URL}/rest/v1/plans?tier=eq.${tier}&select=price_month_id,price_year_id`, { headers: h })
-    const plan = (await pres.json())?.[0]
+    const plan = (await (await fetch(`${URL}/rest/v1/plans?tier=eq.${tier}&select=price_month_id,price_year_id`, { headers: h })).json())?.[0]
     const price = interval === 'year' ? plan?.price_year_id : plan?.price_month_id
-    if (!price) return json({ error: `Mangler Stripe-pris for ${tier}/${interval}. Legg inn price-id i plans-tabellen.` }, 400)
+    if (!price) return json({ error: `Mangler Stripe-pris for ${tier}/${interval}. Legg price-id i plans-tabellen.` }, 400)
 
-    // gjenbruk kundens Stripe-customer hvis vi har den
-    const prof = await (await fetch(`${URL}/rest/v1/profiles?id=eq.${user.id}&select=stripe_customer_id,email`, { headers: h })).json()
-    let customer = prof?.[0]?.stripe_customer_id || undefined
-
+    const prof = (await (await fetch(`${URL}/rest/v1/profiles?id=eq.${user.id}&select=stripe_customer_id,email`, { headers: h })).json())?.[0]
+    const customer = prof?.stripe_customer_id || undefined
     const base = origin || (req.headers.get('origin') ?? '')
-    const session = await stripe.checkout.sessions.create({
+
+    const session = await stripe('checkout/sessions', {
       mode: 'subscription',
-      line_items: [{ price, quantity: 1 }],
+      'line_items[0][price]': price,
+      'line_items[0][quantity]': '1',
       customer,
-      customer_email: customer ? undefined : (user.email || prof?.[0]?.email || undefined),
+      customer_email: customer ? undefined : (user.email || prof?.email || undefined),
       client_reference_id: user.id,
-      metadata: { uid: user.id, tier },
-      subscription_data: { metadata: { uid: user.id, tier } },
-      allow_promotion_codes: true,
+      'metadata[uid]': user.id,
+      'metadata[tier]': tier,
+      'subscription_data[metadata][uid]': user.id,
+      'subscription_data[metadata][tier]': tier,
+      allow_promotion_codes: 'true',
       success_url: `${base}/profil?betalt=1`,
       cancel_url: `${base}/priser?avbrutt=1`,
-    })
+    }, SECRET)
+
     return json({ url: session.url })
   } catch (e) {
-    return json({ error: String(e?.message || e) }, 500)
+    return json({ error: String((e as Error)?.message || e) }, 400)
   }
 })
