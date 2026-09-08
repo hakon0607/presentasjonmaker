@@ -58,15 +58,13 @@ Deno.serve(async (req) => {
     if (!price) return json({ error: `Mangler Stripe-pris for ${tier}/${interval}. Legg price-id i plans-tabellen.` }, 400)
 
     const prof = (await (await fetch(`${URL}/rest/v1/profiles?id=eq.${user.id}&select=stripe_customer_id,email`, { headers: h })).json())?.[0]
-    let customer = prof?.stripe_customer_id || undefined
-    // sjekk at kunden faktisk finnes i dette Stripe-miljøet; ellers nullstill og lag ny
-    if (customer) {
-      const chk = await fetch(`https://api.stripe.com/v1/customers/${customer}`, { headers: { Authorization: `Bearer ${SECRET}` } })
-      if (!chk.ok) {
-        customer = undefined
-        await fetch(`${URL}/rest/v1/profiles?id=eq.${user.id}`, { method: 'PATCH', headers: { ...h, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ stripe_customer_id: null, stripe_subscription_id: null }) })
-      }
+    // Ikke stol på lagret customer (kan stamme fra et annet Stripe-miljø).
+    // Bruk e-post + la Stripe finne/lage riktig kunde i SITT miljø. Nullstill ev. gammel id.
+    if (prof?.stripe_customer_id) {
+      const chk = await fetch(`https://api.stripe.com/v1/customers/${prof.stripe_customer_id}`, { headers: { Authorization: `Bearer ${SECRET}` } })
+      if (!chk.ok) await fetch(`${URL}/rest/v1/profiles?id=eq.${user.id}`, { method: 'PATCH', headers: { ...h, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ stripe_customer_id: null, stripe_subscription_id: null }) })
     }
+    const email = user.email || prof?.email || undefined
     const base = origin || (req.headers.get('origin') ?? '')
 
     const session = await stripe('checkout/sessions', {
@@ -74,8 +72,7 @@ Deno.serve(async (req) => {
       'line_items[0][price]': price,
       'line_items[0][quantity]': '1',
       'managed_payments[enabled]': 'false',
-      customer,
-      customer_email: customer ? undefined : (user.email || prof?.email || undefined),
+      customer_email: email,
       client_reference_id: user.id,
       'metadata[uid]': user.id,
       'metadata[tier]': tier,
