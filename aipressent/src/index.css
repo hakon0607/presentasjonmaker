@@ -1139,3 +1139,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,
 .um-btn{flex:1;border:none;border-radius:12px;padding:12px;font-weight:800;cursor:pointer;background:var(--panel-2);color:var(--accent)}
 .um-btn.pro{background:var(--accent);color:#fff}
 @media(max-width:480px){.um-row{font-size:.8rem;grid-template-columns:1.5fr .7fr .7fr .7fr;padding:9px 8px}}
+
+/* ---------- Kode-input ved registrering ---------- */
+.code-input{letter-spacing:.3em;text-align:center;font-size:1.3rem;font-weight:800}
+.linklike{background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;text-decoration:underline;padding:0;font-size:inherit}
