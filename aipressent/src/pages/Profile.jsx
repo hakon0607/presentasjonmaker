@@ -17,8 +17,15 @@ export default function Profile() {
 
   async function loadSub() {
     if (!user) return
-    const { data } = await supabase.from('profiles').select('plan,sub_status,sub_interval,sub_period_end,sub_cancel_at_period_end,stripe_subscription_id').eq('id', user.id).single()
+    // hent så mye som mulig; tåler at en kolonne ikke finnes
+    let data = null
+    let res = await supabase.from('profiles').select('plan,sub_status,sub_interval,sub_period_end,sub_cancel_at_period_end,stripe_subscription_id').eq('id', user.id).maybeSingle()
+    if (res.error) {
+      res = await supabase.from('profiles').select('plan,sub_status,sub_interval,sub_period_end,stripe_subscription_id').eq('id', user.id).maybeSingle()
+    }
+    data = res.data
     if (data) setSub({ ...data, cancel_at_period_end: !!data.sub_cancel_at_period_end })
+    else setSub({ plan, sub_status: (plan && plan !== 'gratis') ? 'active' : null })
   }
 
   async function manage(action) {
@@ -84,7 +91,7 @@ export default function Profile() {
             <div className="sub-rows">
               <div><span>Tokens/dag</span><b>{tokensCap}</b></div>
               <div><span>Betaling</span><b>{sub.sub_interval === 'year' ? 'Årlig' : 'Månedlig'}</b></div>
-              <div><span>{sub.cancel_at_period_end ? 'Avsluttes' : 'Fornyes'}</span><b>{sub.sub_period_end ? new Date(sub.sub_period_end).toLocaleDateString('no-NO') : '–'}</b></div>
+              <div><span>{sub.cancel_at_period_end ? 'Avsluttes' : 'Neste betaling'}</span><b>{sub.sub_period_end ? new Date(sub.sub_period_end).toLocaleDateString('no-NO') : '–'}</b></div>
             </div>
             {subMsg && <div className="sub-msg">{subMsg}</div>}
             <div className="sub-actions">
