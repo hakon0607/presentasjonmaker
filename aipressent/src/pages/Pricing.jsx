@@ -22,7 +22,12 @@ export default function Pricing() {
     setBusy(tier)
     try {
       const { data, error } = await supabase.functions.invoke('stripe-checkout', { body: { tier, interval, origin: window.location.origin } })
-      if (error || data?.error) throw new Error(data?.error || error.message)
+      if (error) {
+        let msg = error.message || 'Ukjent feil'
+        try { const body = await error.context.json(); if (body?.error) msg = body.error } catch (_e) { /* ignore */ }
+        throw new Error(msg)
+      }
+      if (data?.error) throw new Error(data.error)
       if (data?.url) window.location.href = data.url
     } catch (e) { setErr(String(e.message || e)); setBusy('') }
   }
