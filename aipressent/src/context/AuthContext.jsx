@@ -38,7 +38,13 @@ export function AuthProvider({ children }) {
     }
     supabase.auth.getSession().then(({ data }) => { const u = data.session?.user ?? null; setUser(u); refreshTokens(u); maybeClean(u); setLoading(false) })
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => { const u = session?.user ?? null; setUser(u); refreshTokens(u); maybeClean(u) })
-    return () => sub.subscription.unsubscribe()
+    // hold data ferskt: oppdater når fanen får fokus igjen eller blir synlig
+    const onFocus = () => { supabase.auth.getSession().then(({ data }) => { if (data.session?.user) refreshTokens(data.session.user) }) }
+    const onVis = () => { if (document.visibilityState === 'visible') onFocus() }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVis)
+    const cleanup = () => { window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onVis) }
+    return () => { sub.subscription.unsubscribe(); cleanup() }
   }, [])
 
   const signUp = (email, password, name) => supabase.auth.signUp({ email, password, options: { data: { display_name: name } } })
