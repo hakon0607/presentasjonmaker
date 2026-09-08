@@ -38,9 +38,9 @@ export default function Pricing() {
   }
 
   const feats = {
-    gratis: [t('pricing.featGratis1'), t('pricing.featGratis2'), t('pricing.featGratis3')],
-    pluss: [t('pricing.featPluss1'), t('pricing.featPluss2'), t('pricing.featPluss3'), t('pricing.featPluss4')],
-    pro: [t('pricing.featPro1'), t('pricing.featPro2'), t('pricing.featPro3'), t('pricing.featPro4')],
+    gratis: ['3 presentasjoner', 'Maks 8 sider per presentasjon', '5 tokens hver dag', 'Alle stiler og maler', 'Eksport til PowerPoint & PDF', 'Med vannmerke'],
+    pluss: ['15 presentasjoner', 'Uendelig antall sider', '50 tokens hver dag', 'Ingen vannmerke', 'AI leser opp for deg', 'Prioritert generering'],
+    pro: ['Uendelig presentasjoner', 'Uendelig antall sider', '150 tokens hver dag', 'Ingen vannmerke', 'AI leser opp for deg', 'Best for daglig bruk', 'Tidlig tilgang til nyheter'],
   }
   const nameOf = (tier, fallback) => tier === 'gratis' ? t('pricing.free') : fallback
 
@@ -68,7 +68,10 @@ export default function Pricing() {
               <h2>{nameOf(p.tier, p.name)}</h2>
               <div className="pricing-price">{price ? <><b>{price}</b> {suffix}</> : <b>{t('pricing.free')}</b>}</div>
               <div className="pricing-tokens"><Zap size={15} /> {t('pricing.tokensPerDay', { n: p.tokens_daily })}</div>
-              <ul>{(feats[p.tier] || []).map((f, i) => <li key={i}><Check size={16} /> {f}</li>)}</ul>
+              <ul>{(feats[p.tier] || []).map((f, i) => {
+                const limit = /vannmerke|^Maks/i.test(f)
+                return <li key={i} className={limit ? 'feat-limit' : ''}>{limit ? <span className="feat-dot">–</span> : <Check size={16} />} {f}</li>
+              })}</ul>
               {p.tier === 'gratis'
                 ? <button className="pricing-btn ghost" disabled>{current ? t('pricing.yourPlan') : t('pricing.standard')}</button>
                 : <button className="pricing-btn" disabled={current || busy === p.tier} onClick={() => upgrade(p.tier)}>

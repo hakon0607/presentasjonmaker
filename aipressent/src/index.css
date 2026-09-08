@@ -1143,3 +1143,25 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,
 /* ---------- Kode-input ved registrering ---------- */
 .code-input{letter-spacing:.3em;text-align:center;font-size:1.3rem;font-weight:800}
 .linklike{background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;text-decoration:underline;padding:0;font-size:inherit}
+
+/* ---------- OTP-bokser ---------- */
+.otp-row{display:flex;gap:8px;justify-content:center;margin:6px 0}
+.otp-box{width:46px;height:56px;text-align:center;font-size:1.6rem;font-weight:800;border:1.5px solid var(--line);border-radius:12px;background:var(--panel-2);color:var(--ink)}
+.otp-box:focus{outline:none;border-color:var(--accent);background:#fff}
+@media(max-width:400px){.otp-box{width:40px;height:50px;font-size:1.3rem}}
+
+/* ---------- Tilbud-steg etter registrering ---------- */
+.offer-card{max-width:460px}
+.offer-plans{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 6px}
+.offer-plan{border:1.5px solid var(--line);border-radius:14px;padding:14px}
+.offer-plan.feat{border-color:var(--accent)}
+.offer-name{font-weight:800}
+.offer-price{color:var(--muted);font-size:.85rem;margin:2px 0 8px}.offer-price b{color:var(--ink);font-size:1.5rem}
+.offer-plan ul{list-style:none;padding:0;margin:0}
+.offer-plan li{display:flex;gap:6px;align-items:center;font-size:.8rem;color:var(--muted);margin:5px 0;font-weight:600}
+.offer-plan li svg{color:var(--accent);flex:0 0 auto}
+.skip-link{background:none;border:none;color:var(--muted);font-weight:600;cursor:pointer;text-decoration:underline;margin-top:4px}
+
+/* ---------- Pris-fordeler: begrensninger vises nøytralt ---------- */
+.pricing-card li.feat-limit{color:var(--muted)}
+.feat-dot{display:inline-flex;align-items:center;justify-content:center;width:16px;color:var(--line-2);font-weight:800;flex:0 0 auto}
