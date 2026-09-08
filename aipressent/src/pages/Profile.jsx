@@ -58,8 +58,9 @@ export default function Profile() {
     return () => { on = false }
   }, [])
 
-  const max = tokensUnlimited ? 100 : (tokensFirst || 10)
-  const cur = tokensUnlimited ? 100 : (tokens ?? 0)
+  const dailyMax = Math.max(1, tokensCap || 10)
+  const remaining = Math.max(0, Math.min(tokens ?? 0, dailyMax))
+  const usedPct = tokensUnlimited ? 0 : Math.round((1 - remaining / dailyMax) * 100)
 
 
   return (
@@ -111,16 +112,12 @@ export default function Profile() {
       </div>
 
       <div className="profile-card">
-        <h3 style={{ marginTop: 0 }}><Coins size={18} /> Tokens</h3>
-        <p style={{ color: 'var(--muted)', marginTop: 4 }}>
-          {tokensUnlimited
-            ? 'Du har ubegrenset med tokens 🎉 Lag så mange AI-presentasjoner du vil.'
-            : `Du har ${tokens ?? 0} tokens igjen. Nye brukere får ${tokensFirst}, og du får ${tokensCap} på toppen hver dag.`}
-        </p>
-        <div className="token-slider-row">
-          <input type="range" min="0" max={max} value={cur} readOnly />
-          <span style={{ minWidth: 64, textAlign: 'right', fontWeight: 700 }}>{tokensUnlimited ? '∞' : `${cur}/${max}`}</span>
+        <div className="tok-head">
+          <h3 style={{ margin: 0 }}><Coins size={18} /> Tokens</h3>
+          <span className="tok-pct">{tokensUnlimited ? '∞' : `${usedPct}% brukt`}</span>
         </div>
+        <div className="tok-bar"><i style={{ width: (tokensUnlimited ? 0 : usedPct) + '%' }} /></div>
+        {!tokensUnlimited && <div className="tok-note">Fylles opp igjen i morgen</div>}
       </div>
 
       <div className="profile-future">

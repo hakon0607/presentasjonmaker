@@ -918,3 +918,10 @@ button{font-family:inherit}
 .back-btn:hover{background:#e6e1f5}
 .back-btn-fixed{position:fixed;top:16px;left:16px;z-index:40;margin:0;background:rgba(255,255,255,.14);color:#fff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.25)}
 .back-btn-fixed:hover{background:rgba(255,255,255,.24)}
+
+/* ---------- Ren token-slider på profil ---------- */
+.tok-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.tok-pct{font-weight:800;color:#6d3df5;font-size:.95rem}
+.tok-bar{height:12px;border-radius:980px;background:#efeaff;overflow:hidden}
+.tok-bar>i{display:block;height:100%;border-radius:980px;background:linear-gradient(90deg,#5b3df0,#9b4dff);transition:width .3s}
+.tok-note{margin-top:10px;color:var(--muted);font-size:.85rem;font-weight:600}
