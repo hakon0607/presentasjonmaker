@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 import { useT } from '../i18n'
 
 export default function Signup() {
@@ -25,6 +26,8 @@ export default function Signup() {
     const { data, error } = await signUp(email, password, name.trim())
     setBusy(false)
     if (error) { setErr(error.message); return }
+    // velkomst-e-post (fire-and-forget – blokkerer ikke registreringen)
+    try { supabase.functions.invoke('resend-welcome', { body: { email, name: name.trim(), appUrl: window.location.origin } }) } catch (_e) { /* ignore */ }
     if (!data?.session) { setSent(true); return }
     nav('/mine')
   }

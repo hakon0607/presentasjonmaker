@@ -106,7 +106,7 @@ async function buildPptx(deck, watermark = false) {
       }
     }
     if (watermark) {
-      s.addText('AiPresent', { x: 0, y: IN_H / 2 - 0.7, w: IN_W, h: 1.4, align: 'center', valign: 'middle', fontSize: 60, bold: true, color: 'FFFFFF', transparency: 72, fontFace: 'Arial' })
+      s.addText('AiPresent', { x: 0, y: IN_H / 2 - 0.7, w: IN_W, h: 1.4, align: 'center', valign: 'middle', fontSize: 60, bold: true, color: 'FFFFFF', transparency: 55, fontFace: 'Arial', shadow: { type: 'outer', color: '000000', opacity: 0.45, blur: 4, offset: 2, angle: 45 } })
     }
   }
   return pptx
@@ -206,10 +206,15 @@ export function exportPdf(deck, watermark = false) {
       }
     }
     if (watermark) {
-      let g; try { g = new pdf.GState({ opacity: 0.28 }); pdf.saveGraphicsState(); pdf.setGState(g) } catch (_e) { g = null }
-      pdf.setTextColor(255, 255, 255); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(66)
-      try { pdf.text('AiPresent', mmW / 2, mmH / 2, { align: 'center', baseline: 'middle' }) } catch (_e) { pdf.text('AiPresent', mmW / 2, mmH / 2, { align: 'center' }) }
-      if (g) { try { pdf.restoreGraphicsState() } catch (_e) { /* ignore */ } }
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(66)
+      const drawWm = (dx, dy, rgb, op) => {
+        let g; try { g = new pdf.GState({ opacity: op }); pdf.saveGraphicsState(); pdf.setGState(g) } catch (_e) { g = null }
+        pdf.setTextColor(...rgb)
+        try { pdf.text('AiPresent', mmW / 2 + dx, mmH / 2 + dy, { align: 'center', baseline: 'middle' }) } catch (_e) { pdf.text('AiPresent', mmW / 2 + dx, mmH / 2 + dy, { align: 'center' }) }
+        if (g) { try { pdf.restoreGraphicsState() } catch (_e) { /* ignore */ } }
+      }
+      drawWm(0.7, 0.7, [20, 20, 20], 0.22)   // mørk skygge – synlig på lyse bakgrunner
+      drawWm(0, 0, [255, 255, 255], 0.5)      // hvit tekst – synlig på mørke bakgrunner
     }
   })
   pdf.save((deck.title || 'presentasjon') + '.pdf')
