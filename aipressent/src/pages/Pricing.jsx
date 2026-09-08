@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { Check, Zap } from 'lucide-react'
+import BackButton from '../components/BackButton'
 
 export default function Pricing() {
   const { user, plan } = useAuth()
@@ -40,6 +41,7 @@ export default function Pricing() {
 
   return (
     <div className="pricing-wrap">
+      <BackButton />
       <div className="pricing-head">
         <h1>Velg pakke</h1>
         <p>Betal månedlig eller spar med årlig. Du kan si opp når som helst.</p>

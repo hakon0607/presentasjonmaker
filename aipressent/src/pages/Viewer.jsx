@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import SlideStage from '../components/SlideStage'
+import BackButton from '../components/BackButton'
 
 export default function Viewer() {
   const { id } = useParams()
@@ -24,11 +25,12 @@ export default function Viewer() {
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey)
   }, [deck])
 
-  if (err) return <div className="viewer-msg">{err}</div>
+  if (err) return <div className="viewer-msg"><p>{err}</p><BackButton to="/" label="Til forsiden" /></div>
   if (!deck) return <div className="screen-center"><div className="spinner" /></div>
   const s = deck.slides[i]
   return (
     <div className="viewer">
+      <BackButton fixed to="/" />
       <div className="viewer-stage-wrap">
         <div className="viewer-stage"><SlideStage key={i} slide={s} animate /></div>
       </div>

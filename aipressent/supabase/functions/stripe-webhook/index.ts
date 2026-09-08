@@ -60,6 +60,7 @@ Deno.serve(async (req) => {
       const plan = price ? await planForPrice(price) : null
       if (uid) {
         const active = obj.status === 'active' || obj.status === 'trialing'
+        const gratis = await gratisTokens()
         const body: Record<string, unknown> = {
           stripe_customer_id: String(obj.customer),
           stripe_subscription_id: obj.id,
@@ -67,16 +68,24 @@ Deno.serve(async (req) => {
           sub_interval: plan?.interval ?? null,
           sub_period_end: obj.current_period_end ? new Date(obj.current_period_end * 1000).toISOString() : null,
           plan: active && plan ? plan.tier : 'gratis',
-          tokens_daily: active && plan ? plan.tokens_daily : await gratisTokens(),
+          tokens_daily: active && plan ? plan.tokens_daily : gratis,
         }
-        // fyll opp tokens til den nye kvoten MED EN GANG (ikke vent til neste dag)
-        if (active && plan) { body.tokens = plan.tokens_daily; body.tokens_day = null }
+        if (active && plan) {
+          // fyll opp tokens til den nye kvoten MED EN GANG (ikke vent til neste dag)
+          body.tokens = plan.tokens_daily; body.tokens_day = null
+        } else {
+          // abonnement ikke lenger aktivt -> ned til gratis-kvote med en gang (ikke behold f.eks. 1000)
+          body.tokens = gratis; body.tokens_day = null
+        }
         await patchProfile(uid, body)
       }
     }
     if (ev.type === 'customer.subscription.deleted') {
       const uid = obj.metadata?.uid || await uidFromCustomer(String(obj.customer))
-      if (uid) await patchProfile(uid, { sub_status: 'canceled', plan: 'gratis', tokens_daily: await gratisTokens(), stripe_subscription_id: null })
+      if (uid) {
+        const gratis = await gratisTokens()
+        await patchProfile(uid, { sub_status: 'canceled', plan: 'gratis', tokens_daily: gratis, tokens: gratis, tokens_day: null, stripe_subscription_id: null })
+      }
     }
   } catch (e) {
     return new Response(`handler error: ${(e as Error)?.message}`, { status: 500 })

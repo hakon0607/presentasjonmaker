@@ -2,15 +2,12 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { cleanupOrphanImages } from '../lib/storage'
-import { ChevronLeft, LogOut, Sparkles, Presentation, Coins, Plus, Trash2, HardDrive } from 'lucide-react'
+import { ChevronLeft, LogOut, Sparkles, Presentation, Coins } from 'lucide-react'
 
 export default function Profile() {
   const { user, signOut, tokens, tokensUnlimited, tokensCap, tokensFirst, refreshTokens, plan, isAdmin } = useAuth()
   const nav = useNavigate()
   const [count, setCount] = useState(null)
-  const [cleaning, setCleaning] = useState(false)
-  const [cleanMsg, setCleanMsg] = useState('')
   const [sub, setSub] = useState(null)
   const [subBusy, setSubBusy] = useState(false)
   const [subMsg, setSubMsg] = useState('')
@@ -51,13 +48,6 @@ export default function Profile() {
   const max = tokensUnlimited ? 100 : (tokensFirst || 10)
   const cur = tokensUnlimited ? 100 : (tokens ?? 0)
 
-  async function runCleanup() {
-    if (!user || cleaning) return
-    setCleaning(true); setCleanMsg('')
-    const { removed } = await cleanupOrphanImages(user.id)
-    setCleanMsg(removed > 0 ? `Fjernet ${removed} ubrukte ${removed === 1 ? 'bilde' : 'bilder'} fra lagringen.` : 'Ingen ubrukte bilder å fjerne – alt er ryddig. 👍')
-    setCleaning(false)
-  }
 
   return (
     <div className="profile-wrap">
@@ -118,17 +108,6 @@ export default function Profile() {
           <input type="range" min="0" max={max} value={cur} readOnly />
           <span style={{ minWidth: 64, textAlign: 'right', fontWeight: 700 }}>{tokensUnlimited ? '∞' : `${cur}/${max}`}</span>
         </div>
-      </div>
-
-      <div className="profile-card">
-        <h3 style={{ marginTop: 0 }}><HardDrive size={18} /> Lagring</h3>
-        <p style={{ color: 'var(--muted)', marginTop: 4 }}>
-          AI-bilder lagres trygt i skyen. Bilder fra slettede presentasjoner ryddes automatisk, men du kan også rydde med én gang her – det fjerner alle bilder som ikke lenger er i bruk i noen presentasjon.
-        </p>
-        <button className="btn ghost" onClick={runCleanup} disabled={cleaning}>
-          <Trash2 size={16} /> {cleaning ? 'Rydder …' : 'Rydd opp i lagring nå'}
-        </button>
-        {cleanMsg && <p style={{ marginTop: 10, marginBottom: 0, fontWeight: 600 }}>{cleanMsg}</p>}
       </div>
 
       <div className="profile-future">

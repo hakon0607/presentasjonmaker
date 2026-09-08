@@ -912,3 +912,9 @@ button{font-family:inherit}
 .sub-actions{display:flex;gap:10px;flex-wrap:wrap}
 .sub-msg{background:#eaf6ff;color:#0b5aa2;padding:10px 14px;border-radius:12px;margin:6px 0 12px;font-weight:600;font-size:.9rem}
 .btn.danger{background:#fdebf0;color:#b02a4a;border:1px solid #f0b5c4}
+
+/* ---------- Universell tilbakeknapp ---------- */
+.back-btn{display:inline-flex;align-items:center;gap:5px;background:#f1eefb;color:#4a4660;border:none;border-radius:12px;padding:9px 15px 9px 11px;font-weight:700;font-size:.92rem;cursor:pointer;margin-bottom:18px;transition:background .12s}
+.back-btn:hover{background:#e6e1f5}
+.back-btn-fixed{position:fixed;top:16px;left:16px;z-index:40;margin:0;background:rgba(255,255,255,.14);color:#fff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.25)}
+.back-btn-fixed:hover{background:rgba(255,255,255,.24)}

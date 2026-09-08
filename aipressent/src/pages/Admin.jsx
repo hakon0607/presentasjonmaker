@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import BackButton from '../components/BackButton'
 
 export default function Admin() {
   const { user, isAdmin, loading } = useAuth()
@@ -32,10 +33,11 @@ export default function Admin() {
 
   if (loading) return <div className="admin-wrap">Laster…</div>
   if (!user) return <Navigate to="/login" replace />
-  if (!isAdmin) return <div className="admin-wrap"><h1>Ingen tilgang</h1><p>Denne siden er kun for administratorer.</p></div>
+  if (!isAdmin) return <div className="admin-wrap"><BackButton to="/mine" /><h1>Ingen tilgang</h1><p>Denne siden er kun for administratorer.</p></div>
 
   return (
     <div className="admin-wrap">
+      <BackButton to="/mine" />
       <h1>Admin</h1>
       {msg && <div className="admin-msg">{msg}</div>}
       <div className="admin-stats">
