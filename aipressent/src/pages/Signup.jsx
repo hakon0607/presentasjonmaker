@@ -4,7 +4,7 @@ import { Eye, EyeOff, Check } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 
-const LEN = 6
+const LEN = 8
 
 function OtpBoxes({ otp, setOtp, onComplete }) {
   const refs = useRef([])
