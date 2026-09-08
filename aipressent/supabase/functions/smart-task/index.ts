@@ -599,7 +599,10 @@ Antall lysbilder: ${count}
 
 Manus eller stikkord:
 ${body.manuscript || ''}`
-    const parsed = await ask(key, sysGenerate(count, amount), userMsg)
+    const langRule = body.lang === 'en'
+      ? '\n\nIMPORTANT: Write ALL content (titles, bullet points, captions and notes) in ENGLISH.'
+      : '\n\nVIKTIG: Skriv alt innhold (titler, punkter, bildetekster og notater) på NORSK (bokmål).'
+    const parsed = await ask(key, sysGenerate(count, amount) + langRule, userMsg)
     return json({ title: parsed.title || '', theme: parsed.theme || {}, slides: parsed.slides || [] })
   } catch (err) {
     if (_rUid && _rN > 0) { try { const t2 = await tokenAuth(req); await setTokens(_rUrl, _rSrv, _rUid, (t2.tokens ?? 0) + _rN) } catch (_e) { /* ignore */ } }

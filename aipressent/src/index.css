@@ -925,3 +925,12 @@ button{font-family:inherit}
 .tok-bar{height:12px;border-radius:980px;background:#efeaff;overflow:hidden}
 .tok-bar>i{display:block;height:100%;border-radius:980px;background:linear-gradient(90deg,#5b3df0,#9b4dff);transition:width .3s}
 .tok-note{margin-top:10px;color:var(--muted);font-size:.85rem;font-weight:600}
+
+/* ---------- Språkvelger ---------- */
+.lang-switch{display:inline-flex;gap:2px;background:#f1eefb;border-radius:980px;padding:3px}
+.lang-switch button{border:none;background:transparent;color:#6b6880;font-weight:800;font-size:.8rem;padding:6px 11px;border-radius:980px;cursor:pointer}
+.lang-switch button.on{background:#fff;color:#15131a;box-shadow:0 1px 4px rgba(30,16,80,.14)}
+.lang-switch-fixed{position:fixed;top:16px;right:16px;z-index:40}
+.land-links .lang-switch{background:rgba(255,255,255,.1)}
+.land-links .lang-switch button{color:rgba(255,255,255,.75)}
+.land-links .lang-switch button.on{background:#fff;color:#15131a}

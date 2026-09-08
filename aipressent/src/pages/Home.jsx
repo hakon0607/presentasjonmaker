@@ -9,6 +9,7 @@ import SlideStage from '../components/SlideStage'
 import Tour from '../components/Tour'
 import InstallButton from '../components/InstallButton'
 import TokenBadge from '../components/TokenBadge'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 import TokenMeter from '../components/TokenMeter'
 import { cleanupOrphanImages } from '../lib/storage'
 import { Plus, Sparkles, Trash2, LogOut, Presentation, Download, HelpCircle, User, Play, Search } from 'lucide-react'
@@ -81,6 +82,7 @@ export default function Home() {
         <Link className="logo-row" to="/"><span className="logo-mark">◆</span> AiPresent</Link>
         <div className="home-top-right">
           <TokenBadge />
+          <LanguageSwitcher />
           {plan === 'pluss' || plan === 'pro' || tokensUnlimited
             ? <button className="chip plan-chip" onClick={() => nav('/profil')}><Sparkles size={15} /> {tokensUnlimited ? 'Pro' : plan.charAt(0).toUpperCase() + plan.slice(1)}</button>
             : <button className="chip upgrade-chip" onClick={() => nav('/priser')}><Sparkles size={15} /> Oppgrader</button>}

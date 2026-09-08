@@ -21,6 +21,7 @@ function iconifyUrl(id, color) {
   return `https://api.iconify.design/${id}.svg?color=${encodeURIComponent(color || '#333333')}&width=400&height=400`
 }
 import { useAuth } from '../context/AuthContext'
+import { useLang } from '../i18n'
 
 const LAYOUTS = [
   { k: 'cover', l: 'Forside' }, { k: 'section', l: 'Kapittel-skille' }, { k: 'bullets', l: 'Punkter' },
@@ -63,6 +64,7 @@ function toAi(e) {
 
 export default function AiWizard({ onClose, userId, nav }) {
   const { tokens, tokensUnlimited, refreshTokens } = useAuth()
+  const { lang } = useLang()
   const [step, setStep] = useState('input')
   const [subStep, setSubStep] = useState(0)            // 0=overskrift 1=manus 2=visuelt
   const [styleOverride, setStyleOverride] = useState(null)
@@ -99,7 +101,7 @@ export default function AiWizard({ onClose, userId, nav }) {
     setBusy(true); setErr(''); prog.start()
     try {
       const { data, error } = await supabase.functions.invoke('smart-task', {
-        body: { manuscript, title, visualStyle, count, textAmount },
+        body: { manuscript, title, visualStyle, count, textAmount, lang },
       })
       if (error) throw error
       if (data?.error) throw new Error(data.error)
@@ -129,7 +131,7 @@ export default function AiWizard({ onClose, userId, nav }) {
     setBusy(true); setErr(''); setGenLabel('Lager innhold …'); prog.start()
     try {
       if (!tokensUnlimited && typeof tokens === 'number' && tokens < 5) { fireNoTokens({ needed: 5, have: tokens }); setBusy(false); prog.reset(); return }
-      const { data: o, error: oe } = await supabase.functions.invoke('smart-task', { body: { manuscript, title, visualStyle: '', count, textAmount } })
+      const { data: o, error: oe } = await supabase.functions.invoke('smart-task', { body: { manuscript, title, visualStyle: '', count, textAmount, lang } })
       refreshTokens()
       if (oe) throw oe
       if (o?.error) throw new Error(o.error)
