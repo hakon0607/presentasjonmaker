@@ -899,7 +899,7 @@ button{font-family:inherit}
 .admin-foot{margin-top:24px;color:#8b88a0;font-size:.85rem}
 
 /* ---------- Abonnement på profil + oppgrader-pille ---------- */
-.upgrade-chip{background:linear-gradient(135deg,#5b3df0,#9b4dff)!important;color:#fff!important;border:none!important;font-weight:800}
+.upgrade-chip{background:transparent!important;color:var(--accent)!important;border:1px solid var(--accent)!important;font-weight:600}
 .plan-chip{background:#efeaff!important;color:#6d3df5!important;border:none!important;font-weight:800}
 .sub-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .sub-pill{font-size:.78rem;font-weight:800;padding:5px 12px;border-radius:980px}
@@ -1165,3 +1165,23 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,
 /* ---------- Pris-fordeler: begrensninger vises nøytralt ---------- */
 .pricing-card li.feat-limit{color:var(--muted)}
 .feat-dot{display:inline-flex;align-items:center;justify-content:center;width:16px;color:var(--line-2);font-weight:800;flex:0 0 auto}
+
+/* ---------- Vilkår / personvern ---------- */
+.legal-wrap{max-width:720px;margin:0 auto;padding:40px 22px 80px}
+.legal-wrap h1{font-size:2rem;letter-spacing:-.02em;margin:0 0 4px}
+.legal-updated{color:var(--muted);font-size:.85rem;margin:0 0 24px}
+.legal-sec{margin-bottom:20px}
+.legal-sec h2{font-size:1.1rem;margin:0 0 6px}
+.legal-sec p{color:var(--muted);line-height:1.65;margin:0}
+.legal-note{margin-top:30px;padding:14px 16px;background:var(--panel-2);border-radius:12px;color:var(--muted);font-size:.85rem}
+.auth-terms{font-size:.78rem;color:var(--muted);text-align:center;margin:0}
+.auth-terms a{color:var(--accent);text-decoration:none}
+
+/* ---------- Samtykke-banner ---------- */
+.consent-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:100;max-width:560px;width:calc(100% - 32px);
+  background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.08);
+  padding:11px 14px;display:flex;align-items:center;gap:12px;justify-content:space-between}
+.consent-text{font-size:.82rem;color:var(--muted);line-height:1.4}
+.consent-text a{color:var(--ink);text-decoration:underline;font-weight:500}
+.consent-btn{border:1px solid var(--line);background:#fff;color:var(--ink);font-weight:600;border-radius:980px;padding:8px 18px;cursor:pointer;white-space:nowrap;font-size:.85rem}
+.consent-btn:hover{background:var(--panel-2)}

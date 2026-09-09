@@ -143,6 +143,7 @@ export default function Signup() {
         <p className="muted" style={{ fontSize: '.82rem' }}>📧 Du får en <b>kode</b> på e-post for å bekrefte – husk å sjekke spam-mappen.</p>
         {err && <p className="err">{err}</p>}
         <button className="btn primary" disabled={busy}>{busy ? 'Lager konto …' : 'Lag konto'}</button>
+        <p className="auth-terms">Ved å lage konto godtar du <Link to="/vilkar">vilkårene</Link> og <Link to="/personvern">personvern</Link>.</p>
         <p className="auth-alt">Har du konto? <Link to="/login">Logg inn</Link></p>
       </form>
     </div>

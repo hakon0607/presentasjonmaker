@@ -66,7 +66,7 @@ export default function Landing() {
 
       <footer className="land-foot">
         <Link className="logo-row" to="/"><span className="logo-mark">◆</span> AiPresent</Link>
-        <span className="muted small">{t('landing.footBy')} · <Link to="/guide">{t('landing.guide')}</Link></span>
+        <span className="muted small">{t('landing.footBy')} · <Link to="/guide">{t('landing.guide')}</Link> · <Link to="/vilkar">Vilkår</Link> · <Link to="/personvern">Personvern</Link></span>
       </footer>
     </div>
   )

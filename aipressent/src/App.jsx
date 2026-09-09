@@ -13,6 +13,8 @@ import Pricing from './pages/Pricing'
 import Admin from './pages/Admin'
 import NoTokensModal from './components/NoTokensModal'
 import UpgradeModal from './components/UpgradeModal'
+import ConsentBanner from './components/ConsentBanner'
+import Legal from './pages/Legal'
 
 function Protected({ children }) {
   const { user, loading } = useAuth()
@@ -25,9 +27,10 @@ function Protected({ children }) {
 export default function App() {
   return (
     <AuthProvider>
-      <div className="version-star" aria-hidden="true">★ v119</div>
+      <div className="version-star" aria-hidden="true">★ v121</div>
       <NoTokensModal />
       <UpgradeModal />
+      <ConsentBanner />
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/guide" element={<Guide />} />
@@ -37,6 +40,8 @@ export default function App() {
         <Route path="/profil" element={<Protected><Profile /></Protected>} />
         <Route path="/kopi/:id" element={<Protected><CopyDeck /></Protected>} />
         <Route path="/priser" element={<Pricing />} />
+        <Route path="/vilkar" element={<Legal which="terms" />} />
+        <Route path="/personvern" element={<Legal which="privacy" />} />
         <Route path="/admin" element={<Protected><Admin /></Protected>} />
         <Route path="/p/:id" element={<Protected><Editor /></Protected>} />
         <Route path="/v/:id" element={<Viewer />} />
