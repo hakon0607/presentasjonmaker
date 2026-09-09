@@ -51,6 +51,7 @@ export default function Editor() {
   const [designOpen, setDesignOpen] = useState(false)
   const [fontOpen, setFontOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
+  const [notice, setNotice] = useState('')
   const [aiImgEl, setAiImgEl] = useState(null)
   const [webImgEl, setWebImgEl] = useState(null)
   const [imgChoice, setImgChoice] = useState(null)
@@ -293,7 +294,7 @@ export default function Editor() {
   async function uploadFile(file) {
     const path = `${user.id}/${folderSlug(deck.title)}/${genId()}-${file.name.replace(/[^\w.]/g, '_')}`
     const { error } = await supabase.storage.from('slides').upload(path, file, { upsert: true })
-    if (error) { alert('Kunne ikke laste opp bildet: ' + error.message); return null }
+    if (error) { setNotice('Kunne ikke laste opp bildet. Prøv igjen om litt.'); return null }
     return supabase.storage.from('slides').getPublicUrl(path).data.publicUrl
   }
   async function addImage(ev) {
@@ -411,7 +412,7 @@ export default function Editor() {
       const notes = data.notes || []
       apply({ ...deck, slides: deck.slides.map((s, i) => ({ ...s, notes: notes[i] ?? s.notes ?? '' })) })
       notesProg.done()
-    } catch (e) { alert('AI klarte ikke å lage manus: ' + (e.message || e)); notesProg.reset() }
+    } catch (e) { setNotice('AI klarte ikke å lage manus akkurat nå. Prøv igjen om litt.'); notesProg.reset() }
     finally { setNotesBusy(false) }
   }
 
@@ -522,8 +523,7 @@ export default function Editor() {
       setShareMsg('Animasjoner lagt til! Trykk «Presenter» for å se dem ✨')
       setTimeout(() => setShareMsg(''), 3500)
     } catch (e) {
-      setShareMsg('Kunne ikke animere: ' + (e?.message || 'ukjent feil'))
-      setTimeout(() => setShareMsg(''), 4000)
+      setNotice('Kunne ikke lage animasjoner akkurat nå. Prøv igjen om litt.')
     } finally {
       setAnimBusy(false)
     }
@@ -732,6 +732,14 @@ export default function Editor() {
       {present && <Present deck={deck} start={idx} aiMode={aiPresent} ttsAllowed={lim.tts} onClose={() => setPresent(false)} />}
       {aiSlideOpen && <AiSlideModal slide={slide} onClose={() => setAiSlideOpen(false)} onApply={(s) => { applyAiSlide(s); setAiSlideOpen(false) }} />}
       {reviewOpen && <ReviewModal deck={deck} onClose={() => setReviewOpen(false)} />}
+      {notice && (
+        <div className="notice-overlay" onClick={() => setNotice('')}>
+          <div className="notice-box" onClick={(e) => e.stopPropagation()}>
+            <p>{notice}</p>
+            <button className="btn primary" onClick={() => setNotice('')}>OK</button>
+          </div>
+        </div>
+      )}
       {animOpen && <AnimPanel slide={slide} onChange={setSlide} selectedId={selId} onClose={() => setAnimOpen(false)} />}
 
       {aiImgEl && <AiImageModal el={aiImgEl} onClose={() => setAiImgEl(null)} onGen={genImage} />}

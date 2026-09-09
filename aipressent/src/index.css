@@ -1194,3 +1194,9 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,
 .ai-fx-pill.locked{opacity:.55}
 .ai-fx-limithint{margin-top:12px;font-size:.82rem;color:var(--muted);text-align:center}
 .ai-fx-limithint span{color:var(--accent);font-weight:600}
+
+/* ---------- Felles pen beskjed-popup (erstatter alert) ---------- */
+.notice-overlay{position:fixed;inset:0;z-index:130;background:rgba(20,18,30,.45);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px}
+.notice-box{background:var(--panel);border-radius:20px;padding:26px 24px 20px;max-width:400px;width:100%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.28)}
+.notice-box p{margin:0 0 18px;font-size:1.02rem;line-height:1.5;color:var(--ink)}
+.notice-box .btn{width:100%;justify-content:center}
