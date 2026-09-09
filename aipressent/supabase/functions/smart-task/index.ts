@@ -297,8 +297,8 @@ async function aiAllowed(req: Request): Promise<boolean> {
 }
 
 // ---- Token-system ----
-const DAILY_CAP = 3      // daglig paafyll opp til dette
-const FIRST_GRANT = 10   // ved foerste innlogging (settes som kolonne-default i SQL)
+const DAILY_CAP = 3      // daglig paafyll (gratis) opp til dette
+const FIRST_GRANT = 5    // gratis starter med 5, deretter 3/dag (DAILY_CAP)
 const COST: Record<string, number> = { generate: 5, edit: 2, slide: 1, review: 1, notes: 1, theme: 1, animate: 1, quiz: 3, rewrite: 1 }
 
 type Tok = { configured: boolean; uid?: string | null; tokens?: number; unlimited?: boolean; url?: string; srv?: string; plan?: string; admin?: boolean; daily?: number }

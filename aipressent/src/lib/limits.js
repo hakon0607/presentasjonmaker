@@ -4,9 +4,9 @@ export function onUpgrade(fn) { handler = fn; return () => { if (handler === fn)
 export function fireUpgrade(info) { try { if (handler) handler(info || {}) } catch (_e) { /* ignore */ } }
 
 export const LIMITS = {
-  gratis: { pres: 3, slides: 8, watermark: true, tts: false },
-  pluss: { pres: 15, slides: Infinity, watermark: false, tts: true },
-  pro: { pres: Infinity, slides: Infinity, watermark: false, tts: true },
+  gratis: { pres: 3, slides: 8, watermark: true, tts: false, tokenMax: 5 },
+  pluss: { pres: 15, slides: Infinity, watermark: false, tts: true, tokenMax: 50 },
+  pro: { pres: Infinity, slides: Infinity, watermark: false, tts: true, tokenMax: 150 },
 }
 
 export function limitsFor(plan, unlimited) {

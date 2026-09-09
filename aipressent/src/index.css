@@ -1200,3 +1200,34 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,
 .notice-box{background:var(--panel);border-radius:20px;padding:26px 24px 20px;max-width:400px;width:100%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.28)}
 .notice-box p{margin:0 0 18px;font-size:1.02rem;line-height:1.5;color:var(--ink)}
 .notice-box .btn{width:100%;justify-content:center}
+
+/* ---------- Offline-banner ---------- */
+.offline-bar{position:fixed;top:0;left:0;right:0;z-index:200;background:#b02a4a;color:#fff;font-weight:600;font-size:.9rem;
+  display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;text-align:center}
+
+/* ---------- Admin: pakke-redigering + kunder ---------- */
+.admin-sub{color:var(--muted);font-size:.9rem;margin:0 0 12px}
+.admin-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.admin-plan{border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--panel)}
+.admin-plan-name{font-weight:800;margin-bottom:10px}
+.admin-plan label{display:block;font-size:.8rem;color:var(--muted);font-weight:600;margin-bottom:8px}
+.admin-plan input{width:100%;margin-top:3px;border:1px solid var(--line);border-radius:9px;padding:8px;font-size:.95rem;background:var(--panel-2);color:var(--ink)}
+.admin-actions{display:flex;gap:6px;flex-wrap:wrap}
+.admin-row select{border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:var(--panel-2);color:var(--ink);font-weight:600}
+@media(max-width:700px){
+  .admin-plans{grid-template-columns:1fr}
+  .admin-stats{grid-template-columns:1fr}
+  .admin-row{grid-template-columns:1.4fr 1fr;gap:6px;font-size:.82rem}
+  .admin-row>span:nth-child(3),.admin-row>span:nth-child(4){display:none}
+  .admin-th>span:nth-child(3),.admin-th>span:nth-child(4){display:none}
+}
+
+/* ---------- Generelle mobil-tweaks ---------- */
+@media(max-width:640px){
+  .home-top{flex-wrap:wrap;gap:8px;height:auto;padding:12px 14px}
+  .home-top-right{flex-wrap:wrap;gap:6px}
+  .pricing-grid{grid-template-columns:1fr}
+  .um-modal,.up-modal{max-width:96vw}
+  .auth-card{margin:0 12px}
+  h1{word-break:break-word}
+}

@@ -28,7 +28,28 @@ Deno.serve(async (req) => {
     const me = await (await fetch(`${URL}/rest/v1/profiles?id=eq.${u.id}&select=is_admin`, { headers: rh })).json()
     if (!me?.[0]?.is_admin) return json({ error: 'Kun for admin' }, 403)
 
-    const { action, uid, immediate } = await req.json()
+    const { action, uid, immediate, tier, fields } = await req.json()
+
+    // --- Rediger en pakke (tokens/priser) ---
+    if (action === 'update_plan') {
+      if (!tier || !fields) return json({ error: 'Mangler tier/fields' }, 400)
+      const allow = ['tokens_daily', 'price_month_nok', 'price_year_nok', 'name']
+      const body = {}
+      for (const k of allow) if (k in fields) body[k] = fields[k]
+      await fetch(`${URL}/rest/v1/plans?tier=eq.${tier}`, { method: 'PATCH', headers: { ...rh, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(body) })
+      return json({ ok: true })
+    }
+
+    // --- Rediger en bruker (plan/tokens/admin) ---
+    if (action === 'set_user') {
+      if (!uid || !fields) return json({ error: 'Mangler uid/fields' }, 400)
+      const allow = ['plan', 'tokens', 'tokens_daily', 'is_admin', 'tokens_unlimited', 'sub_status']
+      const body = {}
+      for (const k of allow) if (k in fields) body[k] = fields[k]
+      if ('tokens' in body) body.tokens_day = null   // så ny mengde gjelder med en gang
+      await fetch(`${URL}/rest/v1/profiles?id=eq.${uid}`, { method: 'PATCH', headers: { ...rh, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(body) })
+      return json({ ok: true })
+    }
 
     if (action === 'stats' || action === 'list') {
       const rows = await (await fetch(`${URL}/rest/v1/profiles?select=id,email,plan,tokens_daily,sub_status,sub_interval,sub_period_end,stripe_subscription_id&order=sub_period_end.desc.nullslast`, { headers: rh })).json()

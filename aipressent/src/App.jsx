@@ -14,6 +14,7 @@ import Admin from './pages/Admin'
 import NoTokensModal from './components/NoTokensModal'
 import UpgradeModal from './components/UpgradeModal'
 import ConsentBanner from './components/ConsentBanner'
+import OfflineBanner from './components/OfflineBanner'
 import Legal from './pages/Legal'
 
 function Protected({ children }) {
@@ -27,10 +28,11 @@ function Protected({ children }) {
 export default function App() {
   return (
     <AuthProvider>
-      <div className="version-star" aria-hidden="true">★ v126</div>
+      <div className="version-star" aria-hidden="true">★ v127</div>
       <NoTokensModal />
       <UpgradeModal />
       <ConsentBanner />
+      <OfflineBanner />
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/guide" element={<Guide />} />

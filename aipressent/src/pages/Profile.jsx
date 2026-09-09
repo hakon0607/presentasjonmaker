@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import InstallButton from '../components/InstallButton'
+import { limitsFor } from '../lib/limits'
 import { ChevronLeft, LogOut, Sparkles, Presentation, Coins, HelpCircle } from 'lucide-react'
 
 export default function Profile() {
@@ -59,7 +60,7 @@ export default function Profile() {
     return () => { on = false }
   }, [])
 
-  const dailyMax = Math.max(1, tokensCap || 10)
+  const dailyMax = tokensUnlimited ? 1 : limitsFor(plan, tokensUnlimited).tokenMax
   const remaining = Math.max(0, Math.min(tokens ?? 0, dailyMax))
   const usedPct = tokensUnlimited ? 0 : Math.round((1 - remaining / dailyMax) * 100)
 
