@@ -1185,3 +1185,12 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,
 .consent-text a{color:var(--ink);text-decoration:underline;font-weight:500}
 .consent-btn{border:1px solid var(--line);background:#fff;color:var(--ink);font-weight:600;border-radius:980px;padding:8px 18px;cursor:pointer;white-space:nowrap;font-size:.85rem}
 .consent-btn:hover{background:var(--panel-2)}
+
+/* ---------- Profil: «Mer»-knapper ---------- */
+.profile-more{display:flex;gap:10px;flex-wrap:wrap}
+.profile-more .btn{flex:1;min-width:160px;justify-content:center}
+
+/* ---------- Sideantall: låste valg for gratis ---------- */
+.ai-fx-pill.locked{opacity:.55}
+.ai-fx-limithint{margin-top:12px;font-size:.82rem;color:var(--muted);text-align:center}
+.ai-fx-limithint span{color:var(--accent);font-weight:600}

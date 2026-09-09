@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { ChevronLeft, LogOut, Sparkles, Presentation, Coins } from 'lucide-react'
+import InstallButton from '../components/InstallButton'
+import { ChevronLeft, LogOut, Sparkles, Presentation, Coins, HelpCircle } from 'lucide-react'
 
 export default function Profile() {
   const { user, signOut, tokens, tokensUnlimited, tokensCap, tokensFirst, refreshTokens, plan, isAdmin } = useAuth()
@@ -122,6 +123,14 @@ export default function Profile() {
 
       <div className="profile-future">
         ✨ Mer kommer her snart – temaer du har laget, statistikk, og innstillinger.
+      </div>
+
+      <div className="profile-card">
+        <h3 style={{ marginTop: 0 }}><HelpCircle size={18} /> Mer</h3>
+        <div className="profile-more">
+          <InstallButton className="btn ghost" />
+          <button className="btn ghost" onClick={() => nav('/guide')}><HelpCircle size={16} /> Se hvordan det funker</button>
+        </div>
       </div>
 
       <button className="btn ghost" onClick={signOut}><LogOut size={18} /> Logg ut</button>

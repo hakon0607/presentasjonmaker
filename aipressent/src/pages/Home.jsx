@@ -6,6 +6,7 @@ import { newDeck, THEMES } from '../lib/deck'
 import { exportPptx } from '../lib/export'
 import AiWizard from '../components/AiWizard'
 import { canCreatePresentation } from '../lib/limits'
+import { fireNoTokens } from '../lib/tokenGate'
 import SlideStage from '../components/SlideStage'
 import Tour from '../components/Tour'
 import InstallButton from '../components/InstallButton'
@@ -62,6 +63,7 @@ export default function Home() {
   }, [user])
 
   async function openAi() {
+    if (!tokensUnlimited && typeof tokens === 'number' && tokens < 5) { fireNoTokens({ needed: 5, have: tokens }); return }
     if (!(await canCreatePresentation(user.id, plan, tokensUnlimited))) return
     setAiOpen(true)
   }
@@ -91,9 +93,7 @@ export default function Home() {
           {plan === 'pluss' || plan === 'pro' || tokensUnlimited
             ? <button className="chip plan-chip" onClick={() => nav('/profil')}><Sparkles size={15} /> {tokensUnlimited ? 'Pro' : plan.charAt(0).toUpperCase() + plan.slice(1)}</button>
             : <button className="chip upgrade-chip" onClick={() => nav('/priser')}><Sparkles size={15} /> Oppgrader</button>}
-          <InstallButton className="chip" />
           <button className="chip" onClick={() => nav('/profil')}><User size={16} /> Profil</button>
-          <button className="chip" onClick={() => setTourOpen(true)}><HelpCircle size={16} /> Se hvordan</button>
           <button className="chip" onClick={signOut}><LogOut size={16} /> Logg ut</button>
         </div>
       </header>

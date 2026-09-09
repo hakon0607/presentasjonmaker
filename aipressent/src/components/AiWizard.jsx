@@ -307,10 +307,12 @@ export default function AiWizard({ onClose, userId, nav }) {
                   <button type="button" className="ai-fx-stepbtn" onClick={() => setCountSafe(count + 1)} disabled={count >= 20}>+</button>
                 </div>
                 <div className="ai-fx-quick">
-                  {COUNT_QUICK.map((n) => (
-                    <button key={n} type="button" className={'ai-fx-pill' + (count === n ? ' on' : '')} onClick={() => setCountSafe(n)}>{n}</button>
-                  ))}
+                  {COUNT_QUICK.map((n) => {
+                    const locked = n > maxCount
+                    return <button key={n} type="button" className={'ai-fx-pill' + (count === n ? ' on' : '') + (locked ? ' locked' : '')} onClick={() => setCountSafe(n)}>{n}{locked && ' 🔒'}</button>
+                  })}
                 </div>
+                {isFinite(maxCount) && maxCount < 20 && <div className="ai-fx-limithint">Gratis: maks {maxCount} sider · <span>oppgrader for flere</span></div>}
               </div>
             )}
             {subStep === 4 && (

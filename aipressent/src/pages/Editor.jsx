@@ -8,6 +8,7 @@ import { exportPptx, exportPdf, pptxBlob } from '../lib/export'
 import { importToGoogleSlides, googleConfigured, loadGis } from '../lib/gslides'
 import Canvas from '../components/Canvas'
 import { limitsFor, fireUpgrade } from '../lib/limits'
+import { fireNoTokens } from '../lib/tokenGate'
 import SlideStage from '../components/SlideStage'
 import TokenBadge from '../components/TokenBadge'
 import { folderSlug } from '../lib/slug'
@@ -22,6 +23,10 @@ export default function Editor() {
   const { id } = useParams()
   const { user, aiEnabled, tokens, tokensUnlimited, refreshTokens, plan } = useAuth()
   const lim = limitsFor(plan, tokensUnlimited)
+  const needTokens = (cost = 1) => {
+    if (!tokensUnlimited && typeof tokens === 'number' && tokens < cost) { fireNoTokens({ needed: cost, have: tokens }); return false }
+    return true
+  }
   const nav = useNavigate()
   const [deck, setDeck] = useState(null)
   const [idx, setIdx] = useState(0)
@@ -234,6 +239,7 @@ export default function Editor() {
   async function rewriteText(el, instruction) {
     const cur = String(el.text || '')
     if (!cur.trim()) throw new Error('Tekstboksen er tom.')
+    if (!needTokens(1)) return
     const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'rewrite', text: cur, instruction, topic: deck.title } })
     refreshTokens()
     if (error) throw new Error(error.message || 'nettverksfeil')
@@ -431,6 +437,7 @@ export default function Editor() {
     setSlide({ ...slide, elements: slide.elements.map((e) => (e.id === el.id ? { ...e, src: u } : e)) })
   }
   async function genImage(el, prompt) {
+    if (!needTokens(2)) return
     const { data, error } = await supabase.functions.invoke('smart-task', { body: { mode: 'image', prompt, topic: deck.title } })
     if (error) throw new Error(error.message || 'nett')
     if (data?.error) throw new Error(data.error)
@@ -599,7 +606,7 @@ export default function Editor() {
         </div>
       </header>
 
-      <Toolbar el={sel} update={updateSel} onFont={setFontSmart} onAddText={addText} onAddImageChoice={addImageChoice} onAddShape={addShape} onAddSticker={addSticker} onAddTable={addTable} onAiImage={(e) => setAiImgEl(e)} onReplaceSel={replaceImage} onDelete={deleteSel} onFront={bringFront} onBack={sendBack} onAnim={() => setAnimOpen(true)} onSilhouette={() => setSilOpen(true)} bg={slide.background} onBg={setBg} aiEnabled={aiEnabled} grid={grid} onGrid={() => setGrid((g) => !g)} minimal={minimal} onMinimal={toggleMinimal} />
+      <Toolbar el={sel} update={updateSel} onFont={setFontSmart} onAddText={addText} onAddImageChoice={addImageChoice} onAddShape={addShape} onAddSticker={addSticker} onAddTable={addTable} onAiImage={(e) => { if (needTokens(2)) setAiImgEl(e) }} onReplaceSel={replaceImage} onDelete={deleteSel} onFront={bringFront} onBack={sendBack} onAnim={() => setAnimOpen(true)} onSilhouette={() => setSilOpen(true)} bg={slide.background} onBg={setBg} aiEnabled={aiEnabled} grid={grid} onGrid={() => setGrid((g) => !g)} minimal={minimal} onMinimal={toggleMinimal} />
 
       {multiSel.length > 1 && (
         <div className="toolbar multi-toolbar">
@@ -682,7 +689,7 @@ export default function Editor() {
               <div className="ai-rail-inner">
                 <div className="ai-rail-head"><Sparkles size={16} /> AI-verktøy</div>
 
-                <button className="ai-tool" onClick={() => setAiSlideOpen(true)}>
+                <button className="ai-tool" onClick={() => { if (needTokens(1)) setAiSlideOpen(true) }}>
                   <span className="ai-tool-ic">🪄</span>
                   <span><b>Lag lysbilde</b><small>Lag eller skriv om denne siden</small></span>
                 </button>
@@ -694,7 +701,7 @@ export default function Editor() {
                   </button>
                 )}
 
-                <button className="ai-tool" onClick={() => setReviewOpen(true)}>
+                <button className="ai-tool" onClick={() => { if (needTokens(1)) setReviewOpen(true) }}>
                   <span className="ai-tool-ic">✅</span>
                   <span><b>Sjekk kvalitet</b><small>Få vennlige tips</small></span>
                 </button>
@@ -741,7 +748,7 @@ export default function Editor() {
               <button className="img-choice-btn" onClick={() => { const el = imgChoice; setImgChoice(null); setWebImgEl(el) }}>
                 <span className="ic">🔎</span><span className="t">Søk på nett</span><span className="s">Gratis – millioner av bilder</span>
               </button>
-              <button className="img-choice-btn" onClick={() => { const el = imgChoice; setImgChoice(null); setAiImgEl(el) }}>
+              <button className="img-choice-btn" onClick={() => { const el = imgChoice; if (!needTokens(2)) return; setImgChoice(null); setAiImgEl(el) }}>
                 <span className="ic">✨</span><span className="t">Lag med AI</span><span className="s">Gratis – beskriv hva du vil ha</span>
               </button>
             </div>
