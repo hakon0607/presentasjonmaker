@@ -402,6 +402,7 @@ export default function Editor() {
   function setNotes(t) { setSlide({ ...slide, notes: t }) }
 
   async function aiNotes(amount = 'medium') {
+    if (!(tokensUnlimited || plan === 'pluss' || plan === 'pro')) { fireUpgrade({ reason: 'notes' }); return }
     setNotesBusy(true); notesProg.start()
     try {
       const summary = deck.slides.map((s, i) => `${i + 1}. ${s.elements.filter((e) => e.type === 'text').map((e) => e.text).join(' | ')}`).join('\n')
@@ -504,6 +505,7 @@ export default function Editor() {
 
   async function animateWithAi() {
     if (animBusy) return
+    if (!(tokensUnlimited || plan === 'pluss' || plan === 'pro')) { fireUpgrade({ reason: 'animate' }); return }
     setAnimBusy(true)
     try {
       const d = deckRef.current

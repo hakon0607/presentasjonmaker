@@ -27,7 +27,7 @@ function Protected({ children }) {
 export default function App() {
   return (
     <AuthProvider>
-      <div className="version-star" aria-hidden="true">★ v125</div>
+      <div className="version-star" aria-hidden="true">★ v126</div>
       <NoTokensModal />
       <UpgradeModal />
       <ConsentBanner />

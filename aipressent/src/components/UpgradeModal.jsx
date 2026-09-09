@@ -8,6 +8,8 @@ const REASONS = {
   pres: 'Du har nådd grensen for antall presentasjoner på Gratis.',
   slides: 'Gratis har maks 8 sider per presentasjon.',
   tts: 'AI-opplesning er en funksjon for Pluss og Pro.',
+  animate: 'Animasjoner er en funksjon for Pluss og Pro.',
+  notes: 'AI-manus er en funksjon for Pluss og Pro.',
   default: 'Oppgrader for å låse opp mer.',
 }
 
@@ -21,6 +23,7 @@ const ROWS = [
   { label: 'Tokens per dag', gratis: '5', pluss: '50', pro: '150' },
   { label: 'Uten vannmerke', gratis: false, pluss: true, pro: true },
   { label: 'AI-opplesning (stemme)', gratis: false, pluss: true, pro: true },
+  { label: 'AI-manus & animasjoner', gratis: false, pluss: true, pro: true },
 ]
 
 function Cell({ v }) {

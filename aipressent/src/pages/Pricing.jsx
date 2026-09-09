@@ -39,8 +39,8 @@ export default function Pricing() {
 
   const feats = {
     gratis: ['3 presentasjoner', 'Maks 8 sider per presentasjon', '5 tokens hver dag', 'Alle stiler og maler', 'Eksport til PowerPoint & PDF', 'Med vannmerke'],
-    pluss: ['15 presentasjoner', 'Uendelig antall sider', '50 tokens hver dag', 'Ingen vannmerke', 'AI leser opp for deg', 'Prioritert generering'],
-    pro: ['Uendelig presentasjoner', 'Uendelig antall sider', '150 tokens hver dag', 'Ingen vannmerke', 'AI leser opp for deg', 'Best for daglig bruk', 'Tidlig tilgang til nyheter'],
+    pluss: ['15 presentasjoner', 'Uendelig antall sider', '50 tokens hver dag', 'Ingen vannmerke', 'AI leser opp for deg', 'AI-manus & animasjoner', 'Prioritert generering'],
+    pro: ['Uendelig presentasjoner', 'Uendelig antall sider', '150 tokens hver dag', 'Ingen vannmerke', 'AI leser opp for deg', 'AI-manus & animasjoner', 'Best for daglig bruk', 'Tidlig tilgang til nyheter'],
   }
   const nameOf = (tier, fallback) => tier === 'gratis' ? t('pricing.free') : fallback
 
